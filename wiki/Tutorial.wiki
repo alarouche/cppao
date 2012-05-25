@@ -64,9 +64,41 @@ This line defines a new class. All active object classes inherit from active::ob
 
 Defines a new message which we can send to our active object. A message can be any data type.
 
+{{{
+        ACTIVE_METHOD( Greet )
+}}}
 
+Defines a new active method (=message handler). This active method handles messages of type "Greet".
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+{{{
+        {
+                std::cout << Greet.message << std::endl;
+        }
+}}}
+
+Implements our message handler, which just displays the text.
+
+{{{
+        HelloActive hello;
+}}}
+
+Create a new active object of type "HelloActive".
+
+{{{
+        HelloActive hello;
+}}}
+
+Create a new message to send to the object.
+
+{{{
+        hello(message);
+}}}
+
+Pass the message to the object. The object will receive the message at some point in the future, and in fact will just sit in the message queue of the object until it is run. Messages are passed by value (copied) into the message queue, so once it's sent, the original message can be destroyed.
+
+Explicitly run the message handler of the object until there are no more messages left, at which point it exits.
+
+{{{
+        hello.run();
+}}}
+
