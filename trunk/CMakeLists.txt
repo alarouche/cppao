@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 2.8)
+project(active_object)
+# set( CMAKE_CXX_FLAGS "-std=c++0x -pthread" )
+add_subdirectory( lib )
+add_subdirectory( samples )
