@@ -102,3 +102,98 @@ Explicitly run the message handler of the object until there are no more message
         hello.run();
 }}}
 
+= Ping pong! =
+
+Our next example is almost as simple as the first:
+[http://code.google.com/p/cppao/source/browse/trunk/samples/ping_pong.cpp ping_pong.cpp]
+This just shows how active objects can implement several different messages.
+
+= Round Robin =
+
+This example [http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin.cpp round_robin.cpp] shows how multiple objects can interact. Here we have 1000 instances of the same class. We don't run the _RoundRobin::run()_ method in 1000 different threads (though I guess we could), but instead we call the function _active::run()_ which runs all of our objects in a thread pool. This is generally more efficient than creating one OS thread per active object.
+
+{{{
+#include <active_object.hpp>
+#include <iostream>
+
+struct RoundRobin : public active::object
+{
+        typedef int packet;
+        
+        RoundRobin * next;
+        
+        ACTIVE_METHOD( packet )
+        {
+                std::cout << "Received packet " << packet << "\n";
+                if( packet>0 ) (*next)(packet-1);
+        }
+};
+
+int main()
+{       
+        // Create 1000 nodes.
+        const int Count=1000;
+        RoundRobin nodes[Count];
+        
+        // Link them together
+        for(int i=0; i<Count-1; ++i) nodes[i].next = nodes+i+1;
+        nodes[Count-1].next=nodes;
+        
+        // Send each node a packet.
+        for(int i=0; i<Count; ++i) nodes[i](10);
+                
+        // Run all objects in 16 threads.
+        active::run(16);
+        return 0;
+}
+}}}
+
+= Returning results =
+
+Our next examples (return_result.cpp, forward_result.cpp, future.cpp, forward_result_iface.cpp, forward_result_sink.cpp) show different approaches for returning results from an active object. Please study them.
+
+The main issue is that because active methods (= message handlers) don't return to the caller immediately, the caller has problems getting a return value (and also exceptions - see later).
+
+My favoured approach is to use a "message sink", which is an active object which receives the result of the calculation.
+{{{
+#include <active_object.hpp>
+#include <iostream>
+
+class ComplexComputation : public active::object
+{
+public:
+        struct computation
+        {
+                int a, b;
+                active::sink<int> * handler;
+        };
+        
+        ACTIVE_METHOD( computation ) const;      // Look we can even have const active methods
+};
+
+class ComputationHandler : public active::object, public active::sink<int>
+{
+public:
+        typedef int result;
+        
+        ACTIVE_METHOD( result ) const
+        {
+                std::cout << "Result of computation = " << result << std::endl;
+        }
+};
+
+void ComplexComputation::ACTIVE_IMPL( computation ) const
+{
+        (*computation.handler)(computation.a + computation.b);
+}
+
+int main()
+{
+        ComputationHandler handler;
+        ComplexComputation cc;
+        ComplexComputation::computation comp = { 1,2,&handler };
+        cc(comp);
+        active::run();
+        return 0;
+}
+}}}
