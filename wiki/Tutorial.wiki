@@ -1,0 +1,72 @@
+#summary How to use cppao
+
+= Introduction =
+
+Active objects are a concurrent programming technique where objects communicate via messages rather than by direct method calls. This makes active objects thread-safe because they can only process one message at a time, and provided that the message is a simple value type, there can be no problems with concurrent access.
+
+C++ Active Objects (cppao) is a small library to make it relatively simple to implement active objects in C++.
+
+= Getting started =
+
+You need to check out all of the source code, and add the files "active_object.cpp" and "active_object.hpp" to a new project. There is a CMake file and a Visual Studio solution file to get you started. You may need to enable C++11 in your toolchain.
+
+= Hello active! =
+The first example is
+[http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active.cpp hello_active.cpp]
+{{{
+#include <active_object.hpp>
+#include <iostream>
+
+class HelloActive : public active::object
+{
+public:
+        struct Greet { const char * message; };
+        
+        ACTIVE_METHOD( Greet )
+        {
+                std::cout << Greet.message << std::endl;
+        }
+};
+
+int main()
+{
+        HelloActive hello;
+        HelloActive::Greet message = { "Hello, world!" };
+        hello(message);
+        hello.run();
+        return 0;
+}
+}}}
+
+Since this is the first example, let's go through it line by line:
+
+{{{
+#include <active_object.hpp>
+}}}
+
+This includes the header file, you need to do this.
+
+{{{
+#include <iostream>
+}}}
+
+This includes a system header file, which we'll need to output text.
+
+{{{
+class HelloActive : public active::object
+}}}
+
+This line defines a new class. All active object classes inherit from active::object, or active::shared<> (more on active::shared<> later)...
+
+{{{
+        struct Greet { const char * message; };
+}}}
+
+Defines a new message which we can send to our active object. A message can be any data type.
+
+
+
+Add your content here.  Format your content with:
+  * Text in *bold* or _italic_
+  * Headings, paragraphs, and lists
+  * Automatic links to other wiki pages
