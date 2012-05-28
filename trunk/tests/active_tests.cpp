@@ -19,6 +19,7 @@ void test_method_call()
 	assert( !t.count );
 	t.run();
 	assert( t.count );
+	active::run();	// NB: You must do this to clear the default queue if you plan on using this again
 }
 
 void test_run_all()
@@ -30,6 +31,7 @@ void test_run_all()
 	assert( t.count == 0 );
 	t.run();
 	assert( t.count == 3 );
+	active::run();
 }
 
 void test_run_some()
@@ -41,7 +43,7 @@ void test_run_some()
 	assert( t.count == 0 );
 	t.run_some(2);
 	assert( t.count == 2 );
-	t.run();
+	active::run();
 }
 
 struct iface
@@ -52,7 +54,8 @@ struct iface
 
 struct test_obj : public active::object, public iface
 {
-	bool foo_called=false;
+	bool foo_called; // =false;  VC++11 does not support C++11
+	test_obj() : foo_called(false) { }
 	ACTIVE_METHOD(foo)
 	{
 		foo_called=true;
@@ -66,6 +69,7 @@ void test_iface()
 	assert( !obj.foo_called );
 	obj.run();
 	assert( obj.foo_called );
+	active::run();
 }
 
 struct const_obj : public active::object
@@ -85,6 +89,7 @@ void test_const()
 	assert( f.x==0 );
 	c.run();
 	assert( f.x==1 );
+	active::run();
 };
 
 struct ni : public active::object
@@ -93,7 +98,8 @@ struct ni : public active::object
 	typedef struct bar {int r;} *barp;
 	ACTIVE_METHOD(foo);
 	ACTIVE_METHOD(barp) const;
-	int foo_called=0;
+	int foo_called; // =0;
+	ni() : foo_called(0) {}
 };
 
 void ni::ACTIVE_IMPL(foo)
@@ -115,13 +121,15 @@ void test_not_inline()
 	obj.run();
 	assert( obj.foo_called==1 );
 	assert( msg.r==1 );
+	active::run();
 }
 
 struct msg {};
 
 struct sink_obj : public active::object, public active::sink<msg>
 {
-	int called=0;
+	int called; // =0;
+	sink_obj() : called(0) {}
 	ACTIVE_METHOD(msg)
 	{
 		++called;
@@ -134,6 +142,7 @@ void test_sink()
 	static_cast<active::sink<msg>&>(obj)(msg());
 	obj.run();
 	assert( obj.called==1 );
+	active::run();
 };
 
 struct mmobject : public active::object
@@ -148,8 +157,9 @@ struct mmobject : public active::object
 	{
 		bar_value += bar.x;
 	}
-	int foo_value=0;
-	int bar_value=0;
+	int foo_value; // =0;
+	int bar_value; // =0;
+	mmobject() : foo_value(0), bar_value(0) {}
 };
 
 void test_multiple_methods()
@@ -164,34 +174,153 @@ void test_multiple_methods()
 	obj.run();
 	assert( obj.foo_value == 4 );
 	assert( obj.bar_value == 6 );
+	active::run();
 }
 
 void test_multiple_instances()
 {
-	counter counters[100];
-	for(int i=0; i<100; ++i)
+	const int N=100;
+	counter counters[N];
+	for(int i=0; i<N; ++i)
 	{
 		counters[i](counter::inc());
 		counters[i](counter::inc());
 	}
 	active::run();
-	for(int i=0; i<100; ++i)
+	for(int i=0; i<N; ++i)
 		assert( counters[i].count == 2 );
+}
+
+struct object2;
+
+struct object1 : public active::object
+{
+	struct foo { int x; };
+	ACTIVE_METHOD( foo );
+	int foo_value;
+	object1() : foo_value(0) { }
+	object2 * other;
+};
+
+struct object2 : public active::object
+{
+	struct foo { int x; };
+	ACTIVE_METHOD( foo )
+	{
+		foo_value += foo.x;
+		if( foo.x>0 )
+		{
+			object1::foo f2 = {foo.x-1};
+			(*other)(f2);
+		}
+	}
+	int foo_value;
+	object2() : foo_value(0) { }
+	object1 * other;
+};
+
+void object1::ACTIVE_IMPL(foo)
+{
+	foo_value += foo.x;
+	if( foo.x>0 )
+	{
+		object2::foo f2 = { foo.x-1 };
+		(*other)(f2);
+	}
 }
 
 void test_multiple_separate_instances()
 {
-}
-void test_default_pool()
-{
+	object1 o1[10];
+	object2 o2[10];
+	for(int i=0; i<10; ++i)
+	{
+		o1[i].other = &o2[i];
+		o2[i].other = &o1[i];
+		object1::foo f = { 10 };
+		o1[i](f);
+	}
+	active::run();
+	for(int i=0; i<10; ++i)
+	{
+		assert( o1[i].foo_value == 30 );	// 10+8+6+4+2
+		assert( o2[i].foo_value == 25 );	// 9+7+5+3+1
+	}
 }
 
 void test_pool()
 {
+	active::pool pool;
+
+	const int N=10, M=10;
+	object1 o1[N];
+	object2 o2[N];
+	for(int i=0; i<N; ++i)
+	{
+		o1[i].set_pool(pool);
+		o2[i].set_pool(pool);
+		o1[i].other = &o2[i];
+		o2[i].other = &o1[i];
+		object1::foo f = { M };
+		o1[i](f);
+	}
+	pool.run();
+	for(int i=0; i<N; ++i)
+	{
+		assert( o1[i].foo_value == M * (M+2) / 4 );	// 10+8+6+4+2
+		assert( o2[i].foo_value == M * M / 4 );	// 9+7+5+3+1
+	}
 }
 
 void test_thread_pool()
 {
+	active::run();
+	const int N=1000, M=100;
+	object1 o1[N];
+	object2 o2[N];
+	for(int i=0; i<N; ++i)
+	{
+		o1[i].other = &o2[i];
+		o2[i].other = &o1[i];
+		object1::foo f = { M };
+		o1[i](f);
+	}
+	active::run(23);
+	for(int i=0; i<N; ++i)
+	{
+		assert( o1[i].foo_value == M * (M+2) / 4 );	// 10+8+6+4+2
+		assert( o2[i].foo_value == M * M / 4 );	// 9+7+5+3+1
+	}
+}
+
+struct except_object : public active::object
+{
+	bool caught;
+
+	void handle_exception()
+	{
+		throw;
+	}
+
+	struct ex { };
+
+	struct msg { };
+
+	ACTIVE_METHOD( msg )
+	{
+		throw ex();
+	}
+
+	except_object() : caught(false) { }
+};
+
+void test_exceptions()
+{
+return;
+	except_object eo;
+	eo(except_object::msg());
+	active::run();
+	assert( eo.caught );
 }
 
 int main()
@@ -210,10 +339,10 @@ int main()
 	test_multiple_instances();
 	test_multiple_separate_instances();
 	test_pool();
-	test_default_pool();
 	test_thread_pool();
 	
 	// Exceptions
+	test_exceptions();
 	
 	// Shared objects
 	
