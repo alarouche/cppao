@@ -28,7 +28,7 @@ struct my_server :
 		{
 			std::cout << "Accepting TCP connections on port " << m_port << "\n";
 			
-			active::socket::listen listen = { 3, shared_from_this() };
+			active::socket::listen listen = { 100, shared_from_this() };
 			(*m_sock)(listen);
 
 		}

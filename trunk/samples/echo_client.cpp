@@ -59,7 +59,7 @@ struct echo_client :
 	{
 		if( connect_response.error )
 		{
-			std::cout << "Connection failed\n";
+			std::cout << "Connection failed: " << connect_response.error << "\n";
 		}
 		else
 		{
