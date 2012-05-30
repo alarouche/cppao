@@ -5,7 +5,7 @@
 #include <random>
 #include "life.hpp"
 
-/* This demo implements Conways Game of Live.
+/* This demo implements Conway's Game of Life.
  * As an exercise in perversity, everything has been implemented as Active Methods.
  */
 

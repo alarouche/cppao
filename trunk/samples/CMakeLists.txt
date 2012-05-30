@@ -11,6 +11,7 @@ add_executable( forward_result_sink forward_result_sink.cpp )
 add_executable( future future.cpp )
 add_executable( life life.cpp life.hpp )
 add_executable( bench bench.cpp )
+add_executable( exception exception.cpp )
 add_library( active_socket active_socket.cpp active_socket.hpp )
 
 link_libraries( active_socket )
