@@ -146,3 +146,4 @@ Demonstrates:
   * Asynchronous IO.
   * Writing network applications.
   * Concurrent socket operations.
+  * Multiple message sinks on the same object.
