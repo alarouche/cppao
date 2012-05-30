@@ -24,7 +24,7 @@ Demonstrates:
 
 4. [http://code.google.com/p/cppao/source/browse/trunk/samples/bench.cpp]
 
-This is a simple (and not really very good) benchmark of multi-threaded performance, from the infamous computer language shootout. [http://shootout.alioth.debian.org/] This is the "thread-ring" benchmark which passes a token around 503 threads. http://shootout.alioth.debian.org/
+This is a simple (and not really very good) benchmark of multi-threaded performance, from the infamous computer language shootout. [http://shootout.alioth.debian.org/] This is the "thread-ring" benchmark which passes a token around 503 threads. [http://shootout.alioth.debian.org/u32/performance.php?test=threadring]
 
 Demonstrates:
 
@@ -54,16 +54,27 @@ Demonstrates:
 
   * Passing the result of a computation to another AO.
 
+8. [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface.cpp]
 
+Performs a computation, then passes the result to another object. Unlike the previous example however, a virtual base class is used to decouple the sender from the recipient.
 
+Demonstrates:
 
+  * ACTIVE_IFACE macro
+  * How to implement interfaces for AOs.
 
-http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface.cpp
-http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp
+9. [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp]
 
-. Life
-http://code.google.com/p/cppao/source/browse/trunk/samples/life.hpp
-http://code.google.com/p/cppao/source/browse/trunk/samples/life.cpp
+This passes the result of a computation to another AO via an interface as before, but this time the interfaces is provided by the _active::sink&lt;&gt;_ class. (Note a class can inherit from multiple _active::sink&lt;&gt;_ classes if it receives results from multiple places).
+
+Demonstrates:
+
+  * active::sink&lt;&gt;
+  * How to pass messages between objects in a more abstract way.
+
+10. Life
+[http://code.google.com/p/cppao/source/browse/trunk/samples/life.hpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/life.cpp]
 
 Implements Conway's "Game of Life" to a console.  Demonstrates:
 
@@ -71,8 +82,11 @@ Implements Conway's "Game of Life" to a console.  Demonstrates:
   * A more complex example.
   * Using ACTIVE_IMPL to separate method declarations from definitions.
 
+11. Active sockets
 http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.hpp
 http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.cpp
+
+12. Echo
 http://code.google.com/p/cppao/source/browse/trunk/samples/echo.cpp
 http://code.google.com/p/cppao/source/browse/trunk/samples/echo_server.cpp
 http://code.google.com/p/cppao/source/browse/trunk/samples/echo_client.cpp
