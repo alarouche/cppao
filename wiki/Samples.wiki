@@ -1,28 +1,33 @@
 #summary Describes the samples
 
-1. [http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active.cpp]
+=1. Hello world!=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active.cpp]
 
-This sample prints "Hello, world!". Demonstrates:
+A text message is sent to an active object (AO), which displays it.  Demonstrates:
 
   * Defining a basic AO with one active method.
   * Implementing an active method in a class.
   * Passing a message to an active object with a payload.
   * Running an AO in a single thread.
 
-2. [http://code.google.com/p/cppao/source/browse/trunk/samples/ping_pong.cpp]
+=2. Ping pong=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/ping_pong.cpp]
 
-This sample displays ping/pong ten times. Demonstrates:
+A message is sent backwards and forwards between two active methods (message handlers) in the same AO. Demonstrates:
 
   * Defining an AO with more than one message handler.
  
-3. [http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin.cpp]
+=3. Round robin=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin.cpp]
 
-Demonstrates:
+A message is sent to each of 1000 nodes, which then pass the message onwards to the next node in the loop, with a time-to-live of 10 hops for each message. Demonstrates:
 
   * Multiple instances of the same class (active class?)
+  * Fixed topology/connections between AOs.
   * Running multiple objects concurrently using _active::run()_
 
-4. [http://code.google.com/p/cppao/source/browse/trunk/samples/bench.cpp]
+=4. Thread-ring=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/bench.cpp]
 
 This is a simple (and not really very good) benchmark of multi-threaded performance, from the infamous computer language shootout. [http://shootout.alioth.debian.org/] This is the "thread-ring" benchmark which passes a token around 503 threads. [http://shootout.alioth.debian.org/u32/performance.php?test=threadring]
 
@@ -30,63 +35,101 @@ Demonstrates:
 
   * A performance metric.
 
-5. [http://code.google.com/p/cppao/source/browse/trunk/samples/return_result.cpp]
+=5. Return result=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/return_result.cpp]
 
-This sample performs a simple computation, and puts the result of the computation somewhere. However this approach is not a good one because you are mixing paradigms, there is no synchronization, and shared state is generally against what AO are all about.
+An AO performs a computation, and writes the result to a location pointed to in the message.
+
+However this approach is not a good one because you are mixing paradigms, there is no synchronization, and shared state is generally against what AO are all about.
 
 Demonstrates:
 
   * Returning results using some kind of shared state.
 
-6. [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp]
+=6. Promises promises=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp]
 
-This sample performs a simple computation, then uses a future to hold the result. This is much better because there is now synchronization, and is also the "traditional" solution to how AOs return results.
+A message is passed to an AO, containing parameters for a computation, and a pointer to a promise where the result should be stored. When the computation is complete, the promise is fulfilled.
+
+This is much better because there is now synchronization, and is also the "traditional" solution to how AOs return results.
 
 Demonstrates:
 
   * Returning results in a promise.
 
-7. [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result.cpp]
+=7. Forward results=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result.cpp]
 
-This sample performs a computation, and then notifies another object of the result. This is much better because the solution is much more consistent and pure (using just one technology), however the computation is now coupled to the result recipient which is not good.
+A message is passed to an AO containing the parameters for a computation, and a pointer to an AO which will receive the result of the computation.
+
+This is much better because the solution is much more consistent and pure (using just one technology), however the computation is now coupled to the result recipient which is not good.
 
 Demonstrates: 
 
   * Passing the result of a computation to another AO.
 
-8. [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface.cpp]
+=8. Interfaces=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface.cpp]
 
-Performs a computation, then passes the result to another object. Unlike the previous example however, a virtual base class is used to decouple the sender from the recipient.
+A message is passed to an AO, containing the parameters for a computation, and a pointer to an interface which receives the result. Unlike the previous example however, a virtual base class is used to decouple the sender from the recipient.
 
 Demonstrates:
 
   * ACTIVE_IFACE macro
   * How to implement interfaces for AOs.
 
-9. [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp]
+=9. Message sinks=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp]
 
-This passes the result of a computation to another AO via an interface as before, but this time the interfaces is provided by the _active::sink&lt;&gt;_ class. (Note a class can inherit from multiple _active::sink&lt;&gt;_ classes if it receives results from multiple places).
+An interface to an AO is defined using the _active::sink<>_ class. The result of a computation is passed to an AO of type _active::sink<>_. Seems to be the most elegant way to connect objects.
 
 Demonstrates:
 
-  * active::sink&lt;&gt;
+  * _active::sink<>_
   * How to pass messages between objects in a more abstract way.
 
-10. Life
+=10. Game of life=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/life.hpp]
 [http://code.google.com/p/cppao/source/browse/trunk/samples/life.cpp]
 
-Implements Conway's "Game of Life" to a console.  Demonstrates:
+Implements Conway's "Game of Life" to a console.  Each cell is its own AO, in addition to a controller and a display AO. All communication between AOs is via message passing. This is an exercise in synchronisation (all cells must update synchronously) and message flows.
+
+Demonstrates:
 
   * Multiple classes with multiple message types.
   * A more complex example.
   * Using ACTIVE_IMPL to separate method declarations from definitions.
 
-11. Active sockets
-http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.hpp
-http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.cpp
+=11. Active sockets=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.hpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.cpp]
 
-12. Echo
-http://code.google.com/p/cppao/source/browse/trunk/samples/echo.cpp
-http://code.google.com/p/cppao/source/browse/trunk/samples/echo_server.cpp
-http://code.google.com/p/cppao/source/browse/trunk/samples/echo_client.cpp
+Wrapping a synchronous object inside an AO. Many POSIX/Winsock functions are provided, but interpreted as messages.
+
+Demonstrates:
+
+  * Use of std::shared_ptr to contain objects
+  * _active::shared<>_
+  * Composite objects: socket contains a reader and a writer; select contains a select_loop
+  * Network programming.
+
+=12. Echo=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/echo.cpp]
+
+A simple command line utility which copies text from input to output using the socket AO, as well as a special "pipe" AO which copies data between two file descriptors.
+
+Demonstrates:
+
+  * Tests the socket object.
+
+=13. Echo client/server=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/echo_server.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/echo_client.cpp]
+
+Building on the socket and pipe objects, we construct a TCP/IP client/server. The echo_server simply echos data which is sent to it, and the echo_client forwards input to the server, reads the response then outputs it. The echo_client can bounce data between the client and the server a specified number of times.
+
+Demonstrates:
+
+  * Asynchronous IO.
+  * Writing network applications.
+  * Concurrent socket operations.
