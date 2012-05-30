@@ -45,6 +45,8 @@ However this approach is not a good one because you are mixing paradigms, there 
 Demonstrates:
 
   * Returning results using some kind of shared state.
+  * Separating declaration and definition using _ACTIVE_IMPL_
+  * _const_ active methods.
 
 =Promises promises=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp]
