@@ -1,0 +1,78 @@
+#summary Describes the samples
+
+1. [http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active.cpp]
+
+This sample prints "Hello, world!". Demonstrates:
+
+  * Defining a basic AO with one active method.
+  * Implementing an active method in a class.
+  * Passing a message to an active object with a payload.
+  * Running an AO in a single thread.
+
+2. [http://code.google.com/p/cppao/source/browse/trunk/samples/ping_pong.cpp]
+
+This sample displays ping/pong ten times. Demonstrates:
+
+  * Defining an AO with more than one message handler.
+ 
+3. [http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin.cpp]
+
+Demonstrates:
+
+  * Multiple instances of the same class (active class?)
+  * Running multiple objects concurrently using _active::run()_
+
+4. [http://code.google.com/p/cppao/source/browse/trunk/samples/bench.cpp]
+
+This is a simple (and not really very good) benchmark of multi-threaded performance, from the infamous computer language shootout. [http://shootout.alioth.debian.org/] This is the "thread-ring" benchmark which passes a token around 503 threads. http://shootout.alioth.debian.org/
+
+Demonstrates:
+
+  * A performance metric.
+
+5. [http://code.google.com/p/cppao/source/browse/trunk/samples/return_result.cpp]
+
+This sample performs a simple computation, and puts the result of the computation somewhere. However this approach is not a good one because you are mixing paradigms, there is no synchronization, and shared state is generally against what AO are all about.
+
+Demonstrates:
+
+  * Returning results using some kind of shared state.
+
+6. [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp]
+
+This sample performs a simple computation, then uses a future to hold the result. This is much better because there is now synchronization, and is also the "traditional" solution to how AOs return results.
+
+Demonstrates:
+
+  * Returning results in a promise.
+
+7. [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result.cpp]
+
+This sample performs a computation, and then notifies another object of the result. This is much better because the solution is much more consistent and pure (using just one technology), however the computation is now coupled to the result recipient which is not good.
+
+Demonstrates: 
+
+  * Passing the result of a computation to another AO.
+
+
+
+
+
+http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface.cpp
+http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp
+
+. Life
+http://code.google.com/p/cppao/source/browse/trunk/samples/life.hpp
+http://code.google.com/p/cppao/source/browse/trunk/samples/life.cpp
+
+Implements Conway's "Game of Life" to a console.  Demonstrates:
+
+  * Multiple classes with multiple message types.
+  * A more complex example.
+  * Using ACTIVE_IMPL to separate method declarations from definitions.
+
+http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.hpp
+http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.cpp
+http://code.google.com/p/cppao/source/browse/trunk/samples/echo.cpp
+http://code.google.com/p/cppao/source/browse/trunk/samples/echo_server.cpp
+http://code.google.com/p/cppao/source/browse/trunk/samples/echo_client.cpp
