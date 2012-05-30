@@ -109,6 +109,7 @@ Demonstrates:
   * Multiple classes with multiple message types.
   * A more complex example.
   * Using _ACTIVE_IMPL_ to separate method declarations from definitions.
+  * _active::pool_
 
 =Active sockets=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.hpp]
