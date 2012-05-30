@@ -102,11 +102,11 @@ void active::pool::run_in_thread()
 			m_ready.wait_for(lock, std::chrono::milliseconds(50) );
 #endif
 		}
+		std::unique_lock<std::mutex> lock(m_mutex);	// Needed on VS11
 		m_ready.notify_all();
 	}
 	catch( ... )
 	{
-		// Oh dear - fails on clang
 		// Basically something like bad_alloc.
 		m_exception = std::current_exception();
 	}

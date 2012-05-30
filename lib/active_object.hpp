@@ -24,11 +24,11 @@
 #endif
 
 #ifndef ACTIVE_OBJECT_CONDITION
-	#define ACTIVE_OBJECT_CONDITION 0
+	#define ACTIVE_OBJECT_CONDITION 1
 #endif
 
 #ifndef ACTIVE_OBJECT_SHARED_QUEUE
-	#define ACTIVE_OBJECT_SHARED_QUEUE 1
+	#define ACTIVE_OBJECT_SHARED_QUEUE 0
 #endif
 
 #define ACTIVE_IFACE(TYPE) virtual void operator()( const TYPE & )=0;

@@ -274,7 +274,7 @@ void test_pool()
 
 void test_thread_pool()
 {
-	active::run();
+	std::cout << "Please wait a few seconds...\n";
 	const int N=1000, M=100;
 	object1 o1[N];
 	object2 o2[N];
@@ -297,12 +297,23 @@ struct except_object : public active::object
 {
 	bool caught;
 
-	void handle_exception()
+	struct ex { };
+
+	void exception_handler()
 	{
-		throw;
+		try
+		{
+			throw;
+		}
+		catch( ex )
+		{
+			caught=true;
+
+			// If the exception handler fails, we would get std::terminate();
+			// just like normal C++.
+		}
 	}
 
-	struct ex { };
 
 	struct msg { };
 
@@ -316,11 +327,39 @@ struct except_object : public active::object
 
 void test_exceptions()
 {
-return;
 	except_object eo;
 	eo(except_object::msg());
 	active::run();
 	assert( eo.caught );
+}
+
+struct my_shared : public active::shared<my_shared>
+{
+	typedef int msg;
+	ACTIVE_METHOD(msg)
+	{
+		if( msg>0 ) (*this)(msg-1);
+	}
+};
+
+void test_shared()
+{
+	// Messages keep the object alive
+	std::shared_ptr<my_shared> obj1(new my_shared), obj2(new my_shared);
+
+	(*obj1)(20); (*obj2)(40);
+	std::weak_ptr<my_shared> r1(obj1), r2(obj2);
+	obj1.reset();
+	obj2.reset();
+
+	assert( std::shared_ptr<my_shared>(r1) );
+	assert( std::shared_ptr<my_shared>(r2) );
+
+	// The objects are referenced by the message queue at this point
+	active::run();
+
+	assert( r1.expired() );
+	assert( r2.expired() );
 }
 
 int main()
@@ -345,6 +384,7 @@ int main()
 	test_exceptions();
 	
 	// Shared objects
+	test_shared();
 	
 	std::cout << "All tests passed!\n";
 	return 0;
