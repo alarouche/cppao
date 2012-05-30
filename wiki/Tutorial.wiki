@@ -85,7 +85,7 @@ Implements our message handler, which just displays the text.
 Create a new active object of type "HelloActive".
 
 {{{
-        HelloActive hello;
+        HelloActive::Greet message = { "Hello, world!" };
 }}}
 
 Create a new message to send to the object.
@@ -212,18 +212,15 @@ The answer is to deliver them to the "exception_handler()" method (which is not 
 
 = Using shared pointers =
 
-The examples so far have relied on raw C-style pointers, mainly for simplicity. You may want to use something better, and since this is C+11, /std::shared_ptr&lt;&gt;/.
+The examples so far have relied on raw C-style pointers, mainly for simplicity. You may want to use something better, and since this is C+11, _std::shared_ptr<>_.
 
 A potential problem occurs with message handling. If an AO still has unprocessed messages on destruction, then we have a problem. CPPAO terminates the application, since destructors mustn't throw exceptions.
 
 With shared pointers however, we can safely enqueue messages to the shared object, and be guaranteed that the object will only be destroyed when all messages have been processed.
 
-An example which illustrates this is echo_server in the samples.
-
-
-
-The class active::shared<> does this, which is your base class if you 
-
+An example which illustrates this is echo_server in the [Samples].
 
 = What next? =
-You now know the basics of 
+Now you have the tools, it is time to apply them! Check out the [Samples], and you may even need the [Reference].
+
+I hope you found this entertaining, and perhaps even useful!
