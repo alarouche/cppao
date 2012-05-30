@@ -1,6 +1,6 @@
 #summary Describes the samples
 
-=1. Hello world!=
+=Hello world!=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active.cpp]
 
 A text message is sent to an active object (AO), which displays it.  Demonstrates:
@@ -10,14 +10,14 @@ A text message is sent to an active object (AO), which displays it.  Demonstrate
   * Passing a message to an active object with a payload.
   * Running an AO in a single thread.
 
-=2. Ping pong=
+=Ping pong=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/ping_pong.cpp]
 
 A message is sent backwards and forwards between two active methods (message handlers) in the same AO. Demonstrates:
 
   * Defining an AO with more than one message handler.
  
-=3. Round robin=
+=Round robin=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin.cpp]
 
 A message is sent to each of 1000 nodes, which then pass the message onwards to the next node in the loop, with a time-to-live of 10 hops for each message. Demonstrates:
@@ -26,7 +26,7 @@ A message is sent to each of 1000 nodes, which then pass the message onwards to 
   * Fixed topology/connections between AOs.
   * Running multiple objects concurrently using _active::run()_
 
-=4. Thread-ring=
+=Thread-ring=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/bench.cpp]
 
 This is a simple (and not really very good) benchmark of multi-threaded performance, from the infamous computer language shootout. [http://shootout.alioth.debian.org/] This is the "thread-ring" benchmark which passes a token around 503 threads. [http://shootout.alioth.debian.org/u32/performance.php?test=threadring]
@@ -35,7 +35,7 @@ Demonstrates:
 
   * A performance metric.
 
-=5. Return result=
+=Return result=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/return_result.cpp]
 
 An AO performs a computation, and writes the result to a location pointed to in the message.
@@ -46,7 +46,7 @@ Demonstrates:
 
   * Returning results using some kind of shared state.
 
-=6. Promises promises=
+=Promises promises=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp]
 
 A message is passed to an AO, containing parameters for a computation, and a pointer to a promise where the result should be stored. When the computation is complete, the promise is fulfilled.
@@ -57,7 +57,7 @@ Demonstrates:
 
   * Returning results in a promise.
 
-=7. Forward results=
+=Forward results=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result.cpp]
 
 A message is passed to an AO containing the parameters for a computation, and a pointer to an AO which will receive the result of the computation.
@@ -68,17 +68,17 @@ Demonstrates:
 
   * Passing the result of a computation to another AO.
 
-=8. Interfaces=
+=Interfaces=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface.cpp]
 
 A message is passed to an AO, containing the parameters for a computation, and a pointer to an interface which receives the result. Unlike the previous example however, a virtual base class is used to decouple the sender from the recipient.
 
 Demonstrates:
 
-  * ACTIVE_IFACE macro
+  * _ACTIVE_IFACE_ macro
   * How to implement interfaces for AOs.
 
-=9. Message sinks=
+=Message sinks=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp]
 
 An interface to an AO is defined using the _active::sink<>_ class. The result of a computation is passed to an AO of type _active::sink<>_. Seems to be the most elegant way to connect objects.
@@ -88,7 +88,17 @@ Demonstrates:
   * _active::sink<>_
   * How to pass messages between objects in a more abstract way.
 
-=10. Game of life=
+=Exceptions=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/exception.cpp]
+
+An active method throws an exception which calls an exception handler.
+
+Demonstrates:
+
+  * How to catch exceptions.
+  * _exception_handler()_
+
+=Game of life=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/life.hpp]
 [http://code.google.com/p/cppao/source/browse/trunk/samples/life.cpp]
 
@@ -98,13 +108,13 @@ Demonstrates:
 
   * Multiple classes with multiple message types.
   * A more complex example.
-  * Using ACTIVE_IMPL to separate method declarations from definitions.
+  * Using _ACTIVE_IMPL_ to separate method declarations from definitions.
 
-=11. Active sockets=
+=Active sockets=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.hpp]
 [http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.cpp]
 
-Wrapping a synchronous object inside an AO. Many POSIX/Winsock functions are provided, but interpreted as messages.
+Wrapping a synchronous object inside an AO. Many POSIX/Winsock functions are provided, but as messages.
 
 Demonstrates:
 
@@ -113,7 +123,7 @@ Demonstrates:
   * Composite objects: socket contains a reader and a writer; select contains a select_loop
   * Network programming.
 
-=12. Echo=
+=Echo=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/echo.cpp]
 
 A simple command line utility which copies text from input to output using the socket AO, as well as a special "pipe" AO which copies data between two file descriptors.
