@@ -156,7 +156,7 @@ The main problem is of course that the result of an active method cannot be retu
 
 My favoured approach is to use a "message sink", which is an active object which receives the result of the calculation. The message sink (provided by active::sink<>) provides a pure virtual base class. Your receiving object must then implement this method in order to receive the result.
 
-In this example, we implement a computation in the class ComplexComputation, which then forward its result to an object of type active::sink<int>. The recipient is specified in the ComplexComputation::computation message itself.
+In this example, we implement a computation in the class ComplexComputation, which then forward its result to an object of type active::sink&lt;int&gt;. The recipient is specified in the ComplexComputation::computation message itself.
 {{{
 #include <active_object.hpp>
 #include <iostream>
@@ -208,4 +208,22 @@ Also observe that we can implement active methods outside of the class (thankful
 
 In the same way that return values can't be delivered to the point of calling, so exceptions can't be propagated to the caller either. So where to deliver the exception? 
 
-In the example 
+The answer is to deliver them to the "exception_handler()" method (which is not an active method), which can rethrow, catch and handle the exception. If exception_handler emits an exception, then application terminates. 
+
+= Using shared pointers =
+
+The examples so far have relied on raw C-style pointers, mainly for simplicity. You may want to use something better, and since this is C+11, /std::shared_ptr&lt;&gt;/.
+
+A potential problem occurs with message handling. If an AO still has unprocessed messages on destruction, then we have a problem. CPPAO terminates the application, since destructors mustn't throw exceptions.
+
+With shared pointers however, we can safely enqueue messages to the shared object, and be guaranteed that the object will only be destroyed when all messages have been processed.
+
+An example which illustrates this is echo_server in the samples.
+
+
+
+The class active::shared<> does this, which is your base class if you 
+
+
+= What next? =
+You now know the basics of 
