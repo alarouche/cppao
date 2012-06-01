@@ -214,13 +214,28 @@ Of course, if an active method wants to do something different, then it must imp
 
 = Using shared pointers =
 
-The examples so far have relied on raw C-style pointers, mainly for simplicity. You may want to use something better, and since this is C+11, `std::shared_ptr<>`.
+The examples so far have relied on raw C-style pointers, mainly for simplicity. 
 
-A potential problem occurs with message handling. If an AO still has unprocessed messages on destruction, then we have a problem. CPPAO terminates the application, since destructors mustn't throw exceptions.
+You could also use references (if you take the trouble of writing constructors for each message), or smart pointers.
 
-With shared pointers however, we can safely enqueue messages to the shared object, and be guaranteed that the object will only be destroyed when all messages have been processed.
+A potential problem occurs with message handling. If an AO still has unprocessed messages on destruction, then we have a problem. `active::object` terminates the application, since destructors mustn't throw exceptions.
+
+To solve this, the class `active::shared<>` can be used as a base class for your AO, which will then safely enqueue messages to the shared object, and be guaranteed that the object will only be destroyed after all messages have been processed.
+
+Example!!
 
 An example which illustrates this is echo_server in the [Samples].
+
+= Object types =
+
+There are actually a number of base classes you could choose for your active objects, each with different characteristics.
+
+ * `active::object` - The basic, non-blocking AO.
+ * `active::shared<>` - Use smart pointers, `std::shared_ptr<>`.
+ * `active::fast` - Bypasses the message queue if the object is idle.
+ * `active::thread` - Dedicates an OS thread to this AO.
+
+There is an underlying `active::traits` to control this.
 
 = What next? =
 Now you have the tools, it is time to apply them! Check out the [Samples] and the [Reference].
