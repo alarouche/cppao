@@ -362,6 +362,7 @@ void test_shared()
 	assert( r2.expired() );
 }
 
+
 int main()
 {
 	// Single-object tests
