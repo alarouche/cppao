@@ -8,7 +8,7 @@ C++ Active Objects (cppao) is a small library to make it relatively simple to im
 
 = Getting started =
 
-You need to check out all of the source code, and add the files "active_object.cpp" and "active_object.hpp" to a new project. There is a CMake file and a Visual Studio solution file to get you started. You may need to enable C++11 in your toolchain.
+You need to check out all of the source code, and add the files [http://code.google.com/p/cppao/source/browse/trunk/lib/active_object.cpp active_object.cpp] and [http://code.google.com/p/cppao/source/browse/trunk/lib/active_object.hpp active_object.hpp] to a new project. There is a CMake file and a Visual Studio solution file to get you started. You may need to enable C++11 in your toolchain.
 
 = Hello active! =
 The first example is
@@ -56,7 +56,7 @@ This includes a system header file, which we'll need to output text.
 class HelloActive : public active::object
 }}}
 
-This line defines a new class. All active object classes inherit from active::object, or active::shared<> (more on active::shared<> later)...
+This line defines a new class. All active object classes inherit from `active::object`, or `active::shared<>` (more on `active::shared<>` later)...
 
 {{{
         struct Greet { const char * message; };
@@ -68,7 +68,7 @@ Defines a new message which we can send to our active object. A message can be a
         ACTIVE_METHOD( Greet )
 }}}
 
-Defines a new active method (=message handler). This active method handles messages of type "Greet".
+Defines a new active method (=message handler). This active method handles messages of type `Greet`.
 
 {{{
         {
@@ -76,13 +76,13 @@ Defines a new active method (=message handler). This active method handles messa
         }
 }}}
 
-Implements our message handler, which just displays the text.
+Implements our message handler, which just displays the text. Note that the variable name of the message is also its typename.
 
 {{{
         HelloActive hello;
 }}}
 
-Create a new active object of type "HelloActive".
+Create a new active object of type `HelloActive`.
 
 {{{
         HelloActive::Greet message = { "Hello, world!" };
@@ -110,7 +110,7 @@ This just shows how active objects can implement several different messages.
 
 = Round Robin =
 
-This example [http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin.cpp round_robin.cpp] shows how multiple objects can interact. Here we have 1000 instances of the same class. We don't run the _RoundRobin::run()_ method in 1000 different threads (though I guess we could), but instead we call the function _active::run()_ which runs all of our objects in a thread pool. This is generally more efficient than creating one OS thread per active object.
+This example [http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin.cpp round_robin.cpp] shows how multiple objects can interact. Here we have 1000 instances of the same class. We don't run the `RoundRobin::run()` method in 1000 different threads (though I guess we could), but instead we call the function `active::run()` which runs all of our objects in a thread pool. This is generally more efficient than creating one OS thread per active object.
 
 {{{
 #include <active_object.hpp>
@@ -150,13 +150,13 @@ int main()
 
 = Returning results =
 
-Our next examples (return_result.cpp, forward_result.cpp, future.cpp, forward_result_iface.cpp, forward_result_sink.cpp) show different approaches for returning results from an active object.
+Our next examples ([http://code.google.com/p/cppao/source/browse/trunk/samples/return_result.cpp return_result.cpp], [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result.cpp forward_result.cpp], [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp future.cpp], [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface.cpp forward_result_iface.cpp], [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp forward_result_sink.cpp]) show different approaches for returning results from an active object.
 
 The main problem is of course that the result of an active method cannot be returned to the point of calling.
 
-My favoured approach is to use a "message sink", which is an active object which receives the result of the calculation. The message sink (provided by active::sink<>) provides a pure virtual base class. Your receiving object must then implement this method in order to receive the result.
+My favoured approach is to use a "message sink", which is an active object which receives the result of the calculation. The message sink (provided by `active::sink<>`) provides a pure virtual base class. Your receiving object must then implement this method in order to receive the result.
 
-In this example, we implement a computation in the class ComplexComputation, which then forward its result to an object of type active::sink&lt;int&gt;. The recipient is specified in the ComplexComputation::computation message itself.
+In this example, we implement a computation in the class `ComplexComputation`, which then forward its result to an object of type `active::sink<>`. The recipient is specified in the `ComplexComputation::computation` message itself.
 {{{
 #include <active_object.hpp>
 #include <iostream>
@@ -199,20 +199,22 @@ int main()
         return 0;
 }
 }}}
-The recipient of the result is implemented in class ComputationHandler, which implements the ACTIVE_METHOD to handle the result. In this way, the computation and the handler are completely decoupled.
+The recipient of the result is implemented in class `ComputationHandler`, which implements the `ACTIVE_METHOD` to handle the result. In this way, the computation and the handler are completely decoupled.
 
-Also observe that we can implement active methods outside of the class (thankfully), using the ACTIVE_IMPL macro, and we can even make active methods const.
+Also observe that we can implement active methods outside of the class (thankfully), using the `ACTIVE_IMPL` macro, and we can even make active methods const.
 
 
 = Exception handling =
 
 In the same way that return values can't be delivered to the point of calling, so exceptions can't be propagated to the caller either. So where to deliver the exception? 
 
-The answer is to deliver them to the "exception_handler()" method (which is not an active method), which can rethrow, catch and handle the exception. If exception_handler emits an exception, then application terminates. 
+Instead they are delivered to the `exception_handler()` method (which is not an active method), which can rethrow, catch and handle the exception. If `exception_handler()` emits an exception, then application terminates. 
+
+Of course, if an active method wants to do something different, then it must implement try...catch itself.
 
 = Using shared pointers =
 
-The examples so far have relied on raw C-style pointers, mainly for simplicity. You may want to use something better, and since this is C+11, _std::shared_ptr<>_.
+The examples so far have relied on raw C-style pointers, mainly for simplicity. You may want to use something better, and since this is C+11, `std::shared_ptr<>`.
 
 A potential problem occurs with message handling. If an AO still has unprocessed messages on destruction, then we have a problem. CPPAO terminates the application, since destructors mustn't throw exceptions.
 
@@ -221,6 +223,4 @@ With shared pointers however, we can safely enqueue messages to the shared objec
 An example which illustrates this is echo_server in the [Samples].
 
 = What next? =
-Now you have the tools, it is time to apply them! Check out the [Samples], and you may even need the [Reference].
-
-I hope you found this entertaining, and perhaps even useful!
+Now you have the tools, it is time to apply them! Check out the [Samples] and the [Reference].
