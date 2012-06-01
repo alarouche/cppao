@@ -15,6 +15,7 @@
 #include <deque>
 #include <condition_variable>
 #include <memory>
+#include <thread>
 
 // The following options control the implementation
 // Options have been selected for best speed:
@@ -79,6 +80,71 @@ namespace active
 		virtual ~message();
 		message *next;
 	};
+
+	template<typename Mutex, bool SharedQueue, bool OwnThread, bool Steal>
+	struct traits;
+	
+	template<typename Traits>
+	struct thread_data
+	{
+	};
+
+	template<typename Mutex, bool SharedQueue, bool Steal>
+	struct thread_data<traits<Mutex, SharedQueue, true, Steal>>
+	{
+		std::thread m_thread;
+		void run()
+		{
+
+		}
+	};
+
+	template<typename Traits>
+	struct queue_data;
+
+	template<typename Mutex, bool OwnThread, bool Steal>
+	struct queue_data<traits<Mutex, true, OwnThread, Steal>>
+	{
+		// Shared queue
+		message *m_head, *m_tail;
+
+		// No per-message data
+		template<typename T>
+		struct message_data { struct type; };
+
+		template<typename T>
+		void enqueue(const T & msg, typename message_data<T>::type & md)
+		{
+		}
+	};
+
+	template<typename Mutex, bool OwnThread, bool Steal>
+	struct queue_data<traits<Mutex, false, OwnThread, Steal>>
+	{
+		// Nonshared queue
+		typedef void (*ActiveRun)(object*);
+		std::deque<ActiveRun> m_message_queue;
+
+		template<typename T>
+		struct message_data
+		{
+			typedef std::deque<T> type;
+		};
+
+		template<typename T>
+		void enqueue(const T & msg, typename message_data<T>::type & md)
+		{
+		}
+	};
+
+	template<typename Traits>
+	class object_base
+	{
+		typename Traits::mutex_type m_mutex;
+		thread_data<Traits> m_thread_data;
+		queue_data<Traits> m_queue_data;
+	};
+
 	
 	class object
 	{
