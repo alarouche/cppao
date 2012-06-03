@@ -274,7 +274,6 @@ void test_pool()
 
 void test_thread_pool()
 {
-	std::cout << "Please wait a few seconds...\n";
 	const int N=1000, M=100;
 	object1 o1[N];
 	object2 o2[N];
@@ -362,6 +361,58 @@ void test_shared()
 	assert( r2.expired() );
 }
 
+struct test_message
+{
+	int x;
+};
+
+struct fubar : public active::object, public active::sink<test_message>
+{
+	int value;
+	fubar() : value(0) { }
+	MESSAGE( test_message )
+	{
+		value += test_message.x;
+	}
+};
+
+struct fu2 : 
+	public active::object_impl<active::thread_pool, active::shared_queue, active::enable_sharing>,
+	public active::sink<test_message>
+{
+	int value;
+	fu2() : value(0) { }
+	MESSAGE( test_message )
+	{
+		value += test_message.x;
+	}
+	
+	void run() { run2(); }
+	void run_some(int n) { run_some2(n); }
+};
+
+template<typename Obj>
+void validate(Obj & obj)
+{
+	test_message m = { 3 };
+	obj(m);
+	m.x = 6;
+	obj(m);
+	m.x = 1;
+	obj(m);
+	// obj.run2();
+	active::run();
+	assert( obj.value == 10 );
+}
+
+void test_xxx()
+{
+	fubar f;
+	validate(f);
+	
+	std::shared_ptr<fu2> f2(new fu2());
+	validate(*f2);
+}
 
 int main()
 {
@@ -386,6 +437,9 @@ int main()
 	
 	// Shared objects
 	test_shared();
+	
+	// TODO
+	test_xxx();
 	
 	std::cout << "All tests passed!\n";
 	return 0;

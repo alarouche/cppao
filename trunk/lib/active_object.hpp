@@ -36,14 +36,21 @@
 
 namespace active
 {	
-	class object;
+	struct any_object
+	{
+		virtual ~any_object();
+		virtual void run()=0;
+		virtual void run_some(int n=100)=0;
+		virtual void exception_handler();
+	};
+	
 	
 	// Represents a pool of active objects which can be executed in a thread pool.
 	class pool
 	{
 	public:
-		typedef object * ObjectPtr;
-		typedef std::shared_ptr<object> SharedPtr;
+		typedef any_object * ObjectPtr;
+		typedef std::shared_ptr<any_object> SharedPtr;
 
 		pool();
 		
@@ -74,79 +81,399 @@ namespace active
 		std::exception_ptr m_exception;
 	};
 	
+	// As a convenience, we provide a global variable to run all active objects.
+	extern pool default_pool;
+		
 	struct message
 	{
-		virtual void run(object * obj)=0;
+		virtual void run(any_object * obj)=0;
 		virtual ~message();
 		message *next;
 	};
 
-	template<typename Mutex, bool SharedQueue, bool OwnThread, bool Steal>
-	struct traits;
+			
+	struct no_sharing	// Sharing concept
+	{
+		struct base { };
+		
+		typedef any_object * pointer_type;
+		
+		pointer_type pointer(any_object * obj) { return obj; }
+	};
 	
-	template<typename Traits>
-	struct thread_data
+	struct enable_sharing	// Sharing concept
 	{
+		typedef std::enable_shared_from_this<any_object> base;
+		
+		typedef std::shared_ptr<any_object> pointer_type;
+		
+		pointer_type pointer(base * obj) { return obj->shared_from_this(); }
 	};
-
-	template<typename Mutex, bool SharedQueue, bool Steal>
-	struct thread_data<traits<Mutex, SharedQueue, true, Steal>>
+		
+	struct thread_pool	// Schedule concept
 	{
+		typedef active::pool type;
+		
+		type * m_pool;
+		
+		thread_pool() : m_pool(&default_pool)
+		{
+		}
+		
+		void set_pool(type&p)
+		{
+			m_pool = &p;
+		}
+		
+		void activate(const std::shared_ptr<any_object> & sp)
+		{
+			m_pool->signal(sp);
+		}
+
+		void activate(any_object * obj)
+		{
+			m_pool->signal(obj);
+		}	
+	};
+	
+	struct own_thread // Schedule concept
+	{
+		struct {} type;
+		
 		std::thread m_thread;
-		void run()
+		
+		void activate(any_object * obj)
 		{
-
+			
 		}
 	};
-
-	template<typename Traits>
-	struct queue_data;
-
-	template<typename Mutex, bool OwnThread, bool Steal>
-	struct queue_data<traits<Mutex, true, OwnThread, Steal>>
+	
+	// Schedule concept; object is mutexed
+	struct mutexed
 	{
-		// Shared queue
+	};
+	
+	// Faking up message handlers: just do a direct call.
+	struct direct_call // Queue concept
+	{
+		// !! More sophistication: use a mutex and throw something.
+		template<typename Message, typename Accessor>		
+		bool enqueue(any_object * object, const Message & msg, const Accessor&)
+		{
+			try
+			{
+				Accessor::run(object, msg);
+			}
+			catch(...)
+			{
+				object->exception_handler();
+			}
+			return false;
+		}
+		
+		bool run_some(any_object * o, int n=100)
+		{
+			return false;
+		}
+		
+		template<typename T>
+		struct queue_data
+		{
+			struct type { };
+		};		
+	};
+	
+	// 
+	struct mutexed_call
+	{
+		std::mutex m_mutex;
+		template<typename Message, typename Accessor>		
+		bool enqueue(any_object * object, const Message & msg, const Accessor&)
+		{
+			std::lock_guard<std::mutex> lock(m_mutex);
+			try
+			{
+				Accessor::run(object, msg);
+			}
+			catch(...)
+			{
+				object->exception_handler();
+			}
+			return false;
+		}
+		
+		bool run_some(any_object * o, int n=100)
+		{
+			return false;
+		}
+		
+		template<typename T>
+		struct queue_data
+		{
+			struct type { };
+		};		
+	};
+	
+	struct shared_queue	// Queue concept
+	{
+		typedef std::mutex mutex_type;
+		mutex_type m_mutex;
+		
+		struct message
+		{
+			message() : m_next(nullptr) { }
+			virtual void run(any_object * obj)=0;
+			virtual ~message() { }
+			message *m_next;
+		};
+		
+		
+		// Push to tail, pop from head:
 		message *m_head, *m_tail;
-
-		// No per-message data
+		shared_queue() : m_head(nullptr), m_tail(nullptr) { }
+		shared_queue(const shared_queue&) : m_head(nullptr), m_tail(nullptr) { }
+		
 		template<typename T>
-		struct message_data { struct type; };
-
-		template<typename T>
-		void enqueue(const T & msg, typename message_data<T>::type & md)
+		struct queue_data
 		{
+			struct type { };
+		};
+		
+		template<typename Message, typename Accessor>
+		struct message_impl : public message
+		{
+			message_impl(const Message & m) : m_message(m) { }
+			Message m_message;
+			void run(any_object * o)
+			{
+				Accessor::run(o, m_message);
+			}
+		};
+		
+		template<typename Message, typename Accessor>		
+		bool enqueue( any_object *, const Message & msg, const Accessor&)
+		{
+			message_impl<Message, Accessor> * impl = new message_impl<Message, Accessor>(msg);
+			
+			std::lock_guard<mutex_type> lock(m_mutex);
+			if( m_tail ) 
+			{	
+				m_tail->m_next = impl;
+				m_tail = impl;
+				return false;
+			}
+			else
+			{
+				m_head = m_tail = impl;
+				return true;
+			}			
+		}
+		
+		bool empty() const
+		{
+			return !m_head;
+		}
+		
+		bool run_some(any_object * o, int n=100)
+		{
+			std::lock_guard<mutex_type> lock(m_mutex);
+			while( m_head && n-->0)
+			{
+				message * m = m_head;
+				
+				m_mutex.unlock();
+				try 
+				{
+					m->run(o);
+				} 
+				catch (...) 
+				{
+					o->exception_handler();
+				}
+				m_mutex.lock();
+				m_head = m_head->m_next;
+				if(!m_head) m_tail=nullptr;
+				delete m;
+			}
+			return m_head;
 		}
 	};
-
-	template<typename Mutex, bool OwnThread, bool Steal>
-	struct queue_data<traits<Mutex, false, OwnThread, Steal>>
+	
+	struct separate_queue	// Queue concept
 	{
-		// Nonshared queue
-		typedef void (*ActiveRun)(object*);
+		std::mutex m_mutex;
+		
+		typedef void (*ActiveRun)(any_object*);
 		std::deque<ActiveRun> m_message_queue;
-
+		
+		separate_queue() { }
+		separate_queue(const separate_queue&) { }
 		template<typename T>
-		struct message_data
+		struct queue_data
 		{
 			typedef std::deque<T> type;
 		};
-
-		template<typename T>
-		void enqueue(const T & msg, typename message_data<T>::type & md)
+		
+		template<typename Message, typename Accessor>
+		static void run(any_object*obj)
 		{
+			Message m = Accessor::data(obj).front();
+			Accessor::data(obj).pop_front();
+			Accessor::run(obj, m);
+		}
+		
+		template<typename Message, typename Accessor>		
+		bool enqueue( any_object * object, const Message & msg, const Accessor&)
+		{
+			std::lock_guard<std::mutex> lock(m_mutex);
+			m_message_queue.push_back( &run<Message, Accessor> );
+			Accessor::data(object).push_back(msg);
+			return m_message_queue.size()==1;
+		}
+		
+		bool empty() const
+		{
+			return m_message_queue.empty();
+		}
+
+		bool run_some(any_object * o, int n=100)
+		{
+			std::lock_guard<std::mutex> lock(m_mutex);
+
+			while( !m_message_queue.empty() && n-->0 )
+			{
+				ActiveRun run = m_message_queue.front();
+				m_mutex.unlock();
+				try 
+				{
+					(*run)(o);
+				} 
+				catch (...) 
+				{
+					o->exception_handler();
+				}
+				m_mutex.lock();
+				m_message_queue.pop_front();
+			}
+			return !m_message_queue.empty();
 		}
 	};
-
-	template<typename Traits>
-	class object_base
+	
+	template<typename Queue>
+	struct steal  : public Queue // Queue concept	!! This has not beed tested
 	{
-		typename Traits::mutex_type m_mutex;
-		thread_data<Traits> m_thread_data;
-		queue_data<Traits> m_queue_data;
+		bool m_running;
+		steal() : m_running(false) { }
+		
+		template<typename Message, typename Accessor>		
+		bool enqueue( any_object * object, const Message & msg, const Accessor& accessor)
+		{
+			this->m_mutex.lock();
+			if( m_running || !this->empty())
+			{
+				this->m_mutex.unlock();
+				Queue::enqueue( object, msg, accessor );
+				return false;
+			}
+			else
+			{
+				m_running = true;
+				this->m_mutex.unlock();
+				try
+				{
+					Accessor::run(object, msg);
+				}
+				catch(...)
+				{
+					object->exception_handler();
+				}
+				this->m_mutex.lock();
+				m_running = false;
+				bool signal = !this->empty();
+				this->m_mutex.unlock();
+				return signal;
+			}
+		}
 	};
+	
+	template<
+		typename Schedule=thread_pool, 
+		typename Queue=shared_queue, 
+		typename Share=no_sharing>
+	class object_impl : public any_object, public Share::base
+	{
+	public:
+		typedef Schedule schedule_type;
+		typedef Share share_type;
+		typedef Queue queue_type;
+		
+		object_impl(const Queue & q, 
+					const Schedule & s = Schedule(),
+					const Share & sh = Share() ) : m_queue(q), m_schedule(s), m_share(sh)
+		{
+		}
+		
+		object_impl() { }
+		
+		void run2()
+		{
+			while( m_queue.run_some(this) )
+				;
+		}
+
+		bool run_some2(int n=100)
+		{
+			// Run a few messages from the queue
+			// if we still have messages, then reactivate this object.
+			if( m_queue.run_some(this, n) )
+			{
+				m_schedule.activate(m_share.pointer(this));
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		
+		void set_scheduler(typename schedule_type::type & pool)
+		{
+			m_schedule.set_pool(pool);
+		}
+		
+	protected:
+		template<typename T, typename M>
+		void enqueue( const T & msg, const M & accessor)
+		{
+			if( m_queue.enqueue(this, msg, accessor) )
+				m_schedule.activate(m_share.pointer(this));
+		}
+
+#if 0		
+		template<typename T, typename M>
+		void enqueue( const T && msg, typename queue_type::template queue_data<T>::type & qd, const M&&accessor)
+		{
+			m_queue.enqueue(msg, qd, accessor);
+		}
+#endif
+		
+	private:
+		queue_type m_queue;
+		schedule_type m_schedule;
+		share_type m_share;
+	};
+	
+	// !! Also && version
+#define MESSAGE( MSG ) \
+	queue_type::queue_data<MSG>::type queue_data_##MSG; \
+	template<typename C> struct run_##MSG { \
+		static void run(any_object*o, const MSG&m) { static_cast<C>(o)->impl_##MSG(m); } \
+		static queue_type::queue_data<MSG>::type& data(any_object*o) {return static_cast<C>(o)->queue_data_##MSG; } }; \
+    void operator()(const MSG & x) { enqueue(x, run_##MSG<decltype(this)>() ); } \
+	void impl_##MSG(const MSG & MSG)
 
 	
-	class object
+	class object : public object_impl<>
 	{
 	public:
 		std::mutex m_active_mutex;
@@ -202,21 +529,18 @@ namespace active
 		{
 			if( m_pool ) 
 			{
-				try
-				{
+				//try
+				//{
 					m_pool->signal(this->shared_from_this());
-				}
-				catch( std::bad_weak_ptr& )
-				{
-					m_pool->signal(this);
-				}
+				//}
+				//catch( std::bad_weak_ptr& )
+				//{
+				//	m_pool->signal(this);
+				//}
 			}
 		}
 	};
-	
-	// As a convenience, we provide a global variable to run all active objects.
-	extern pool default_pool;
-	
+		
 	// Run all objects in the default thread pool (single-threaded)
 	void run();
 	
