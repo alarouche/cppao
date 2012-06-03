@@ -15,7 +15,8 @@ struct RoundRobin : public active::object
 	
 	ACTIVE_METHOD( packet )
 	{
-		std::cout << "Received packet " << packet << "\n";
+		printf( "Received packet %d\n", packet );
+		// std::cout << "Received packet " << packet << "\n";
 		if( packet>0 ) (*next)(packet-1);
 	}
 };

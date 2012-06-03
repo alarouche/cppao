@@ -9,6 +9,11 @@ active::pool::pool() : m_busy_count(0)
 {
 }
 
+active::any_object::~any_object()
+{
+}
+
+
 // Adds an active object to the pool.
 // There is no need to "un-add", but deleting an active object with active messages
 // is undefined (i.e. the application will crash).
@@ -160,6 +165,7 @@ void active::object::add_message(message * msg)
 
 void active::object::run_some(int n)
 {
+	run_some2(n);
 	std::lock_guard<std::mutex> lock(m_active_mutex);
 	
 	while( m_head && n-->0 )
@@ -179,6 +185,7 @@ void active::object::run_some(int n)
 
 void active::object::run()
 {
+	run2();
 	std::lock_guard<std::mutex> lock(m_active_mutex);
 	
 	while( m_head )
@@ -206,6 +213,7 @@ active::object::~object()
 // (Yes we could enforce this by mutex, but this would be overhead).
 void active::object::run() 
 {
+	run2();
 	std::lock_guard<std::mutex> lock(m_active_mutex);
 	while( !m_message_queue.empty() )
 	{
@@ -218,6 +226,7 @@ void active::object::run()
 // Execute a few messages, re-signal if at the end we still have some left
 void active::object::run_some(int n)
 {
+	run_some2(n);
 	std::lock_guard<std::mutex> lock(m_active_mutex);
 	while( !m_message_queue.empty() && n-->0 )
 	{
@@ -264,6 +273,22 @@ void active::object::exception_handler()
 	}
 }
 
+void active::any_object::exception_handler()
+{
+	try
+	{
+		throw;
+	}
+	catch( std::exception & ex )
+	{
+		std::cerr << "Unprocessed exception during message processing: " << ex.what() << std::endl;
+	}
+	catch( ... )
+	{
+		std::cerr << "Unprocessed exception during message processing" << std::endl;
+	}
+}
+
 		
 void active::run()
 {
@@ -274,3 +299,4 @@ void active::run(int threads)
 {
 	default_pool.run(threads);
 }
+
