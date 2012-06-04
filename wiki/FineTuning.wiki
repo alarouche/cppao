@@ -1,0 +1,71 @@
+#summary Getting the most out of cppao.
+
+= Object types =
+
+The basic object type is `active::object`, with `active::shared<>` for use with `std::shared_ptr<>`. These are designed to offer the best and safest experience. The implementation details are deliberately hidden because it allows the underlying implementation to change and innovate.
+
+It is also a fact that different implementations bring various trade-offs, and cppao provides a number of implementations.
+
+Basic object types:
+
+  * `class active::object` - The basic AO offering a good default.
+  * `class active::fast` - Implements "work stealing" strategy so that a message call can actually execute the message handler if the object is currently idle.
+  * `class active::shared<>` - Same as `active::object` but for use in smart pointers. 
+  * `class active::thread` - Dedicates an OS thread to this object.
+  * `class active::blocking` - A very simple mutexed object, which does not use queueing.
+  * `class active::null` - Non-active object; message calls are dispatched immediately.
+
+
+= Policy framework =
+
+Cppao actually implements a policy framework which allows different types of AO to be created, and even supports the creation of new implementation strategies by the developer.
+
+The underlying AO is implemented by the `active::object_impl<>` template which needs to be supplied with three different strategy-types (using a Strategy pattern supplied as template parameters). The built-in AO types are just typedefs of `active::object_impl<>`.
+
+{{{
+namespace active
+{
+    template<typename Schedule, typename Queuing, typename Sharing>
+    struct object_impl;
+}
+}}}
+
+== Schedule implementations ==
+The schedule determines
+
+Supplied schedules:
+
+ * `active::schedule::thread_pool` - The default 
+
+== Queueing implementation ==
+
+== Sharing implementations ==
+
+= Active object guarantees =
+
+An implementation may do whatever it likes provided that the following characteristics, or Guarantees are met:
+
+G1. Scalability: work with a large number of objects. For example, limiting AOs to the number of OS threads could be too limiting for some applications.
+
+G2. Non-overlapping: Objects process at most one message at a time.
+ a. Non-reentrant: Messages which send messages back to the same object (perhaps indirectly) are processed after the current message is processed.
+ b. Across different threads: An AO does not execute in two or more threads simultaneously.
+G3. Non-blocking: Sending a message to an AO does not cause a large delay.
+ a. Non CPU-wait guarantee
+ b. Non-deadlock guarantee
+ c. Non IO-block guarantee
+G4. Recursion - Messages can be posted recursively to a great depth.
+
+G5. Concurrent - different AOs can run on different hardware processing units concurrently. 
+
+G6. Delivery guarantee
+G7. Lifetime guarantee
+
+G8. Performance guarantee.
+
+I just made these up - maybe you could think of some more.
+
+As it turns out, if we can relax these guarantees, then we can provide faster implementations.
+
+  * active::object: 1,2,3,4,5
+  * active::fast
