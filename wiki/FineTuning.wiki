@@ -85,7 +85,10 @@ G10. Fairness: Each AO gets a fair slice of CPU time, and most importantly is no
 
 I just made these up - maybe you could think of some more.
 
-  || Objects || G1 || G2 || G3 || G4 || G5 || G6 || G7 || G8 || G9 || G10 ||
-  || object   || y    || 
-  || shared  ||
-  || fast       ||
+|| Objects || G1 || G2 || G3 || G4 || G5 || G6 || G7 || G8 || G9 || G10 ||
+|| object   || y    || 
+|| shared  ||
+|| fast       ||
+|| Scheduling ||
+|| Queueing ||
+|| Sharing ||
