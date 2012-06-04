@@ -257,8 +257,8 @@ void test_pool()
 	object2 o2[N];
 	for(int i=0; i<N; ++i)
 	{
-		o1[i].set_pool(pool);
-		o2[i].set_pool(pool);
+		o1[i].set_scheduler(pool);
+		o2[i].set_scheduler(pool);
 		o1[i].other = &o2[i];
 		o2[i].other = &o1[i];
 		object1::foo f = { M };
@@ -361,57 +361,98 @@ void test_shared()
 	assert( r2.expired() );
 }
 
+
+
 struct test_message
 {
-	int x;
-};
-
-struct fubar : public active::object, public active::sink<test_message>
-{
 	int value;
-	fubar() : value(0) { }
-	MESSAGE( test_message )
-	{
-		value += test_message.x;
-	}
+	active::sink<int> * object;
 };
 
-struct fu2 : 
-	public active::object_impl<active::thread_pool, active::shared_queue, active::enable_sharing>,
+struct active_object_test : 
+	public active::object,
+	public active::sink<int>
+{	
+	struct test_object
+	{
+		active::sink<test_message> * subject;
+	};
+	
+	ACTIVE_METHOD( test_object )
+	{
+		m_expected_value=1;
+		struct test_message m = { 1, this };
+		(*test_object.subject)(m);
+		m.value=2;
+		(*test_object.subject)(m);
+		m.value=3;
+		(*test_object.subject)(m);
+	}
+
+	typedef int result;
+	
+	ACTIVE_METHOD( result )
+	{
+		assert( result == m_expected_value );
+		++m_expected_value;
+	}
+	
+	struct finish {};
+	ACTIVE_METHOD(finish)
+	{
+		assert( m_expected_value == 4 );
+	}
+	
+private:
+	int m_expected_value;
+};
+
+template<typename Schedule, typename Queue, typename Shared>
+struct test_object : 
+	public active::object_impl<Schedule, Queue, Shared>, 
 	public active::sink<test_message>
 {
-	int value;
-	fu2() : value(0) { }
-	MESSAGE( test_message )
-	{
-		value += test_message.x;
-	}
+	typedef Queue queue_type;
 	
-	void run() { run2(); }
-	void run_some(int n) { run_some2(n); }
+	ACTIVE_METHOD(test_message)
+	{
+		(*test_message.object)(test_message.value);
+	}
 };
 
-template<typename Obj>
-void validate(Obj & obj)
+void test_object2( active::sink<test_message> & ao)
 {
-	test_message m = { 3 };
-	obj(m);
-	m.x = 6;
-	obj(m);
-	m.x = 1;
-	obj(m);
-	// obj.run2();
+	// !! Make this a much better test.
+	active_object_test test;
+	active_object_test::test_object m = { &ao };
+	test(m);
 	active::run();
-	assert( obj.value == 10 );
+	test(active_object_test::finish());
+	active::run();
 }
 
-void test_xxx()
+
+void test_object_types()
 {
-	fubar f;
-	validate(f);
+	test_object< active::schedule::thread_pool, active::queueing::separate, active::sharing::disabled> obj1;
+	test_object< active::schedule::thread_pool, active::queueing::shared, active::sharing::disabled> obj2;
+	test_object< active::schedule::thread_pool, active::queueing::direct_call, active::sharing::disabled> obj3;
+	test_object< active::schedule::thread_pool, active::queueing::mutexed_call, active::sharing::disabled> obj4;
 	
-	std::shared_ptr<fu2> f2(new fu2());
-	validate(*f2);
+	test_object2(obj1);
+	test_object2(obj2);
+	test_object2(obj3);
+	test_object2(obj4);
+	
+	typedef active::queueing::steal<active::queueing::shared> steal1;
+	typedef active::queueing::steal<active::queueing::separate> steal2;
+
+	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, active::queueing::separate, active::sharing::enabled<> >>() );
+	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, active::queueing::shared, active::sharing::enabled<> >>() );
+	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, active::queueing::direct_call, active::sharing::enabled<> >>() );
+	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, active::queueing::mutexed_call, active::sharing::enabled<> >>() );
+	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, steal1, active::sharing::enabled<> >>() );
+	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, steal2, active::sharing::enabled<> >>() );
 }
 
 int main()
@@ -439,7 +480,7 @@ int main()
 	test_shared();
 	
 	// TODO
-	test_xxx();
+	test_object_types();
 	
 	std::cout << "All tests passed!\n";
 	return 0;
