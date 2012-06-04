@@ -1,10 +1,15 @@
 #summary Getting the most out of cppao.
 
+= Summary =
+The basic object types (`active::object` and `active::shared<>`) are the default types which should offer reasonable results.  Cppao offers other object types with slightly different characteristics, 
+
+Cppao actually implements a policy framework, where different aspects can be combined. It is possible to implement new strategies (e.g. to prioritise messages, or to limit the message queue size) in an extensible manner.
+
 = Object types =
 
 The basic object type is `active::object`, with `active::shared<>` for use with `std::shared_ptr<>`. These are designed to offer the best and safest experience. The implementation details are deliberately hidden because it allows the underlying implementation to change and innovate.
 
-It is also a fact that different implementations bring various trade-offs, and cppao provides a number of implementations.
+Different implementations bring various trade-offs, so  cppao provides a number of implementations.
 
 Basic object types:
 
@@ -25,21 +30,31 @@ The underlying AO is implemented by the `active::object_impl<>` template which n
 {{{
 namespace active
 {
-    template<typename Schedule, typename Queuing, typename Sharing>
+    template<typename Schedule, typename Queueing, typename Sharing>
     struct object_impl;
 }
 }}}
 
 == Schedule implementations ==
-The schedule determines
+The schedule determines which AO  is next run.  The provided schedulers are:
 
-Supplied schedules:
-
- * `active::schedule::thread_pool` - The default 
+  * `active::schedule::thread_pool` (default) - schedules the AO using a thread-pool. This is ideal if the number of AOs is large.
+  * `active::schedule::thread` - uses a dedicated OS thread to execute the AO. Good if you need pre-emptive multitasking and the number of AOs is limited (<1000 say).
 
 == Queueing implementation ==
+The queue determines which message to service next, and provides a container for storing messages. The provide queues are:
+
+  * `active::queueing::shared`  (default) - uses a single linked list to store all messages for an object
+  * `active::queueing::separate` - an alternative implementation.
+  * `active::queueing::try_lock`
+  * `active::queuing::direct_call`
+  * `active::queueing::mutex_call`
 
 == Sharing implementations ==
+Sharing information controls the pointer type in the message queue. The main use case for this is to use shared pointers (`std::shared_ptr<>`) in the message queue, which guarantees that AOs with messages cannot be destroyed.
+
+  * `active::sharing::enable<>` - use shared pointers.
+  * `active::sharing::disable` - use unsafe C-style pointers.
 
 = Active object guarantees =
 
@@ -56,16 +71,21 @@ G3. Non-blocking: Sending a message to an AO does not cause a large delay.
  c. Non IO-block guarantee
 G4. Recursion - Messages can be posted recursively to a great depth.
 
-G5. Concurrent - different AOs can run on different hardware processing units concurrently. 
+G5. Concurrency: different AOs can run on different hardware processing units concurrently. 
 
-G6. Delivery guarantee
-G7. Lifetime guarantee
+G6. Delivery: Messages sent to the object are guaranteed to be 
 
-G8. Performance guarantee.
+G7. Safety: (a) safe from concurrent access, (b) safe from dangling pointers (c) safe from memory leaks.
+
+G8. Performance: Do not add excessive overhead.
+
+G9. Ordering: Messages are processed in the order they are received. Variations could include processing messages based on priority.
+
+G10. Fairness: Each AO gets a fair slice of CPU time, and most importantly is not starved.
 
 I just made these up - maybe you could think of some more.
 
-As it turns out, if we can relax these guarantees, then we can provide faster implementations.
-
-  * active::object: 1,2,3,4,5
-  * active::fast
+  || Objects || G1 || G2 || G3 || G4 || G5 || G6 || G7 || G8 || G9 || G10 ||
+  || object   || y    || 
+  || shared  ||
+  || fast       ||
