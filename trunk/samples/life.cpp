@@ -16,8 +16,8 @@ Controller::Controller( active::pool & tp, int seed )
 	rng.seed(seed);
 	std::uniform_int_distribution<int> uint_dist(0,1);
 	
-	set_pool(tp);
-	display.set_pool(tp);
+	set_scheduler(tp);
+	display.set_scheduler(tp);
 	for(int x=0; x<num_cols; ++x)
 		for(int y=0; y<num_rows; ++y)
 		{
@@ -25,7 +25,7 @@ Controller::Controller( active::pool & tp, int seed )
 			cell[x][y].y = y;
 			cell[x][y].display = &display;
 			cell[x][y].controller = this;
-			cell[x][y].set_pool(tp);
+			cell[x][y].set_scheduler(tp);
 			
 			// Set up cell neighbours.
 			Cell::add_neighbour an;

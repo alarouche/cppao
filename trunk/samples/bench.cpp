@@ -9,7 +9,13 @@
 
 #include <iostream>
 
-class Thread : public active::object
+// typedef active::object object_type;
+//typedef active::fast object_type;
+//typedef active::object_impl<active::schedule::thread_pool, active::queueing::separate> object_type;
+typedef active::thread object_type;
+
+
+class Thread : public object_type
 {
 public:
 	int id;
@@ -35,7 +41,7 @@ int main(int argc, char**argv)
 	
 	for( int t=0; t<503; ++t )
 	{
-		thread[t].set_pool(pool);
+		thread[t].set_scheduler(pool);
 		thread[t].id=t+1;
 		thread[t].next = thread+t+1;
 	}
