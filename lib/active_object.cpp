@@ -38,7 +38,7 @@ void active::pool::signal(const SharedPtr & p)
 
 // Runs until there are no more messages in the entire pool.
 // Returns false if no more items.
-bool active::pool::run()
+bool active::pool::run_managed()
 {
 	std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -65,6 +65,8 @@ bool active::pool::run()
 		}
 	}
 	
+	// Can be non-zero if the queues are empty, but other threads are processing.
+	// the result of processing could be to add more signalled objects.
 	return m_busy_count!=0;
 }
 		
@@ -83,6 +85,21 @@ void active::pool::run(int threads)
 		std::rethrow_exception( m_exception );
 }	
 
+void active::pool::run()
+{
+	while( run_managed() )
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+#if ACTIVE_OBJECT_CONDITION
+		m_ready.wait(lock);
+#else
+		m_ready.wait_for(lock, std::chrono::milliseconds(50) );
+#endif
+	}
+	std::unique_lock<std::mutex> lock(m_mutex);	// Needed on VS11
+	m_ready.notify_all();
+}
+
 // Like run(), but when starved, waits for a little while instead of exiting.
 // Note we could use a condition variable here, but this is slow when you have a 
 // silly number of threads like 503...
@@ -90,17 +107,7 @@ void active::pool::run_in_thread()
 {
 	try 
 	{
-		while( run() )
-		{
-			std::unique_lock<std::mutex> lock(m_mutex);
-#if ACTIVE_OBJECT_CONDITION
-			m_ready.wait(lock);
-#else
-			m_ready.wait_for(lock, std::chrono::milliseconds(50) );
-#endif
-		}
-		std::unique_lock<std::mutex> lock(m_mutex);	// Needed on VS11
-		m_ready.notify_all();
+		run();
 	}
 	catch( ... )
 	{
@@ -141,4 +148,20 @@ void active::run(int threads)
 {
 	default_pool.run(threads);
 }
+
+void active::pool::start_work()
+{
+	std::lock_guard<std::mutex> lock(m_mutex);
+	++m_busy_count;
+}
+
+void active::pool::stop_work()
+{
+	std::lock_guard<std::mutex> lock(m_mutex);
+	if( 0 == --m_busy_count )
+	{
+		m_ready.notify_one();
+	}
+}
+
 

@@ -455,6 +455,30 @@ void test_object_types()
 	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, steal2, active::sharing::enabled<> >>() );
 }
 
+struct thread_obj : public active::thread
+{
+	typedef int add;
+	int total;
+	
+	ACTIVE_METHOD( add )
+	{
+		total = add;
+	}
+};
+
+void test_own_thread()
+{
+	thread_obj obj1, obj2;
+	
+	obj1(12);
+	obj2(13);
+	active::run();
+	assert( obj1.total = 12 );
+	assert( obj2.total == 13 );
+	
+	// Now, test if can mix with other objects
+}
+
 int main()
 {
 	// Single-object tests
@@ -477,10 +501,9 @@ int main()
 	test_exceptions();
 	
 	// Shared objects
-	test_shared();
-	
-	// TODO
+	test_shared();	
 	test_object_types();
+	test_own_thread();
 	
 	std::cout << "All tests passed!\n";
 	return 0;
