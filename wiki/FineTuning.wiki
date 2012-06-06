@@ -1,25 +1,30 @@
 #summary Getting the most out of cppao.
 
 = Summary =
-The basic object types (`active::object` and `active::shared<>`) are the default types which should offer reasonable results.  Cppao offers other object types with slightly different characteristics, 
+The basic object types (`active::object` and `active::shared<>`) are the default types which should offer reasonable results.  Cppao offers other object types with slightly different characteristics.
 
 Cppao actually implements a policy framework, where different aspects can be combined. It is possible to implement new strategies (e.g. to prioritise messages, or to limit the message queue size) in an extensible manner.
 
 = Object types =
 
+* Here be dragons *
+
 The basic object type is `active::object`, with `active::shared<>` for use with `std::shared_ptr<>`. These are designed to offer the best and safest experience. The implementation details are deliberately hidden because it allows the underlying implementation to change and innovate.
 
-Different implementations bring various trade-offs, so  cppao provides a number of implementations.
+It is possible to select different implementations if you want to try to improve performance, perhaps at the expense of a little safety. Like much multi-threaded code, performance is not always predictable.
 
-Basic object types:
+See [object_types.cpp] for examples of the different object types.
 
-  * `class active::object` - The basic AO offering a good default.
-  * `class active::fast` - Implements "work stealing" strategy so that a message call can actually execute the message handler if the object is currently idle.
-  * `class active::shared<>` - Same as `active::object` but for use in smart pointers. 
-  * `class active::thread` - Dedicates an OS thread to this object.
-  * `class active::blocking` - A very simple mutexed object, which does not use queueing.
-  * `class active::null` - Non-active object; message calls are dispatched immediately.
+Available object types:
 
+  * `class active::object` - The basic AO offering a good default. It is not completely safe because the standard C++ scoping rules apply, and attempting to destroy the object during message processing will result in defined behaviour.
+  * `class active::fast` - Implements "work stealing" strategy so that a message call can actually execute the message handler if the object is currently idle. This object is safe, but the caller can become blocked. If you have an insane number of active objects, it's possible to run out of stack space.
+  * `class active::shared<>` - Same as `active::object` but for use in smart pointers, and is guaranteed to not be destroyed during message processing. 
+  * `class active::thread` - Dedicates an OS thread to this object. This object is safe, but can fail due to OS limits on the number of threads.
+  * `class active::shared_thread<>` - Dedicates an OS thread to this object, for used in shared objects.
+  * `class active::mutexed` - A very simple mutexed object, which does not use queueing. This is safe but a reentrant call could deadlock the object, and the caller could get blocked waiting for the message to process.
+  * `class active::try_lock` - Same as `active::mutexed`, however will detect re-entrant calls and fail with an exception.
+  * `class active::direct` - Non-active object; message calls are dispatched immediately. This is most definitely not in any way safe, but it's also fast. Beware of stack overflows as well.
 
 = Policy framework =
 
@@ -46,9 +51,9 @@ The queue determines which message to service next, and provides a container for
 
   * `active::queueing::shared`  (default) - uses a single linked list to store all messages for an object
   * `active::queueing::separate` - an alternative implementation.
-  * `active::queueing::try_lock`
-  * `active::queuing::direct_call`
-  * `active::queueing::mutex_call`
+  * `active::queuing::direct_call` - Process message immediately in calling thread without a mutex.
+  * `active::queueing::mutex_call` - Process message immediately in calling thread, but mutexes the object. Reentrant calls will deadlock.
+  * `active::queueing::try_lock` - Attempt to lock the object but throw an exception on failure.
 
 == Sharing implementations ==
 Sharing information controls the pointer type in the message queue. The main use case for this is to use shared pointers (`std::shared_ptr<>`) in the message queue, which guarantees that AOs with messages cannot be destroyed.
@@ -73,22 +78,25 @@ G4. Recursion - Messages can be posted recursively to a great depth.
 
 G5. Concurrency: different AOs can run on different hardware processing units concurrently. 
 
-G6. Delivery: Messages sent to the object are guaranteed to be 
+G6. Delivery: Messages sent to the object are guaranteed to be delivered.
 
 G7. Safety: (a) safe from concurrent access, (b) safe from dangling pointers (c) safe from memory leaks.
 
-G8. Performance: Do not add excessive overhead.
+G8. Ordering: Messages are processed in the order they are received. Variations could include processing messages based on priority.
 
-G9. Ordering: Messages are processed in the order they are received. Variations could include processing messages based on priority.
-
-G10. Fairness: Each AO gets a fair slice of CPU time, and most importantly is not starved.
+G9. Fairness: Each AO gets a fair slice of CPU time, and most importantly is not starved.
 
 I just made these up - maybe you could think of some more.
 
-|| Objects || G1 || G2 || G3 || G4 || G5 || G6 || G7 || G8 || G9 || G10 ||
-|| object   || y    || 
-|| shared  ||
+|| Objects || G1 || G2 || G3 || G4 || G5 || G6 || G7 || G8 || G9 || G10 || Relative performance (Messages/sec) ||
+|| object   || y || y  || y  || y  || y  || y(1) || yny|| y  || y(2) || ?? ||
+|| shared   || y || y  || y  || y  || y  || y(1) || yyy|| y  || y(2) || ?? ||
 || fast       ||
 || Scheduling ||
 || Queueing ||
 || Sharing ||
+
+Notes:
+
+  #. Failure would only occur on running out of memory (`std::bad_alloc`).
+  #. If there are too many blocking objects, and the pool of threads is too small, then there could be a bottleneck. Also objects are allocated a slot per message, not per unit time, so greedy objects would be executed more.
