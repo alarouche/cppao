@@ -2,6 +2,8 @@
 #include <thread>
 #include <iostream>
 
+#define ACTIVE_OBJECT_CONDITION 0
+
 
 active::pool active::default_pool;
 
@@ -15,10 +17,10 @@ active::any_object::~any_object()
 
 
 // Used by an active object to signal that there are messages to process.
-void active::pool::signal(ObjectPtr p)
+void active::pool::activate(ObjectPtr p)
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
-	m_signalled1.push_back(p);
+	m_active1.push_back(p);
 	++m_busy_count;
 #if ACTIVE_OBJECT_CONDITION
 	m_ready.notify_one();
@@ -26,10 +28,10 @@ void active::pool::signal(ObjectPtr p)
 }
 
 // Used by an active object to signal that there are messages to process.
-void active::pool::signal(const SharedPtr & p)
+void active::pool::activate(const SharedPtr & p)
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
-	m_signalled2.push_back(p);
+	m_active2.push_back(p);
 	++m_busy_count;
 #if ACTIVE_OBJECT_CONDITION
 	m_ready.notify_one();
@@ -42,22 +44,22 @@ bool active::pool::run_managed()
 {
 	std::unique_lock<std::mutex> lock(m_mutex);
 
-	while( !m_signalled1.empty() || !m_signalled2.empty() )
+	while( !m_active1.empty() || !m_active2.empty() )
 	{ 
-		if( !m_signalled1.empty() )
+		if( !m_active1.empty() )
 		{
-			ObjectPtr p = m_signalled1.front();
-			m_signalled1.pop_front();
+			ObjectPtr p = m_active1.front();
+			m_active1.pop_front();
 			lock.unlock();
 			p->run_some();
 			lock.lock();
 			--m_busy_count;
 		}
 		
-		if( !m_signalled2.empty() )
+		if( !m_active2.empty() )
 		{
-			SharedPtr p = m_signalled2.front();
-			m_signalled2.pop_front();
+			SharedPtr p = m_active2.front();
+			m_active2.pop_front();
 			lock.unlock();
 			p->run_some();
 			lock.lock();
@@ -76,7 +78,7 @@ void active::pool::run(int threads)
 	std::deque<std::thread> tp(threads);	// ?? Why not vector ??
 	
 	for(int i=0; i<threads; ++i)
-		tp[i] = std::thread( std::bind(thread_fn, this) ); 
+		tp[i] = std::thread( std::bind(&pool::run_in_thread, this) ); 
 	
 	for(int i=0; i<threads; ++i)
 		tp[i].join();
@@ -163,5 +165,24 @@ void active::pool::stop_work()
 		m_ready.notify_one();
 	}
 }
+
+active::schedule::thread_pool::thread_pool() : m_pool(&default_pool)
+{
+}
+
+void active::schedule::thread_pool::set_pool(type&p)
+{
+	m_pool = &p;
+}
+
+void active::schedule::thread_pool::activate(const std::shared_ptr<any_object> & sp)
+{
+	if( m_pool ) m_pool->activate(sp);
+}
+
+void active::schedule::thread_pool::activate(any_object * obj)
+{
+	if(m_pool) m_pool->activate(obj);
+}	
 
 

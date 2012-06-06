@@ -1,57 +1,87 @@
-/* This program attempts to "benchmark" active objects
- * using the basic thread ring at http://shootout.alioth.debian.org/u32/performance.php?test=threadring#about
- * 
- *  The result is very quick on my machine (8.8s for 50000000) which actually beats the best C++ 
- *  benchmark.
- */
 
 #include <active_object.hpp>
-
+#include <chrono>
 #include <iostream>
 
-// typedef active::object object_type;
-//typedef active::fast object_type;
-//typedef active::object_impl<active::schedule::thread_pool, active::queueing::separate> object_type;
-typedef active::thread object_type;
 
-
-class Thread : public object_type
+template<typename Schedule, typename Queue, typename Shared>
+struct Thread : public active::object_impl<Schedule, Queue, Shared>
 {
-public:
-	int id;
-	Thread * next;
-	
+	typedef Queue queue_type;
 	typedef int token;
 	
-	ACTIVE_METHOD( token )
+	int id;
+	Thread * next;
+		
+	ACTIVE_TEMPLATE(token)
 	{
 		if( token>0 )
 			(*next)(token-1);
 		else
-			std::cout << id << std::endl;
+			std::cout << id << std::endl;		
 	}
 };
+
+template<typename Schedule, typename Queue,typename Shared>
+void bench_object(Schedule,Queue,Shared, int N, bool output=true)
+{
+	typedef Thread<Schedule,Queue,Shared> type;
+	std::shared_ptr<type> thread[503];
+	
+	for( int t=0; t<503; ++t )
+	{
+		thread[t].reset(new type());
+		thread[t]->id=t+1;
+	}
+	
+	for( int t=0; t<502; ++t )
+	{
+		thread[t]->next = thread[t+1].get();
+	}
+	thread[502]->next = thread[0].get();
+	
+	std::chrono::high_resolution_clock::time_point clk1=std::chrono::high_resolution_clock::now();
+	(*thread[0])(N);
+	active::run();
+	
+	if( output )
+	{
+		std::chrono::high_resolution_clock::duration dur = std::chrono::high_resolution_clock::now()-clk1;
+		std::cout << (dur.count()/double(std::chrono::high_resolution_clock::duration::period::den)) << " seconds\n";
+		double mps = double(N) * double(std::chrono::high_resolution_clock::duration::period::den) / dur.count();
+		std::cout << mps << " messages/second\n";
+	}
+}
+
 
 int main(int argc, char**argv)
 {
 	int N = argc>1 ? atoi(argv[1]) : 1000;
-	
-	active::pool pool;
-	Thread thread[503];
-	
-	for( int t=0; t<503; ++t )
+
+	if( argc>2 )
 	{
-		thread[t].set_scheduler(pool);
-		thread[t].id=t+1;
-		thread[t].next = thread+t+1;
+		bench_object( active::schedule::none(), active::queueing::direct_call(), active::sharing::disabled(), 10000, false );
+		bench_object( active::schedule::none(), active::queueing::direct_call(), active::sharing::disabled(), 10000 );
+
+		bench_object( active::schedule::thread_pool(), active::queueing::steal<active::queueing::shared>(), active::sharing::disabled(), N );
+		bench_object( active::schedule::thread_pool(), active::queueing::steal<active::queueing::shared>(), active::sharing::enabled<>(), N );
+
+		bench_object( active::schedule::thread_pool(), active::queueing::steal<active::queueing::separate>(), active::sharing::disabled(), N );
+		bench_object( active::schedule::thread_pool(), active::queueing::steal<active::queueing::separate>(), active::sharing::enabled<>(), N );
+		
+		bench_object( active::schedule::thread_pool(), active::queueing::shared(), active::sharing::disabled(), N );
+		bench_object( active::schedule::thread_pool(), active::queueing::shared(), active::sharing::enabled<>(), N );
+		
+		bench_object( active::schedule::thread_pool(), active::queueing::separate(), active::sharing::disabled(), N );
+		bench_object( active::schedule::thread_pool(), active::queueing::separate(), active::sharing::enabled<>(), N );
+
+		bench_object( active::schedule::own_thread(), active::queueing::separate(), active::sharing::disabled(), N );
+		bench_object( active::schedule::own_thread(), active::queueing::separate(), active::sharing::enabled<>(), N );
+		
 	}
-	
-	thread[502].next = thread;
-	thread[0](N);
-	
-	// Run 503 OS threads, servicing 503 active objects.
-	// Note there is not necessarily a 1-1 correspondence between
-	// active objects and OS threads due to a kind of work stealing.
-	pool.run(503);
-	return 0;
+	else
+	{
+		bench_object( active::schedule::thread_pool(), active::queueing::steal<active::queueing::shared>(), active::sharing::disabled(), N, false );
+	}
+
 }
