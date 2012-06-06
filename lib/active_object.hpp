@@ -17,8 +17,6 @@
 #include <memory>
 #include <thread>
 
-#define ACTIVE_OBJECT_CONDITION 0
-
 #define ACTIVE_IFACE(TYPE) virtual void operator()( const TYPE & )=0;
 
 namespace active
@@ -47,10 +45,10 @@ namespace active
 		// void add(ObjectPtr p);
 		
 		// Used by an active object to signal that there are messages to process.
-		void signal(ObjectPtr);
-		void signal(const SharedPtr &);
+		void activate(ObjectPtr);
+		void activate(const SharedPtr &);
 		
-		// Thread tracking
+		// Thread tracking:
 		void start_work();
 		void stop_work();
 		
@@ -63,14 +61,13 @@ namespace active
 
 	private:
 		std::mutex m_mutex;
-		std::deque<ObjectPtr> m_signalled1;	// List of signalled objects. We don't want to run all objects because that could be inefficient.
-		std::deque<SharedPtr> m_signalled2;
+		std::deque<ObjectPtr> m_active1;	// List of signalled objects. We don't want to run all objects because that could be inefficient.
+		std::deque<SharedPtr> m_active2;
 		std::condition_variable m_ready;
 		int m_busy_count;	// Used to work out when we have actually finished.
-		void run_in_thread();		
+		void run_in_thread();
 		static void thread_fn(pool * p);
 		std::exception_ptr m_exception;
-		
 		bool run_managed();
 	};
 	
@@ -101,34 +98,29 @@ namespace active
 		
 	namespace schedule	// Schedulers
 	{
+		struct none
+		{
+			typedef active::pool type;
+			void set_pool(type&p) { }
+			void activate(const std::shared_ptr<any_object> & sp) { }
+			void activate(any_object * obj) { }	
+		};
+		
 		struct thread_pool
 		{
 			typedef active::pool type;
+			thread_pool();
 			
+			void set_pool(type&p);
+			void activate(const std::shared_ptr<any_object> & sp);
+			void activate(any_object * obj);
+		private:
 			type * m_pool;
-			
-			thread_pool() : m_pool(&default_pool)
-			{
-			}
-			
-			void set_pool(type&p)
-			{
-				m_pool = &p;
-			}
-			
-			void activate(const std::shared_ptr<any_object> & sp)
-			{
-				m_pool->signal(sp);
-			}
-			
-			void activate(any_object * obj)
-			{
-				m_pool->signal(obj);
-			}	
 		};
 
-		struct own_thread // Under construction ... !!
+		struct own_thread
 		{
+			own_thread(const own_thread&) { }
 			typedef active::pool type;			
 			type * m_pool;
 			void set_pool(type&p)
@@ -137,8 +129,8 @@ namespace active
 			}
 			
 			bool m_shutdown;
-			bool m_activated;	// Can merge with m_object
 			any_object * m_object;
+			std::shared_ptr<any_object> m_shared;
 			std::mutex m_mutex;
 			std::condition_variable m_ready;
 			std::thread m_thread;
@@ -146,14 +138,14 @@ namespace active
 			void activate(any_object * obj)
 			{
 				m_object = obj;
-				m_activated=true;
-				if( m_pool && m_activated ) m_pool->start_work();
+				if( m_pool ) m_pool->start_work();
 				std::lock_guard<std::mutex> lock(m_mutex); // ??
 				m_ready.notify_one();
 			}
 			
 			void activate(const std::shared_ptr<any_object> & sp)
 			{
+				m_shared = sp;
 				activate( sp.get() );
 			}
 			
@@ -162,19 +154,25 @@ namespace active
 				std::unique_lock<std::mutex> lock(m_mutex);
 				while( !m_shutdown )
 				{
-					if( m_activated )
+					if( m_object )
 					{
 						lock.unlock();
 						m_object->run();
 						lock.lock();
 						if(m_pool) m_pool->stop_work();
-						m_activated = false;
+						m_object = nullptr;
+						if( m_shared.unique() ) m_shutdown = true;
 					}
 					m_ready.wait(lock);
 				}
+				m_shared.reset();	// Allow object to be destroyed
 			}
 			
-			own_thread() : m_pool(&default_pool), m_shutdown(false), m_activated(false), m_thread( std::bind( &own_thread::thread_fn, this ) ) 
+			own_thread() : 
+				m_pool(&default_pool), 
+				m_shutdown(false), 
+				m_object(nullptr), 
+				m_thread( std::bind( &own_thread::thread_fn, this ) ) 
 			{ 
 			}
 			
@@ -230,6 +228,9 @@ namespace active
 		struct mutexed_call
 		{
 			std::mutex m_mutex;
+			mutexed_call() { }
+			mutexed_call(const mutexed_call&) { }
+			
 			template<typename Message, typename Accessor>		
 			bool enqueue(any_object * object, const Message & msg, const Accessor&)
 			{
@@ -260,9 +261,37 @@ namespace active
 			
 		};
 		
-		// Under construction !!
 		struct try_lock
 		{
+			std::mutex m_mutex;
+			template<typename Message, typename Accessor>		
+			bool enqueue(any_object * object, const Message & msg, const Accessor&)
+			{
+				if( !m_mutex.try_lock() ) throw std::bad_alloc();  // ?? 
+				try
+				{
+					Accessor::run(object, msg);
+				}
+				catch(...)
+				{
+					object->exception_handler();
+				}
+				m_mutex.unlock();
+				return false;
+			}
+			
+			bool run_some(any_object * o, int n=100)
+			{
+				return false;
+			}
+			
+			template<typename T>
+			struct queue_data
+			{
+				struct type { };
+			};	
+			
+			bool empty() const { return true; }
 		};
 		
 		struct shared
@@ -524,33 +553,39 @@ namespace active
 	
 #define ACTIVE_IMPL( MSG ) impl_##MSG(const MSG & MSG)
 
-#define ACTIVE_METHOD( MSG ) \
-	typename queue_type::template queue_data<MSG>::type queue_data_##MSG; \
+
+#define ACTIVE_METHOD2( MSG, TEMPLATE ) \
+	typename queue_type::TEMPLATE queue_data<MSG>::type queue_data_##MSG; \
 	template<typename C> struct run_##MSG { \
 		static void run(::active::any_object*o, const MSG&m) { static_cast<C>(o)->impl_##MSG(m); } \
-		static typename queue_type::template queue_data<MSG>::type& data(::active::any_object*o) {return static_cast<C>(o)->queue_data_##MSG; } }; \
+		static typename queue_type::TEMPLATE queue_data<MSG>::type& data(::active::any_object*o) {return static_cast<C>(o)->queue_data_##MSG; } }; \
     void operator()(const MSG & x) { this->enqueue(x, run_##MSG<decltype(this)>() ); } \
-	void operator()(MSG && x) { this->enqueue(x, run_##MSG<decltype(this)>() ); } \
 	void ACTIVE_IMPL(MSG)
-
 	
+	
+#define ACTIVE_METHOD( MSG ) ACTIVE_METHOD2(MSG,)
+#define ACTIVE_TEMPLATE(MSG) ACTIVE_METHOD2(MSG,template)
+
 	// The default object type.
 	typedef object_impl<schedule::thread_pool, queueing::shared, sharing::disabled> object;
 	typedef object_impl<schedule::own_thread, queueing::shared, sharing::disabled> thread;
 	
 	typedef object_impl<schedule::thread_pool, queueing::steal<queueing::shared>, sharing::disabled> fast;
+	typedef object_impl<schedule::none, queueing::direct_call, sharing::disabled> direct;
+	typedef object_impl<schedule::none, queueing::mutexed_call, sharing::disabled> mutexed;
+	typedef object_impl<schedule::none, queueing::try_lock, sharing::disabled> try_lock;
 	
 	// An active object which could be stored in a std::shared_ptr.
 	// If this is the case, then a safer message queueing scheme is implemented
 	// which for example guarantees to deliver all messages before destroying the object.
-	template<typename T, typename Schedule=schedule::thread_pool, typename Queueing = queueing::shared>
+	template<typename T=any_object, typename Schedule=schedule::thread_pool, typename Queueing = queueing::shared>
 	class shared : public object_impl<Schedule, Queueing, sharing::enabled<T> >
 	{
 	public:
 		typedef std::shared_ptr<T> ptr;
 	};
 	
-	template<typename T, typename Queueing = queueing::shared>
+	template<typename T=any_object, typename Queueing = queueing::shared>
 	class shared_thread : public object_impl<schedule::own_thread, Queueing, sharing::enabled<T> >
 	{
 	public:

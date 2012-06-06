@@ -2,6 +2,7 @@
 #include <active_object.hpp>
 #include <iostream>
 #include <cassert>
+#include <vector>
 
 struct counter : public active::object
 {
@@ -414,7 +415,7 @@ struct test_object :
 {
 	typedef Queue queue_type;
 	
-	ACTIVE_METHOD(test_message)
+	ACTIVE_TEMPLATE(test_message)
 	{
 		(*test_message.object)(test_message.value);
 	}
@@ -474,9 +475,102 @@ void test_own_thread()
 	obj2(13);
 	active::run();
 	assert( obj1.total = 12 );
-	assert( obj2.total == 13 );
+	assert( obj2.total == 13 );	
+}
+
+// Can we run lots of different objects simultaenously?
+
+typedef int mix_message;
+struct mix_config
+{
+	std::shared_ptr<active::sink<mix_message>> sink,result;
+	int id;
+};
+
+struct mix_interface : public active::sink<mix_message>, public active::sink<mix_config>
+{
+};
+
+template<typename Schedule, typename Queueing, typename Sharing>
+struct mix_object : public active::object_impl<Schedule,Queueing,Sharing>, public mix_interface
+{
+	typedef Queueing queue_type;
+	int m_id;
+	std::weak_ptr<active::sink<mix_message>> m_sink, m_result;
 	
-	// Now, test if can mix with other objects
+	ACTIVE_TEMPLATE( mix_message )
+	{
+		std::shared_ptr<active::sink< ::mix_message>> sink(m_sink), result(m_result);
+		if( mix_message>0 && sink ) (*sink)(mix_message-1);
+		else if( mix_message<=0 && result) (*result)(m_id);
+	}
+	
+	ACTIVE_TEMPLATE( mix_config )
+	{
+		m_id = mix_config.id;
+		m_sink = mix_config.sink;
+		m_result = mix_config.result;
+	}
+};
+
+std::shared_ptr<mix_interface> mix_factory(int n)
+{
+	switch( n%22 )
+	{
+	case 0: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared, active::sharing::disabled> >();
+	case 1: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared, active::sharing::enabled<>> >();
+	case 2: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::separate, active::sharing::disabled> >();
+	case 3: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::separate, active::sharing::enabled<>> >();
+	case 4: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::shared>, active::sharing::disabled> >();
+	case 5: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::shared>, active::sharing::enabled<>> >();
+	case 6: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::separate>, active::sharing::disabled> >();
+	case 7: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::separate>, active::sharing::enabled<>> >();
+	case 8: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::shared, active::sharing::disabled> >();
+	case 9: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::shared, active::sharing::enabled<>> >();
+	case 10: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::separate, active::sharing::disabled> >();
+	case 11: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::separate, active::sharing::enabled<>> >();
+	case 12: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::shared>, active::sharing::disabled> >();
+	case 13: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::shared>, active::sharing::enabled<>> >();
+	case 14: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::separate>, active::sharing::disabled> >();
+	case 15: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::separate>, active::sharing::enabled<>> >();
+	case 16: return std::make_shared< mix_object<active::schedule::none, active::queueing::direct_call, active::sharing::disabled> >();
+	case 17: return std::make_shared< mix_object<active::schedule::none, active::queueing::direct_call, active::sharing::enabled<>> >();
+	case 18: return std::make_shared< mix_object<active::schedule::none, active::queueing::mutexed_call, active::sharing::disabled> >();
+	case 19: return std::make_shared< mix_object<active::schedule::none, active::queueing::mutexed_call, active::sharing::enabled<>> >();
+	case 20: return std::make_shared< mix_object<active::schedule::none, active::queueing::try_lock, active::sharing::disabled> >();
+	case 21: return std::make_shared< mix_object<active::schedule::none, active::queueing::try_lock, active::sharing::enabled<>> >();
+	}
+}
+
+template<typename T>
+struct result_holder : public active::object, public active::sink<T>
+{
+	typedef T msg;
+	T result;
+	ACTIVE_METHOD(msg) { result = msg; }
+};
+
+void test_object_mix()
+{
+	const int N=313, M=1024;
+	auto result = std::make_shared<result_holder<int>>();
+	std::vector<std::shared_ptr<mix_interface>> vec(N);
+	
+	int n=0;
+	for(auto &i : vec)
+		i = mix_factory(n++);
+
+	for(int n=0; n<N; ++n)
+	{
+		mix_config msg = { n<N-1 ? vec[n+1] : vec[0], result, n };
+		static_cast<active::sink<mix_config>&>((*vec[n]))(msg);
+	}
+	
+	static_cast<active::sink<mix_message>&>(*vec[0])(M); // 0000);
+	
+	active::run(13);
+	
+	assert( result->result == M%N );
 }
 
 int main()
@@ -500,10 +594,11 @@ int main()
 	// Exceptions
 	test_exceptions();
 	
-	// Shared objects
+	// Object types
 	test_shared();	
 	test_object_types();
 	test_own_thread();
+	test_object_mix();
 	
 	std::cout << "All tests passed!\n";
 	return 0;
