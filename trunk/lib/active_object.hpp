@@ -1,8 +1,6 @@
-/* Really Simple Active Objects library
+/* Cppao: Really Simple Active Objects library
  * Written by Calum Grant 2012
- * Original location: http://calumgrant.net/projects/active/active_object.hpp
- * Free of copyright.
- * 
+ *
  * It uses C++11. In g++, compile with "-std=c++0x -pthread"
  *
  * This library demonstrates a very simple approach to implementing active objects.
@@ -21,12 +19,13 @@
 
 namespace active
 {	
+    // Interface of all active objects.
 	struct any_object
 	{
 		virtual ~any_object();
 		virtual void run()=0;
 		virtual bool run_some(int n=100)=0;
-		virtual void exception_handler();
+        virtual void exception_handler() noexcept;
 	};
 	
 	
@@ -52,7 +51,7 @@ namespace active
 		void start_work();
 		void stop_work();
 		
-		// Runs until there are no more messages in the entire pool.
+        // Runs in current thread until there are no more messages in the entire pool.
 		// Returns false if no more items.
 		void run();
 				
@@ -66,7 +65,6 @@ namespace active
 		std::condition_variable m_ready;
 		int m_busy_count;	// Used to work out when we have actually finished.
 		void run_in_thread();
-		static void thread_fn(pool * p);
 		std::exception_ptr m_exception;
 		bool run_managed();
 	};
@@ -79,9 +77,7 @@ namespace active
 		struct disabled
 		{
 			struct base { };
-		
 			typedef any_object * pointer_type;
-		
 			pointer_type pointer(any_object * obj) { return obj; }
 		};
 	
@@ -89,15 +85,14 @@ namespace active
 		struct enabled
 		{
 			typedef std::enable_shared_from_this<Obj> base;
-		
 			typedef std::shared_ptr<any_object> pointer_type;
-		
 			pointer_type pointer(base * obj) { return obj->shared_from_this(); }
 		};
 	}
 		
 	namespace schedule	// Schedulers
 	{
+        // The object is not scheduled
 		struct none
 		{
 			typedef active::pool type;
@@ -106,6 +101,7 @@ namespace active
 			void activate(any_object * obj) { }	
 		};
 		
+        // The object is scheduled using the thread pool (active::pool)
 		struct thread_pool
 		{
 			typedef active::pool type;
@@ -118,84 +114,35 @@ namespace active
 			type * m_pool;
 		};
 
+        // The object is scheduled by the OS in its own thread.
 		struct own_thread
 		{
-			own_thread(const own_thread&) { }
+            own_thread(const own_thread&);
 			typedef active::pool type;			
-			type * m_pool;
-			void set_pool(type&p)
-			{
-				m_pool = &p;
-			}
+
+            void set_pool(type&p);
+            void activate(any_object * obj);
+            void activate(const std::shared_ptr<any_object> & sp);
 			
-			bool m_shutdown;
-			any_object * m_object;
-			std::shared_ptr<any_object> m_shared;
-			std::mutex m_mutex;
-			std::condition_variable m_ready;
-			std::thread m_thread;
-			
-			void activate(any_object * obj)
-			{
-				m_object = obj;
-				if( m_pool ) m_pool->start_work();
-				std::lock_guard<std::mutex> lock(m_mutex); // ??
-				m_ready.notify_one();
-			}
-			
-			void activate(const std::shared_ptr<any_object> & sp)
-			{
-				m_shared = sp;
-				activate( sp.get() );
-			}
-			
-			void thread_fn()
-			{
-				std::unique_lock<std::mutex> lock(m_mutex);
-				while( !m_shutdown )
-				{
-					if( m_object )
-					{
-						lock.unlock();
-						m_object->run();
-						lock.lock();
-						if(m_pool) m_pool->stop_work();
-						m_object = nullptr;
-						if( m_shared.unique() ) m_shutdown = true;
-					}
-					m_ready.wait(lock);
-				}
-				m_shared.reset();	// Allow object to be destroyed
-			}
-			
-			own_thread() : 
-				m_pool(&default_pool), 
-				m_shutdown(false), 
-				m_object(nullptr), 
-				m_thread( std::bind( &own_thread::thread_fn, this ) ) 
-			{ 
-			}
-			
-			~own_thread()
-			{
-				{
-					std::lock_guard<std::mutex> lock(m_mutex); 
-					m_shutdown = true;
-					m_ready.notify_one();
-				}
-				m_thread.join();
-			}
-		};
+            own_thread();
+            ~own_thread();
+        private:
+            void thread_fn();
+            bool m_shutdown;
+            any_object * m_object;
+            std::shared_ptr<any_object> m_shared;
+            std::mutex m_mutex;
+            std::condition_variable m_ready;
+            std::thread m_thread;
+            type * m_pool;  // Let pool track when all threads are idle => finished.
+        };
 	}
-	
-	
 	
 	namespace queueing	// The queuing policy classes
 	{
-		// Faking up message handlers: just do a direct call.
-		struct direct_call // Queue concept
+        // No queueing; run in calling thread without protection.
+        struct direct_call
 		{
-			// !! More sophistication: use a mutex and throw something.
 			template<typename Message, typename Accessor>		
 			bool enqueue(any_object * object, const Message & msg, const Accessor&)
 			{
@@ -210,10 +157,7 @@ namespace active
 				return false;
 			}
 			
-			bool run_some(any_object * o, int n=100)
-			{
-				return false;
-			}
+            bool run_some(any_object * o, int n=100);
 			
 			template<typename T>
 			struct queue_data
@@ -221,15 +165,14 @@ namespace active
 				struct type { };
 			};		
 			
-			bool empty() const { return true; }
+            bool empty() const;
 		};
 		
-		// 
+        // Safe but runs in the calling thread and can deadlock.
 		struct mutexed_call
 		{
-			std::mutex m_mutex;
-			mutexed_call() { }
-			mutexed_call(const mutexed_call&) { }
+            mutexed_call();
+            mutexed_call(const mutexed_call&);
 			
 			template<typename Message, typename Accessor>		
 			bool enqueue(any_object * object, const Message & msg, const Accessor&)
@@ -246,10 +189,7 @@ namespace active
 				return false;
 			}
 			
-			bool run_some(any_object * o, int n=100)
-			{
-				return false;
-			}
+            bool run_some(any_object * o, int n=100);
 			
 			template<typename T>
 			struct queue_data
@@ -257,13 +197,16 @@ namespace active
 				struct type { };
 			};	
 			
-			bool empty() const { return true; }
-			
+            bool empty() const;
+
+        private:
+            std::mutex m_mutex;
 		};
 		
+        // Won't deadlock on a recursive call, but throws instead.
+        // Correct but limited.
 		struct try_lock
 		{
-			std::mutex m_mutex;
 			template<typename Message, typename Accessor>		
 			bool enqueue(any_object * object, const Message & msg, const Accessor&)
 			{
@@ -280,128 +223,81 @@ namespace active
 				return false;
 			}
 			
-			bool run_some(any_object * o, int n=100)
-			{
-				return false;
-			}
-			
-			template<typename T>
-			struct queue_data
-			{
-				struct type { };
-			};	
-			
-			bool empty() const { return true; }
+            template<typename T>
+            struct queue_data
+            {
+                struct type { };
+            };
+
+            bool run_some(any_object * o, int n=100);
+            bool empty() const;
+
+        private:
+            std::mutex m_mutex;
 		};
 		
-		struct shared
-		{
-			typedef std::mutex mutex_type;
-			mutex_type m_mutex;
-			
-			struct message
-			{
-				message() : m_next(nullptr) { }
-				virtual void run(any_object * obj)=0;
-				virtual ~message() { }
-				message *m_next;
-			};
-			
-			
-			// Push to tail, pop from head:
-			message *m_head, *m_tail;
-			shared() : m_head(nullptr), m_tail(nullptr) { }
-			shared(const shared&) : m_head(nullptr), m_tail(nullptr) { }
+        // Default message queue shared between all message types.
+        class shared
+		{	
+            struct message
+            {
+                message() : m_next(nullptr) { }
+                virtual void run(any_object * obj)=0;
+                virtual ~message() { }
+                message *m_next;
+            };
+
+        public:
+            shared();
+            shared(const shared&);
 			
 			template<typename T>
 			struct queue_data
 			{
 				struct type { };
 			};
-			
-			template<typename Message, typename Accessor>
-			struct message_impl : public message
-			{
-				message_impl(const Message & m) : m_message(m) { }
-				Message m_message;
-				void run(any_object * o)
-				{
-					Accessor::run(o, m_message);
-				}
-			};
-			
+
 			template<typename Message, typename Accessor>		
 			bool enqueue( any_object *, const Message & msg, const Accessor&)
 			{
-				message_impl<Message, Accessor> * impl = new message_impl<Message, Accessor>(msg);
-				
-				std::lock_guard<mutex_type> lock(m_mutex);
-				if( m_tail ) 
-				{	
-					m_tail->m_next = impl;
-					m_tail = impl;
-					return false;
-				}
-				else
-				{
-					m_head = m_tail = impl;
-					return true;
-				}			
-			}
+                return enqueue( new message_impl<Message, Accessor>(msg) );
+            }
 			
-			bool empty() const
-			{
-				return !m_head;
-			}
+            bool empty() const;
 			
-			bool run_some(any_object * o, int n=100)
-			{
-				std::lock_guard<mutex_type> lock(m_mutex);
-				while( m_head && n-->0)
-				{
-					message * m = m_head;
-					
-					m_mutex.unlock();
-					try 
-					{
-						m->run(o);
-					} 
-					catch (...) 
-					{
-						o->exception_handler();
-					}
-					m_mutex.lock();
-					m_head = m_head->m_next;
-					if(!m_head) m_tail=nullptr;
-					delete m;
-				}
-				return m_head;
-			}
+            bool run_some(any_object * o, int n=100);
+        protected:
+            std::mutex m_mutex;
+
+        private:
+            template<typename Message, typename Accessor>
+            struct message_impl : public message
+            {
+                message_impl(const Message & m) : m_message(m) { }
+                Message m_message;
+                void run(any_object * o)
+                {
+                    Accessor::run(o, m_message);
+                }
+            };
+
+            bool enqueue(message*impl);
+
+            // Push to tail, pop from head:
+            message *m_head, *m_tail;
 		};
 		
 		struct separate
-		{
-			std::mutex m_mutex;
-			
-			typedef void (*ActiveRun)(any_object*);
-			std::deque<ActiveRun> m_message_queue;
-			
-			separate() { }
-			separate(const separate&) { }
+		{			
+            separate();
+            separate(const separate&);
+
 			template<typename T>
 			struct queue_data
 			{
 				typedef std::deque<T> type;
 			};
-			
-			template<typename Message, typename Accessor>
-			static void run(any_object*obj)
-			{
-				Message m = Accessor::data(obj).front();
-				Accessor::data(obj).pop_front();
-				Accessor::run(obj, m);
-			}
-			
+						
 			template<typename Message, typename Accessor>		
 			bool enqueue( any_object * object, const Message & msg, const Accessor&)
 			{
@@ -412,38 +308,28 @@ namespace active
 				return m_message_queue.size()==1;
 			}
 			
-			bool empty() const
-			{
-				return m_message_queue.empty();
-			}
-			
-			bool run_some(any_object * o, int n=100)
-			{
-				std::lock_guard<std::mutex> lock(m_mutex);
-				
-				while( !m_message_queue.empty() && n-->0 )
-				{
-					ActiveRun run = m_message_queue.front();
-					m_mutex.unlock();
-					try 
-					{
-						(*run)(o);
-					} 
-					catch (...) 
-					{
-						o->exception_handler();
-					}
-					m_mutex.lock();
-					m_message_queue.pop_front();
-				}
-				return !m_message_queue.empty();
-			}
+            bool empty() const;
+            bool run_some(any_object * o, int n=100);
+
+        protected:
+            std::mutex m_mutex;
+
+        private:
+            typedef void (*ActiveRun)(any_object*);
+            std::deque<ActiveRun> m_message_queue;
+
+            template<typename Message, typename Accessor>
+            static void run(any_object*obj)
+            {
+                Message m = Accessor::data(obj).front();
+                Accessor::data(obj).pop_front();
+                Accessor::run(obj, m);
+            }
 		};
 		
 		template<typename Queue>
-		struct steal  : public Queue // Queue concept	!! This has not beed tested
+        struct steal  : public Queue
 		{
-			bool m_running;
 			steal() : m_running(false) { }
 			
 			template<typename Message, typename Accessor>		
@@ -470,11 +356,13 @@ namespace active
 					}
 					this->m_mutex.lock();
 					m_running = false;
-					bool signal = !this->empty();
+                    bool activate = !this->empty();
 					this->m_mutex.unlock();
-					return signal;
+                    return activate;
 				}
 			}
+        private:
+            bool m_running;
 		};		
 	}
 	
@@ -493,7 +381,7 @@ namespace active
 		
 		object_impl(const Queue & q, 
 					const Schedule & s = Schedule(),
-					const Share & sh = Share() ) : m_queue(q), m_schedule(s), m_share(sh)
+                    const Share & sh = Share() ) : m_queue(q), m_schedule(s), m_share(sh)
 		{
 		}
 		
