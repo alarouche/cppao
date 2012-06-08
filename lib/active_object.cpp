@@ -7,7 +7,7 @@
 
 active::pool active::default_pool;
 
-active::pool::pool() : m_busy_count(0)
+active::pool::pool() : m_busy_count(0), m_head(nullptr), m_tail(nullptr)
 {
 }
 
@@ -17,10 +17,14 @@ active::any_object::~any_object()
 
 
 // Used by an active object to signal that there are messages to process.
-void active::pool::activate(ObjectPtr p)
+void active::pool::activate(ObjectPtr p) noexcept
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
-    m_active.push_back(p);
+    p->m_next=nullptr;
+    if( !m_head )
+        m_head = m_tail = p;
+    else
+        m_tail->m_next = p, m_tail=p;
 	++m_busy_count;
 #if ACTIVE_OBJECT_CONDITION
 	m_ready.notify_one();
@@ -30,19 +34,20 @@ void active::pool::activate(ObjectPtr p)
 
 // Runs until there are no more messages in the entire pool.
 // Returns false if no more items.
-bool active::pool::run_managed()
+bool active::pool::run_managed() noexcept
 {
 	std::unique_lock<std::mutex> lock(m_mutex);
 
-    while( !m_active.empty() )
+    while( m_head )
 	{ 
-        ObjectPtr p = m_active.front();
-        m_active.pop_front();
+        ObjectPtr p = m_head;
+        m_head = m_head->m_next;
         lock.unlock();
         p->run_some();
         lock.lock();
         --m_busy_count;
     }
+    m_tail=nullptr;
 	
 	// Can be non-zero if the queues are empty, but other threads are processing.
 	// the result of processing could be to add more signalled objects.
@@ -59,10 +64,10 @@ void active::pool::run(int threads)
 	
 	for(int i=0; i<threads; ++i)
 		tp[i].join();
-	
-	if( m_exception )
-		std::rethrow_exception( m_exception );
-}	
+
+    if( m_exception )
+        std::rethrow_exception( m_exception );
+}
 
 void active::pool::run()
 {
@@ -122,13 +127,13 @@ void active::run(int threads)
 	default_pool.run(threads);
 }
 
-void active::pool::start_work()
+void active::pool::start_work() noexcept
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
 	++m_busy_count;
 }
 
-void active::pool::stop_work()
+void active::pool::stop_work() noexcept
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
 	if( 0 == --m_busy_count )

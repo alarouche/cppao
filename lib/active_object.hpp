@@ -23,8 +23,8 @@ namespace active
 	struct any_object
 	{
 		virtual ~any_object();
-		virtual void run()=0;
-		virtual bool run_some(int n=100)=0;
+        virtual void run()=0;
+        virtual bool run_some(int n=100)=0;
         virtual void exception_handler() noexcept;
         any_object * m_next;
 	};
@@ -44,27 +44,27 @@ namespace active
 		// void add(ObjectPtr p);
 		
 		// Used by an active object to signal that there are messages to process.
-		void activate(ObjectPtr);
+        void activate(ObjectPtr) noexcept;
 
 		// Thread tracking:
-		void start_work();
-		void stop_work();
+        void start_work() noexcept;
+        void stop_work() noexcept;
 		
         // Runs in current thread until there are no more messages in the entire pool.
 		// Returns false if no more items.
-		void run();
+        void run();
 				
 		// Runs all objects in a thread pool, until there are no more messages.
-		void run(int threads);
+        void run(int threads);
 
-	private:
+    private:
 		std::mutex m_mutex;
-        std::deque<ObjectPtr> m_active;	// List of signalled objects. We don't want to run all objects because that could be inefficient.
+        any_object *m_head, *m_tail;   // List of activated objects.
         std::condition_variable m_ready;
         int m_busy_count;	// Used to work out when we have actually finished.
+        std::exception_ptr m_exception;
 		void run_in_thread();
-		std::exception_ptr m_exception;
-		bool run_managed();
+        bool run_managed() noexcept;
 	};
 	
 	// As a convenience, provide a global variable to run all active objects.
@@ -306,10 +306,17 @@ namespace active
 			bool enqueue( any_object * object, const Message & msg, const Accessor&)
 			{
 				std::lock_guard<std::mutex> lock(m_mutex);
-				// !! Exception safety.
-				m_message_queue.push_back( &run<Message, Accessor> );
-				Accessor::data(object).push_back(msg);
-				return m_message_queue.size()==1;
+                m_message_queue.push_back( &run<Message, Accessor> );
+                try
+                {
+                    Accessor::data(object).push_back(msg);
+                }
+                catch(...)
+                {
+                    m_message_queue.pop_back();
+                    throw;
+                }
+                return m_message_queue.size()==1;
 			}
 			
             bool empty() const;
@@ -342,7 +349,7 @@ namespace active
 				this->m_mutex.lock();
 				if( m_running || !this->empty())
 				{
-					this->m_mutex.unlock();	// !! Better use of locks; also exception safety.
+                    this->m_mutex.unlock();	// ?? Better use of locks; also exception safety.
 					Queue::enqueue( object, msg, accessor );
 					return false;
 				}
