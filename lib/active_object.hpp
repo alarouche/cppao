@@ -26,6 +26,7 @@ namespace active
 		virtual void run()=0;
 		virtual bool run_some(int n=100)=0;
         virtual void exception_handler() noexcept;
+        any_object * m_next;
 	};
 	
 	
@@ -34,7 +35,6 @@ namespace active
 	{
 	public:
 		typedef any_object * ObjectPtr;
-		typedef std::shared_ptr<any_object> SharedPtr;
 
 		pool();
 		
@@ -45,8 +45,7 @@ namespace active
 		
 		// Used by an active object to signal that there are messages to process.
 		void activate(ObjectPtr);
-		void activate(const SharedPtr &);
-		
+
 		// Thread tracking:
 		void start_work();
 		void stop_work();
@@ -60,10 +59,9 @@ namespace active
 
 	private:
 		std::mutex m_mutex;
-		std::deque<ObjectPtr> m_active1;	// List of signalled objects. We don't want to run all objects because that could be inefficient.
-		std::deque<SharedPtr> m_active2;
-		std::condition_variable m_ready;
-		int m_busy_count;	// Used to work out when we have actually finished.
+        std::deque<ObjectPtr> m_active;	// List of signalled objects. We don't want to run all objects because that could be inefficient.
+        std::condition_variable m_ready;
+        int m_busy_count;	// Used to work out when we have actually finished.
 		void run_in_thread();
 		std::exception_ptr m_exception;
 		bool run_managed();
@@ -79,6 +77,8 @@ namespace active
 			struct base { };
 			typedef any_object * pointer_type;
 			pointer_type pointer(any_object * obj) { return obj; }
+            void activate(base *) { }
+            void deactivate(pointer_type) { }
 		};
 	
 		template<typename Obj=any_object>
@@ -87,6 +87,10 @@ namespace active
 			typedef std::enable_shared_from_this<Obj> base;
 			typedef std::shared_ptr<any_object> pointer_type;
 			pointer_type pointer(base * obj) { return obj->shared_from_this(); }
+            void activate(base * obj) { m_activated = pointer(obj); }
+            void deactivate(pointer_type & p) { m_activated.swap(p); }
+        private:
+            pointer_type m_activated;   // Prevent object being destroyed whilst active
 		};
 	}
 		
@@ -97,8 +101,8 @@ namespace active
 		{
 			typedef active::pool type;
 			void set_pool(type&p) { }
-			void activate(const std::shared_ptr<any_object> & sp) { }
-			void activate(any_object * obj) { }	
+            void activate(const std::shared_ptr<any_object> & sp) { }
+            void activate(any_object * obj) { }
 		};
 		
         // The object is scheduled using the thread pool (active::pool)
@@ -108,8 +112,8 @@ namespace active
 			thread_pool();
 			
 			void set_pool(type&p);
-			void activate(const std::shared_ptr<any_object> & sp);
-			void activate(any_object * obj);
+            void activate(const std::shared_ptr<any_object> & sp);
+            void activate(any_object * obj);
 		private:
 			type * m_pool;
 		};
@@ -123,14 +127,14 @@ namespace active
             void set_pool(type&p);
             void activate(any_object * obj);
             void activate(const std::shared_ptr<any_object> & sp);
-			
+
             own_thread();
             ~own_thread();
         private:
             void thread_fn();
             bool m_shutdown;
             any_object * m_object;
-            std::shared_ptr<any_object> m_shared;
+            std::shared_ptr<any_object> m_shared;   // !! Remove this
             std::mutex m_mutex;
             std::condition_variable m_ready;
             std::thread m_thread;
@@ -391,16 +395,23 @@ namespace active
 		
 		void run()
 		{
-			while( m_queue.run_some(this) )
+            typename share_type::pointer_type p;
+            m_share.deactivate(p);
+
+            while( m_queue.run_some(this) )
 				;
 		}
 
 		bool run_some(int n)
 		{
-			// Run a few messages from the queue
+            typename share_type::pointer_type p;
+            m_share.deactivate(p);
+
+            // Run a few messages from the queue
 			// if we still have messages, then reactivate this object.
 			if( m_queue.run_some(this, n) )
 			{
+                m_share.activate(this);
 				m_schedule.activate(m_share.pointer(this));
 				return true;
 			}
@@ -419,17 +430,11 @@ namespace active
 		template<typename T, typename M>
 		void enqueue( const T & msg, const M & accessor)
 		{
-			// !! Exception safety
 			if( m_queue.enqueue(this, msg, accessor) )
+            {
+                m_share.activate(this);
 				m_schedule.activate(m_share.pointer(this));
-		}
-
-		template<typename T, typename M>
-		void enqueue( T && msg, const M&&accessor)
-		{
-			// !! Exception safety
-			if( m_queue.enqueue(this, msg, accessor) )
-				m_schedule.activate(m_share.pointer(this));
+            }
 		}
 
 		
