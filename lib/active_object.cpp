@@ -118,13 +118,8 @@ void active::pool::run_in_thread()
 	}
 }
 
-void active::pool::thread_fn(pool * p)
-{
-	p->run_in_thread();
-}
 
-
-void active::any_object::exception_handler()
+void active::any_object::exception_handler() noexcept
 {
 	try
 	{
@@ -140,7 +135,6 @@ void active::any_object::exception_handler()
 	}
 }
 
-		
 void active::run()
 {
 	default_pool.run();
@@ -185,4 +179,187 @@ void active::schedule::thread_pool::activate(any_object * obj)
 	if(m_pool) m_pool->activate(obj);
 }	
 
+void active::schedule::own_thread::activate(any_object * obj)
+{
+    m_object = obj;
+    if( m_pool ) m_pool->start_work();
+    std::lock_guard<std::mutex> lock(m_mutex); // ??
+    m_ready.notify_one();
+}
 
+void active::schedule::own_thread::activate(const std::shared_ptr<any_object> & sp)
+{
+    m_shared = sp;
+    activate( sp.get() );
+}
+
+void active::schedule::own_thread::thread_fn()
+{
+    std::unique_lock<std::mutex> lock(m_mutex);
+    while( !m_shutdown )
+    {
+        if( m_object )
+        {
+            lock.unlock();
+            m_object->run();
+            lock.lock();
+            if(m_pool) m_pool->stop_work();
+            m_object = nullptr;
+            if( m_shared.unique() ) m_shutdown = true;
+        }
+        m_ready.wait(lock);
+    }
+    m_shared.reset();	// Allow object to be destroyed
+}
+
+active::schedule::own_thread::own_thread(const own_thread&other) :
+    m_pool(other.m_pool),
+    m_shutdown(false),
+    m_object(nullptr),
+    m_thread( std::bind( &own_thread::thread_fn, this ) )
+{
+}
+
+active::schedule::own_thread::own_thread() :
+    m_pool(&default_pool),
+    m_shutdown(false),
+    m_object(nullptr),
+    m_thread( std::bind( &own_thread::thread_fn, this ) )
+{
+}
+
+active::schedule::own_thread::~own_thread()
+{
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_shutdown = true;
+        m_ready.notify_one();
+    }
+    m_thread.join();
+}
+
+bool active::queueing::direct_call::run_some(any_object * o, int n)
+{
+    return false;
+}
+
+bool active::queueing::direct_call::empty() const
+{
+    return true;
+}
+
+active::queueing::mutexed_call::mutexed_call()
+{
+}
+
+active::queueing::mutexed_call::mutexed_call(const mutexed_call&)
+{
+}
+
+bool active::queueing::mutexed_call::run_some(any_object * o, int n)
+{
+    return false;
+}
+
+bool active::queueing::mutexed_call::empty() const
+{
+    return true;
+}
+
+bool active::queueing::try_lock::run_some(any_object * o, int n)
+{
+    return false;
+}
+
+bool active::queueing::try_lock::empty() const
+{
+    return true;
+}
+
+active::queueing::separate::separate()
+{
+}
+
+active::queueing::separate::separate(const separate&)
+{
+}
+
+bool active::queueing::separate::empty() const
+{
+    return m_message_queue.empty();
+}
+
+bool active::queueing::separate::run_some(any_object * o, int n)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    while( !m_message_queue.empty() && n-->0 )
+    {
+        ActiveRun run = m_message_queue.front();
+        m_mutex.unlock();
+        try
+        {
+            (*run)(o);
+        }
+        catch (...)
+        {
+            o->exception_handler();
+        }
+        m_mutex.lock();
+        m_message_queue.pop_front();
+    }
+    return !m_message_queue.empty();
+}
+
+active::queueing::shared::shared() : m_head(nullptr), m_tail(nullptr)
+{
+}
+
+active::queueing::shared::shared(const shared&) : m_head(nullptr), m_tail(nullptr)
+{
+}
+
+bool active::queueing::shared::enqueue(message*impl)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if( m_tail )
+    {
+        m_tail->m_next = impl;
+        m_tail = impl;
+        return false;
+    }
+    else
+    {
+        m_head = m_tail = impl;
+        return true;
+    }
+}
+
+bool active::queueing::shared::empty() const
+{
+    return !m_head;
+}
+
+bool active::queueing::shared::run_some(any_object * o, int n)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    while( m_head && n-->0)
+    {
+        message * m = m_head;
+
+        m_mutex.unlock();
+        try
+        {
+            m->run(o);
+        }
+        catch (...)
+        {
+            o->exception_handler();
+        }
+        m_mutex.lock();
+        m_head = m_head->m_next;
+        if(!m_head) m_tail=nullptr;
+        delete m;
+    }
+    return m_head;
+}

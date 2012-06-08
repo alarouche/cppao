@@ -15,7 +15,7 @@ struct ex_object : public active::object
 		throw the_unthinkable();
 	}
 	
-	void exception_handler()
+    void exception_handler() noexcept
 	{
 		try
 		{

@@ -4,7 +4,7 @@ const int num_cols=60;
 
 // Active object representing a display device.
 
-class Display : public active::mutexed
+class Display : public active::object
 {
 public:	
 	// List of messages:
@@ -32,7 +32,7 @@ private:
 class Controller;
 
 // Active object representing a cell in the grid.
-class Cell : public active::direct
+class Cell : public active::object
 {
 public:
 	
@@ -65,7 +65,7 @@ private:
 };
 
 // Active object to control the entire game.
-class Controller : public active::fast
+class Controller : public active::object
 {
 public:
 	// Messages:

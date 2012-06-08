@@ -299,7 +299,7 @@ struct except_object : public active::object
 
 	struct ex { };
 
-	void exception_handler()
+    void exception_handler() noexcept
 	{
 		try
 		{
@@ -566,7 +566,7 @@ void test_object_mix()
 		static_cast<active::sink<mix_config>&>((*vec[n]))(msg);
 	}
 	
-	static_cast<active::sink<mix_message>&>(*vec[0])(M); // 0000);
+	static_cast<active::sink<mix_message>&>(*vec[0])(M);
 	
 	active::run(13);
 	
