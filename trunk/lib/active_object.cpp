@@ -20,23 +20,13 @@ active::any_object::~any_object()
 void active::pool::activate(ObjectPtr p)
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
-	m_active1.push_back(p);
+    m_active.push_back(p);
 	++m_busy_count;
 #if ACTIVE_OBJECT_CONDITION
 	m_ready.notify_one();
 #endif
 }
 
-// Used by an active object to signal that there are messages to process.
-void active::pool::activate(const SharedPtr & p)
-{
-	std::lock_guard<std::mutex> lock(m_mutex);
-	m_active2.push_back(p);
-	++m_busy_count;
-#if ACTIVE_OBJECT_CONDITION
-	m_ready.notify_one();
-#endif
-}
 
 // Runs until there are no more messages in the entire pool.
 // Returns false if no more items.
@@ -44,28 +34,15 @@ bool active::pool::run_managed()
 {
 	std::unique_lock<std::mutex> lock(m_mutex);
 
-	while( !m_active1.empty() || !m_active2.empty() )
+    while( !m_active.empty() )
 	{ 
-		if( !m_active1.empty() )
-		{
-			ObjectPtr p = m_active1.front();
-			m_active1.pop_front();
-			lock.unlock();
-			p->run_some();
-			lock.lock();
-			--m_busy_count;
-		}
-		
-		if( !m_active2.empty() )
-		{
-			SharedPtr p = m_active2.front();
-			m_active2.pop_front();
-			lock.unlock();
-			p->run_some();
-			lock.lock();
-			--m_busy_count;
-		}
-	}
+        ObjectPtr p = m_active.front();
+        m_active.pop_front();
+        lock.unlock();
+        p->run_some();
+        lock.lock();
+        --m_busy_count;
+    }
 	
 	// Can be non-zero if the queues are empty, but other threads are processing.
 	// the result of processing could be to add more signalled objects.
@@ -171,7 +148,7 @@ void active::schedule::thread_pool::set_pool(type&p)
 
 void active::schedule::thread_pool::activate(const std::shared_ptr<any_object> & sp)
 {
-	if( m_pool ) m_pool->activate(sp);
+    if( m_pool ) m_pool->activate(sp.get());
 }
 
 void active::schedule::thread_pool::activate(any_object * obj)
@@ -183,7 +160,7 @@ void active::schedule::own_thread::activate(any_object * obj)
 {
     m_object = obj;
     if( m_pool ) m_pool->start_work();
-    std::lock_guard<std::mutex> lock(m_mutex); // ??
+    std::lock_guard<std::mutex> lock(m_mutex);
     m_ready.notify_one();
 }
 
