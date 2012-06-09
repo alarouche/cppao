@@ -7,13 +7,13 @@ Cppao actually implements a policy framework, where different aspects can be com
 
 = Object types =
 
-* Here be dragons *
+* Beware: Here be dragons *
 
 The basic object type is `active::object`, with `active::shared<>` for use with `std::shared_ptr<>`. These are designed to offer the best and safest experience. The implementation details are deliberately hidden because it allows the underlying implementation to change and innovate.
 
 It is possible to select different implementations if you want to try to improve performance, perhaps at the expense of a little safety. Like much multi-threaded code, performance is not always predictable.
 
-See [object_types.cpp] for examples of the different object types.
+See [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp object_types.cpp] for examples of the different object types.
 
 Available object types:
 
@@ -44,7 +44,12 @@ namespace active
 The schedule determines which AO  is next run.  The provided schedulers are:
 
   * `active::schedule::thread_pool` (default) - schedules the AO using a thread-pool. This is ideal if the number of AOs is large.
-  * `active::schedule::thread` - uses a dedicated OS thread to execute the AO. Good if you need pre-emptive multitasking and the number of AOs is limited (<1000 say).
+  * `active::schedule::own_thread` - uses a dedicated OS thread to execute the AO. Good if you need pre-emptive multitasking and the number of AOs is limited (<1000 say).
+  * `active::schedule::none` - used for those queueing implementations which don't need their own scheduler.
+
+An AO becomes "activated" when it receives its first message. The `thread_pool` scheduler passes the AO to `active::pool`, which puts the AO onto a FIFO of activated objects. A thread (or pool of threads) can then pop the next AO from the queue, and run the AO (using `active::any_object::run_some()`), which will process a number of messages, and if there are any remaining messages, re-activate the AO to re-schedule its execution.
+
+In this way, `active::pool` is able to process many AOs in a small number of threads.
 
 == Queueing implementation ==
 The queue determines which message to service next, and provides a container for storing messages. The provide queues are:
@@ -52,14 +57,15 @@ The queue determines which message to service next, and provides a container for
   * `active::queueing::shared`  (default) - uses a single linked list to store all messages for an object
   * `active::queueing::separate` - an alternative implementation.
   * `active::queuing::direct_call` - Process message immediately in calling thread without a mutex.
-  * `active::queueing::mutex_call` - Process message immediately in calling thread, but mutexes the object. Reentrant calls will deadlock.
+  * `active::queueing::mutexed_call` - Process message immediately in calling thread, but mutexes the object. Reentrant calls will deadlock.
   * `active::queueing::try_lock` - Attempt to lock the object but throw an exception on failure.
+  * `active::queuing::steal<>` - Adapt another queueing strategy by processing the message in the calling thread when the object is idle.
 
 == Sharing implementations ==
 Sharing information controls the pointer type in the message queue. The main use case for this is to use shared pointers (`std::shared_ptr<>`) in the message queue, which guarantees that AOs with messages cannot be destroyed.
 
-  * `active::sharing::enable<>` - use shared pointers.
-  * `active::sharing::disable` - use unsafe C-style pointers.
+  * `active::sharing::enabled<>` - use `std::shared_ptr`.
+  * `active::sharing::disabled` - use C-style pointers.
 
 = Active object guarantees =
 
