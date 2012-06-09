@@ -132,9 +132,9 @@ Wrapping a synchronous object inside an AO. Many POSIX/Winsock functions are pro
 
 Demonstrates:
 
-  * Use of std::shared_ptr to contain objects
-  * _active::shared<>_
-  * Composite objects: socket contains a reader and a writer; select contains a select_loop
+  * Use of `std::shared_ptr` to contain objects
+  * `active::shared<>`
+  * Composite objects: `socket` contains a `reader` and a `writer`; `select` contains a `select_loop`
   * Network programming.
 
 =Echo=
