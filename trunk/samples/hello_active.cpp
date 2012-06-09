@@ -17,6 +17,6 @@ int main()
 	HelloActive hello;
 	HelloActive::Greet message = { "Hello, world!" };
 	hello(message);
-	hello.run();
+	active::run();
 	return 0;
 }

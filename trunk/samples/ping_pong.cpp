@@ -40,6 +40,6 @@ int main()
 	PingPong pp;
 	PingPong::ping message = { 10 };
 	pp(message);
-	pp.run();
+	active::run();
 	return 0;
 }

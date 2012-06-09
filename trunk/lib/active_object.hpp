@@ -1,4 +1,4 @@
-/* Cppao: Really Simple Active Objects library
+/* Cppao: C++ Active Objects library
  * Written by Calum Grant 2012
  *
  * It uses C++11. In g++, compile with "-std=c++0x -pthread"
@@ -100,6 +100,7 @@ namespace active
 		struct none
 		{
 			typedef active::pool type;
+			none(type&) { }
 			void set_pool(type&p) { }
             void activate(const std::shared_ptr<any_object> & sp) { }
             void activate(any_object * obj) { }
@@ -109,7 +110,7 @@ namespace active
 		struct thread_pool
 		{
 			typedef active::pool type;
-			thread_pool();
+			thread_pool(type&);
 			
 			void set_pool(type&p);
             void activate(const std::shared_ptr<any_object> & sp);
@@ -121,8 +122,10 @@ namespace active
         // The object is scheduled by the OS in its own thread.
 		struct own_thread
 		{
-            own_thread(const own_thread&);
 			typedef active::pool type;			
+
+            own_thread(const own_thread&);
+            own_thread(type&);
 
             void set_pool(type&p);
             void activate(any_object * obj);
@@ -132,13 +135,13 @@ namespace active
             ~own_thread();
         private:
             void thread_fn();
+            type * m_pool;  // Let pool track when all threads are idle => finished.
             bool m_shutdown;
             any_object * m_object;
             std::shared_ptr<any_object> m_shared;   // !! Remove this
             std::mutex m_mutex;
             std::condition_variable m_ready;
             std::thread m_thread;
-            type * m_pool;  // Let pool track when all threads are idle => finished.
         };
 	}
 	
@@ -390,19 +393,13 @@ namespace active
 		typedef Share share_type;
 		typedef Queue queue_type;
 		
-		object_impl(const Queue & q, 
-					const Schedule & s = Schedule(),
-                    const Share & sh = Share() ) : m_queue(q), m_schedule(s), m_share(sh)
-		{
-		}
-		
-		object_impl() { }
+		object_impl(typename schedule_type::type & tp = default_pool) : m_schedule(tp) { }
 		
 		~object_impl() { if(!m_queue.empty()) std::terminate(); }
 		
 		void run()
 		{
-            typename share_type::pointer_type p;
+            typename share_type::pointer_type p=0;
             m_share.deactivate(p);
 
             while( m_queue.run_some(this) )
@@ -411,7 +408,7 @@ namespace active
 
 		bool run_some(int n)
 		{
-            typename share_type::pointer_type p;
+            typename share_type::pointer_type p=0;
             m_share.deactivate(p);
 
             // Run a few messages from the queue
@@ -491,12 +488,9 @@ namespace active
 	public:
 		typedef std::shared_ptr<T> ptr;
 	};
-		
-	// Run all objects in the default thread pool (single-threaded)
-	void run();
-	
+
 	// Run all objects in the default thread pool
-	void run(int threads);
+	void run(int threads=std::thread::hardware_concurrency());
 	
 	template<typename T>
 	struct sink
