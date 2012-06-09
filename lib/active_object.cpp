@@ -7,7 +7,7 @@
 
 active::pool active::default_pool;
 
-active::pool::pool() : m_busy_count(0), m_head(nullptr), m_tail(nullptr)
+active::pool::pool() : m_head(nullptr), m_tail(nullptr), m_busy_count(0)
 {
 }
 
@@ -117,13 +117,9 @@ void active::any_object::exception_handler() noexcept
 	}
 }
 
-void active::run()
-{
-	default_pool.run();
-}
-
 void active::run(int threads)
 {
+	if( threads<=0 ) threads=4;
 	default_pool.run(threads);
 }
 
@@ -142,7 +138,7 @@ void active::pool::stop_work() noexcept
 	}
 }
 
-active::schedule::thread_pool::thread_pool() : m_pool(&default_pool)
+active::schedule::thread_pool::thread_pool(pool & p) : m_pool(&p)
 {
 }
 
@@ -202,8 +198,8 @@ active::schedule::own_thread::own_thread(const own_thread&other) :
 {
 }
 
-active::schedule::own_thread::own_thread() :
-    m_pool(&default_pool),
+active::schedule::own_thread::own_thread(pool & p) :
+    m_pool(&p),
     m_shutdown(false),
     m_object(nullptr),
     m_thread( std::bind( &own_thread::thread_fn, this ) )
