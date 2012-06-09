@@ -33,7 +33,7 @@ int main()
         HelloActive hello;
         HelloActive::Greet message = { "Hello, world!" };
         hello(message);
-        hello.run();
+        active::run();
         return 0;
 }
 }}}
@@ -96,11 +96,11 @@ Create a new message to send to the object.
 
 Pass the message to the object. The object will receive the message at some point in the future, and in fact will just sit in the message queue of the object until it is run. Messages are passed by value (copied) into the message queue, so once it's sent, the original message can be destroyed.
 
-Explicitly run the message handler of the object until there are no more messages left, at which point it exits.
-
 {{{
-        hello.run();
+        active::run();
 }}}
+
+Runs all active objects in a thread pool until there are no more messages.
 
 = Ping pong! =
 
@@ -214,17 +214,20 @@ Of course, if an active method wants to do something different, then it must imp
 
 = Using shared pointers =
 
-The examples so far have relied on raw C-style pointers, mainly for simplicity. 
+The examples so far have relied on raw C-style pointers, mainly for simplicity. This has the obvious drawback that you might end up with dangling pointers, or that objects are destroyed whilst there are still messages on their queue.
 
-You could also use references (if you take the trouble of writing constructors for each message), or smart pointers.
-
-A potential problem occurs with message handling. If an AO still has unprocessed messages on destruction, then we have a problem. `active::object` terminates the application, since destructors mustn't throw exceptions.
+You could also use references but the same problem arises.
 
 To solve this, the class `active::shared<>` can be used as a base class for your AO, which will then safely enqueue messages to the shared object, and be guaranteed that the object will only be destroyed after all messages have been processed.
 
-Example!!
+The sample [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp object_types.cpp] demonstrates this.
 
-An example which illustrates this is echo_server in the [Samples].
+{{{
+struct shared_object : public active::shared<shared_object>
+{
+        ACTIVE_METHOD(greeting) { std::cout << "Shared object says " << greeting << std::endl; }
+};
+}}}
 
 = Object types =
 
@@ -232,10 +235,11 @@ There are actually a number of base classes you could choose for your active obj
 
  * `active::object` - The basic, non-blocking AO.
  * `active::shared<>` - Use smart pointers, `std::shared_ptr<>`.
- * `active::fast` - Bypasses the message queue if the object is idle.
+ * `active::fast` - Processes the message in the calling thread if the object is idle. This is often faster but can fail to exploit the hardware fully.
  * `active::thread` - Dedicates an OS thread to this AO.
+ * `active::mutexed` - Always processes message in the calling thread. This is really a synchronous object, not an AO.
 
-There is an underlying `active::traits` to control this.
+See FineTuning for further details, and the sample [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp object_types.cpp] shows off the different implementations.
 
-= What next? =
-Now you have the tools, it is time to apply them! Check out the [Samples] and the [Reference].
+= Where next? =
+Now you have the tools, it is time to apply them! Check out the [Samples] and the [Reference]. You can also read FineTuning if you want to compose your own AO.
