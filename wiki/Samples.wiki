@@ -34,6 +34,8 @@ This is a simple (and not really very good) benchmark of multi-threaded performa
 Demonstrates:
 
   * A performance metric.
+  * Compares the performance of different AO implementations.
+  * Use of _active::object_impl<>_ to tune the underlying implementation.
 
 =Return result=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/return_result.cpp]
@@ -112,6 +114,15 @@ Demonstrates:
   * A more complex example.
   * Using _ACTIVE_IMPL_ to separate method declarations from definitions.
   * _active::pool_
+
+= Object types =
+http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp
+
+Creates and runs eight different AO implementations. Demonstrates:
+
+  * How to use different object types,
+  * Different characteristics of different objects,
+  * How to use shared objects for additional safety.
 
 =Active sockets=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.hpp]
