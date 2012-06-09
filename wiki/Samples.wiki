@@ -106,7 +106,7 @@ Demonstrates:
 [http://code.google.com/p/cppao/source/browse/trunk/samples/life.hpp]
 [http://code.google.com/p/cppao/source/browse/trunk/samples/life.cpp]
 
-Implements Conway's "Game of Life" to a console.  Each cell is its own AO, in addition to a controller and a display AO. All communication between AOs is via message passing. This is an exercise in synchronisation (all cells must update synchronously) and message flows.
+Implements Conway's "Game of Life" in a console.  Each cell is its own AO, in addition to a controller and a display AO. All communication between AOs is via message passing. This is an exercise in synchronisation (all cells must update synchronously) and message flows.
 
 Demonstrates:
 
@@ -146,7 +146,7 @@ Demonstrates:
 
   * Tests the socket object.
 
-=13. Echo client/server=
+=Echo client/server=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/echo_server.cpp]
 [http://code.google.com/p/cppao/source/browse/trunk/samples/echo_client.cpp]
 
