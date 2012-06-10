@@ -477,7 +477,42 @@ void test_own_thread()
 	obj2(13);
 	active::run();
 	assert( obj1.total = 12 );
-	assert( obj2.total == 13 );	
+	assert( obj2.total == 13 );		
+}
+
+struct shared_thread_obj : public active::shared_thread<shared_thread_obj>
+{
+	int total;
+	typedef int add;
+	ACTIVE_METHOD(add) { total += add; }
+	shared_thread_obj() : total(0) { }
+	
+	typedef int * finish;
+	ACTIVE_METHOD(finish) { *finish=total; }
+};
+
+void test_shared_thread(bool reset, int sleep1, int sleep2)
+{
+	shared_thread_obj::ptr st(new shared_thread_obj());
+	std::this_thread::sleep_for(std::chrono::milliseconds(sleep1));
+	
+	int finished=0;
+	(*st)(12);
+	(*st)(13);
+	(*st)(&finished);
+	if(reset) st.reset();
+	
+	std::this_thread::sleep_for(std::chrono::milliseconds(sleep2));
+	active::run();
+	assert( finished==25 );
+}
+
+void test_shared_thread()
+{
+	test_shared_thread(false, 0, 10);
+	test_shared_thread(false, 10, 0);
+	test_shared_thread(true, 0, 10);
+	test_shared_thread(true, 10, 0);
 }
 
 // Can we run lots of different objects simultaenously?
@@ -493,12 +528,17 @@ struct mix_interface : public active::sink<mix_message>, public active::sink<mix
 {
 };
 
+int total_allocated=0;
+
 template<typename Schedule, typename Queueing, typename Sharing>
 struct mix_object : public active::object_impl<Schedule,Queueing,Sharing>, public mix_interface
 {
 	typedef Queueing queue_type;
 	int m_id;
 	std::weak_ptr<active::sink<mix_message>> m_sink, m_result;
+		
+	mix_object() { ++total_allocated; }
+	~mix_object() { --total_allocated; }
 	
 	ACTIVE_TEMPLATE( mix_message )
 	{
@@ -574,6 +614,8 @@ void test_object_mix()
 	active::run(13);
 	
 	assert( result->result == M%N );
+	vec.clear();
+	assert( total_allocated ==0 );
 }
 
 int main()
@@ -601,6 +643,7 @@ int main()
 	test_shared();	
 	test_object_types();
 	test_own_thread();
+	test_shared_thread();
 	test_object_mix();
 	
 	std::cout << "All tests passed!\n";

@@ -167,6 +167,7 @@ void active::schedule::own_thread::activate(any_object * obj)
 
 void active::schedule::own_thread::activate(const std::shared_ptr<any_object> & sp)
 {
+	//std::lock_guard< ? 
     m_shared = sp;
     activate( sp.get() );
 }
@@ -183,11 +184,10 @@ void active::schedule::own_thread::thread_fn()
             lock.lock();
             if(m_pool) m_pool->stop_work();
             m_object = nullptr;
-            if( m_shared.unique() ) m_shutdown = true;
+			m_shared.reset();	// Allow to exit
         }
         m_ready.wait(lock);
     }
-    m_shared.reset();	// Allow object to be destroyed
 }
 
 active::schedule::own_thread::own_thread(const own_thread&other) :
@@ -340,4 +340,12 @@ bool active::queueing::shared::run_some(any_object * o, int n)
         delete m;
     }
     return m_head;
+}
+		
+active::queueing::try_lock::try_lock() 
+{ 
+}
+
+active::queueing::try_lock::try_lock(const try_lock&) 
+{ 
 }

@@ -214,6 +214,9 @@ namespace active
         // Correct but limited.
 		struct try_lock
 		{
+			try_lock();
+			try_lock(const try_lock&);
+			
 			template<typename Message, typename Accessor>		
 			bool enqueue(any_object * object, const Message & msg, const Accessor&)
 			{
