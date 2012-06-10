@@ -23,8 +23,8 @@ namespace active
 	struct any_object
 	{
 		virtual ~any_object();
-        virtual void run()=0;
-        virtual bool run_some(int n=100)=0;
+        virtual void run() noexcept=0;
+        virtual bool run_some(int n=100) noexcept=0;
         virtual void exception_handler() noexcept;
         any_object * m_next;
 	};
@@ -164,7 +164,7 @@ namespace active
 				return false;
 			}
 			
-            bool run_some(any_object * o, int n=100);
+            bool run_some(any_object * o, int n=100) noexcept;
 			
 			template<typename T>
 			struct queue_data
@@ -196,7 +196,7 @@ namespace active
 				return false;
 			}
 			
-            bool run_some(any_object * o, int n=100);
+            bool run_some(any_object * o, int n=100) noexcept;
 			
 			template<typename T>
 			struct queue_data
@@ -239,7 +239,7 @@ namespace active
                 struct type { };
             };
 
-            bool run_some(any_object * o, int n=100);
+            bool run_some(any_object * o, int n=100) noexcept;
             bool empty() const;
 
         private:
@@ -275,7 +275,7 @@ namespace active
 			
             bool empty() const;
 			
-            bool run_some(any_object * o, int n=100);
+            bool run_some(any_object * o, int n=100) noexcept;
         protected:
             std::mutex m_mutex;
 
@@ -326,7 +326,7 @@ namespace active
 			}
 			
             bool empty() const;
-            bool run_some(any_object * o, int n=100);
+            bool run_some(any_object * o, int n=100) noexcept;
 
         protected:
             std::mutex m_mutex;
@@ -400,7 +400,7 @@ namespace active
 		
 		~object_impl() { if(!m_queue.empty()) std::terminate(); }
 		
-		void run()
+		void run() noexcept
 		{
             typename share_type::pointer_type p=0;
             m_share.deactivate(p);
@@ -409,7 +409,7 @@ namespace active
 				;
 		}
 
-		bool run_some(int n)
+		bool run_some(int n) noexcept
 		{
             typename share_type::pointer_type p=0;
             m_share.deactivate(p);

@@ -216,7 +216,7 @@ active::schedule::own_thread::~own_thread()
     m_thread.join();
 }
 
-bool active::queueing::direct_call::run_some(any_object * o, int n)
+bool active::queueing::direct_call::run_some(any_object * o, int n) noexcept
 {
     return false;
 }
@@ -234,7 +234,7 @@ active::queueing::mutexed_call::mutexed_call(const mutexed_call&)
 {
 }
 
-bool active::queueing::mutexed_call::run_some(any_object * o, int n)
+bool active::queueing::mutexed_call::run_some(any_object * o, int n) noexcept
 {
     return false;
 }
@@ -244,7 +244,7 @@ bool active::queueing::mutexed_call::empty() const
     return true;
 }
 
-bool active::queueing::try_lock::run_some(any_object * o, int n)
+bool active::queueing::try_lock::run_some(any_object * o, int n) noexcept
 {
     return false;
 }
@@ -267,16 +267,16 @@ bool active::queueing::separate::empty() const
     return m_message_queue.empty();
 }
 
-bool active::queueing::separate::run_some(any_object * o, int n)
+bool active::queueing::separate::run_some(any_object * o, int n) noexcept
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
     while( !m_message_queue.empty() && n-->0 )
     {
-        ActiveRun run = m_message_queue.front();
         m_mutex.unlock();
         try
         {
+			ActiveRun run = m_message_queue.front();
             (*run)(o);
         }
         catch (...)
@@ -318,7 +318,7 @@ bool active::queueing::shared::empty() const
     return !m_head;
 }
 
-bool active::queueing::shared::run_some(any_object * o, int n)
+bool active::queueing::shared::run_some(any_object * o, int n) noexcept
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     while( m_head && n-->0)
