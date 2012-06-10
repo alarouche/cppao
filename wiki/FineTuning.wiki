@@ -71,37 +71,23 @@ Sharing information controls the pointer type in the message queue. The main use
 
 An implementation may do whatever it likes provided that the following characteristics, or _guarantees_ are met:
 
-G1. Scalability: work with a large number of objects. For example, limiting AOs to the number of OS threads could be too limiting for some applications.
-
-G2. Non-overlapping: Objects process at most one message at a time.
- a. Non-reentrant: Messages which send messages back to the same object (perhaps indirectly) are processed after the current message is processed.
-
- b. Across different threads: An AO does not execute in two or more threads simultaneously.
-
-G3. Non-blocking: Sending a message to an AO does not cause a large delay.
- a. Non CPU-wait guarantee
-
- b. Non-deadlock guarantee
-
- c. Non IO-block guarantee
-
-G4. Recursion - Messages can be posted recursively to a great depth.
-
-G5. Concurrency: different AOs can run on different hardware processing units concurrently. 
-
-G6. Delivery: Messages sent to the object are guaranteed to be delivered.
-
-G7. Safety: 
-
-  a. safe from concurrent access,  
-
- b. safe from dangling pointers 
-
- c. safe from memory leaks.
-
-G8. Ordering: Messages are processed in the order they are received. Variations could include processing messages based on priority.
-
-G9. Fairness: Each AO gets a fair slice of CPU time, and most importantly is not starved.
+  #. *Scalable*: work with a large number of objects. For example, limiting AOs to the number of OS threads could be too limiting for some applications.
+  #. *Non-overlapping*: Objects process at most one message at a time.
+    * *Non-reentrant*: Messages which send messages back to the same object (perhaps indirectly) are processed after the current message is processed.
+    * *Across different threads*: An AO does not execute in two or more threads simultaneously.
+  #. *Non-blocking*: Sending a message to an AO does not cause a large delay.
+    * Non CPU-wait guarantee
+    * Non-deadlock guarantee
+    * Non IO-block guarantee
+  #. *Recursive*: Messages can be posted recursively to a great depth.
+  #. *Concurrent*: different AOs can run on different hardware processing units concurrently. 
+  #. *Deliverable*: Messages sent to the object are guaranteed to be delivered.
+  #. *Safe*: 
+    * safe from concurrent access,  
+    * safe from dangling pointers, 
+    * safe from memory leaks.
+  #. *Ordered*: Messages are processed in the order they are received. Variations could include processing messages based on priority.
+  #. *Fair*: Each AO gets a fair slice of CPU time, and most importantly is not starved.
 
 I just made these up - maybe you could think of some more.
 
