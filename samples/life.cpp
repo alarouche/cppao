@@ -148,7 +148,7 @@ void Display::ACTIVE_IMPL( redraw )
 
 int main(int argc, char**argv)
 {
-	int seed = argc>1 ? atoi(argv[1]) : 101;
+	int seed = argc>1 ? atoi(argv[1]) : 130;	// 130 is an interesting start position
 	active::pool tp;
 	Controller controller(tp, seed);
 	controller( Controller::compute() );
