@@ -17,14 +17,20 @@ See [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp
 
 Available object types:
 
-  * `class active::object` - The basic AO offering a good default. It is not completely safe because the standard C++ scoping rules apply, and attempting to destroy the object during message processing will result in defined behaviour.
-  * `class active::fast` - Implements "work stealing" strategy so that a message call can actually execute the message handler if the object is currently idle. This object is safe, but the caller can become blocked. If you have an insane number of active objects, it's possible to run out of stack space.
-  * `class active::shared<>` - Same as `active::object` but for use in smart pointers, and is guaranteed to not be destroyed during message processing. 
-  * `class active::thread` - Dedicates an OS thread to this object. This object is safe, but can fail due to OS limits on the number of threads.
-  * `class active::shared_thread<>` - Dedicates an OS thread to this object, for used in shared objects.
-  * `class active::mutexed` - A very simple mutexed object, which does not use queueing. This is safe but a reentrant call could deadlock the object, and the caller could get blocked waiting for the message to process.
-  * `class active::try_lock` - Same as `active::mutexed`, however will detect re-entrant calls and fail with an exception.
-  * `class active::direct` - Non-active object; message calls are dispatched immediately. This is most definitely not in any way safe, but it's also fast. Beware of stack overflows as well.
+|| Type name || Description || Use case ||
+|| `active::object` || The basic AO offering a good default. It is not completely safe because the standard C++ scoping rules apply, and attempting to destroy the object during message processing will result in defined behaviour. || Default use. ||
+|| `active::fast` || Implements "work stealing" strategy so that a message call can actually execute the message handler if the object is currently idle. This object is safe, but the caller can become blocked. If you have an insane number of active objects, it's possible to run out of stack space. || When processing is quick and concurrent execution is not necessary. ||
+|| `active::shared<>` || Same as `active::object` but for use in smart pointers, and is guaranteed to not be destroyed during message processing. || When using `std::shared_ptr<>` ||
+|| `active::thread` || Dedicates an OS thread to this object. This object is safe, but can fail due to OS limits on the number of threads. || When you are sure you need a dedicated thread. ||
+|| `active::shared_thread<>` || Dedicates an OS thread to this object, for used in shared objects. || When you are sure you need a dedicated thread and using `std::shared_ptr` ||
+
+== Fake AOs ==
+
+The following classes are very similar to normal AOs, and are in many cases much faster. Their main use is for interfacing with other AOs (e.g. to implement callbacks), or for experimenting with a blend of object types for optimum performance.
+
+|| Type name || Description || Use case ||
+|| `active::synchronous` || A very simple mutexed object, which does not use queueing. Could be reentrant (so not true AO semantics). || For lightweight thread-safe processing. ||
+|| `active::direct` || Almost the same as a standard function call, with no locking mechanisms at all. Beware of stack overflows as well. || Lightweight single-threaded processing. When you have your own locking mechanism. ||
 
 = Policy framework =
 
