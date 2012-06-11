@@ -237,7 +237,7 @@ There are actually a number of base classes you could choose for your active obj
  * `active::shared<>` - Use smart pointers, `std::shared_ptr<>`.
  * `active::fast` - Processes the message in the calling thread if the object is idle. This is often faster but can fail to exploit the hardware fully.
  * `active::thread` - Dedicates an OS thread to this AO.
- * `active::mutexed` - Always processes message in the calling thread. This is really a synchronous object, not an AO.
+ * `active::synchronous` - Always processes message in the calling thread, but guarded by a mutex. Not a true AO.
 
 See FineTuning for further details, and the sample [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp object_types.cpp] shows off the different implementations.
 
