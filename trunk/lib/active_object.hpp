@@ -184,7 +184,7 @@ namespace active
 			template<typename Message, typename Accessor>		
 			bool enqueue(any_object * object, const Message & msg, const Accessor&)
 			{
-				std::lock_guard<std::mutex> lock(m_mutex);
+                std::lock_guard<std::recursive_mutex> lock(m_mutex);
 				try
 				{
 					Accessor::run(object, msg);
@@ -207,45 +207,10 @@ namespace active
             bool empty() const;
 
         private:
-            std::mutex m_mutex;
+            std::recursive_mutex m_mutex;
 		};
 		
-        // Won't deadlock on a recursive call, but throws instead.
-        // Correct but limited.
-		struct try_lock
-		{
-			try_lock();
-			try_lock(const try_lock&);
-			
-			template<typename Message, typename Accessor>		
-			bool enqueue(any_object * object, const Message & msg, const Accessor&)
-			{
-				if( !m_mutex.try_lock() ) throw std::bad_alloc();  // ?? 
-				try
-				{
-					Accessor::run(object, msg);
-				}
-				catch(...)
-				{
-					object->exception_handler();
-				}
-				m_mutex.unlock();
-				return false;
-			}
-			
-            template<typename T>
-            struct queue_data
-            {
-                struct type { };
-            };
 
-            bool run_some(any_object * o, int n=100) noexcept;
-            bool empty() const;
-
-        private:
-            std::mutex m_mutex;
-		};
-		
         // Default message queue shared between all message types.
         class shared
 		{	
@@ -472,8 +437,7 @@ namespace active
 	
 	typedef object_impl<schedule::thread_pool, queueing::steal<queueing::shared>, sharing::disabled> fast;
 	typedef object_impl<schedule::none, queueing::direct_call, sharing::disabled> direct;
-	typedef object_impl<schedule::none, queueing::mutexed_call, sharing::disabled> mutexed;
-	typedef object_impl<schedule::none, queueing::try_lock, sharing::disabled> try_lock;
+    typedef object_impl<schedule::none, queueing::mutexed_call, sharing::disabled> synchronous;
 	
 	// An active object which could be stored in a std::shared_ptr.
 	// If this is the case, then a safer message queueing scheme is implemented

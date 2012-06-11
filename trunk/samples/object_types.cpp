@@ -39,15 +39,11 @@ struct direct : public active::direct
 	ACTIVE_METHOD(greeting) { std::cout << "Direct object says " << greeting << std::endl; }
 };
 
-struct mutexed: public active::mutexed
+struct mutexed: public active::synchronous
 {
-	ACTIVE_METHOD(greeting) { std::cout << "Mutexed object says " << greeting << std::endl; }
+    ACTIVE_METHOD(greeting) { std::cout << "Synchronous object says " << greeting << std::endl; }
 };
 
-struct try_lock: public active::mutexed
-{
-	ACTIVE_METHOD(greeting) { std::cout << "Try-lock object says " << greeting << std::endl; }
-};
 
 int main()
 {
@@ -73,10 +69,7 @@ int main()
 	
 	mutexed obj7;
 	obj7("Hello");
-	
-	try_lock obj8;
-	obj8("Hello");
-	
+		
 	std::cout << "Now running object pool...\n";
 	active::run(4);
 }

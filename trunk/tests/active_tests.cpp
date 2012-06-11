@@ -557,7 +557,7 @@ struct mix_object : public active::object_impl<Schedule,Queueing,Sharing>, publi
 
 std::shared_ptr<mix_interface> mix_factory(int n)
 {
-	switch( n%22 )
+    switch( n%20 )
 	{
 	default:
 	case 0: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared, active::sharing::disabled> >();
@@ -580,8 +580,6 @@ std::shared_ptr<mix_interface> mix_factory(int n)
 	case 17: return std::make_shared< mix_object<active::schedule::none, active::queueing::direct_call, active::sharing::enabled<>> >();
 	case 18: return std::make_shared< mix_object<active::schedule::none, active::queueing::mutexed_call, active::sharing::disabled> >();
 	case 19: return std::make_shared< mix_object<active::schedule::none, active::queueing::mutexed_call, active::sharing::enabled<>> >();
-	case 20: return std::make_shared< mix_object<active::schedule::none, active::queueing::try_lock, active::sharing::disabled> >();
-	case 21: return std::make_shared< mix_object<active::schedule::none, active::queueing::try_lock, active::sharing::enabled<>> >();
 	}
 }
 

@@ -244,16 +244,6 @@ bool active::queueing::mutexed_call::empty() const
     return true;
 }
 
-bool active::queueing::try_lock::run_some(any_object * o, int n) noexcept
-{
-    return false;
-}
-
-bool active::queueing::try_lock::empty() const
-{
-    return true;
-}
-
 active::queueing::separate::separate()
 {
 }
@@ -342,10 +332,3 @@ bool active::queueing::shared::run_some(any_object * o, int n) noexcept
     return m_head;
 }
 		
-active::queueing::try_lock::try_lock() 
-{ 
-}
-
-active::queueing::try_lock::try_lock(const try_lock&) 
-{ 
-}
