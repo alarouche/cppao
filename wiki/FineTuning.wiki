@@ -1,6 +1,8 @@
 #summary Getting the most out of cppao.
 
 = Summary =
+This page goes into quite a lot of detail about design considerations and the various object types, and is best avoided on first reading.
+
 The basic object types (`active::object` and `active::shared<>`) are the default types which should offer reasonable results.  Cppao offers other object types with slightly different characteristics.
 
 Cppao actually implements a policy framework, where different aspects can be combined. It is possible to implement new strategies (e.g. to prioritise messages, or to limit the message queue size) in an extensible manner.
@@ -18,7 +20,7 @@ See [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp
 Available object types:
 
 || Type name || Description || Use case ||
-|| `active::object` || The basic AO offering a good default. It is not completely safe because the standard C++ scoping rules apply, and attempting to destroy the object during message processing will result in defined behaviour. || Default use. ||
+|| `active::object` || The basic AO offering a good default. It is not completely safe because the standard C++ object lifetime rules apply. Uses a faster scheduler than OS threads (see Performance later) || Default use. ||
 || `active::fast` || Implements "work stealing" strategy so that a message call can actually execute the message handler if the object is currently idle. This object is safe, but the caller can become blocked. If you have an insane number of active objects, it's possible to run out of stack space. || When processing is quick and concurrent execution is not necessary. ||
 || `active::shared<>` || Same as `active::object` but for use in smart pointers, and is guaranteed to not be destroyed during message processing. || When using `std::shared_ptr<>` ||
 || `active::thread` || Dedicates an OS thread to this object. This object is safe, but can fail due to OS limits on the number of threads. || When you are sure you need a dedicated thread. ||
@@ -26,11 +28,11 @@ Available object types:
 
 == Fake AOs ==
 
-The following classes are very similar to normal AOs, and are in many cases much faster. Their main use is for interfacing with other AOs (e.g. to implement callbacks), or for experimenting with a blend of object types for optimum performance.
+The following classes are very similar to normal AOs, and are in many cases much faster. Their main use is for interfacing with other AOs (e.g. to implement callbacks), for simple connecting objects, or for experimenting with a blend of object types for optimum performance. Beware stack overflows.
 
 || Type name || Description || Use case ||
 || `active::synchronous` || A very simple mutexed object, which does not use queueing. Could be reentrant (so not true AO semantics). || For lightweight thread-safe processing. ||
-|| `active::direct` || Almost the same as a standard function call, with no locking mechanisms at all. Beware of stack overflows as well. || Lightweight single-threaded processing. When you have your own locking mechanism. ||
+|| `active::direct` || Almost the same as a standard function call, with no locking mechanisms at all. || Lightweight single-threaded processing. When the object is already threadsafe or has no mutable state. ||
 
 = Policy framework =
 
@@ -63,8 +65,7 @@ The queue determines which message to service next, and provides a container for
   * `active::queueing::shared`  (default) - uses a single linked list to store all messages for an object
   * `active::queueing::separate` - an alternative implementation.
   * `active::queuing::direct_call` - Process message immediately in calling thread without a mutex.
-  * `active::queueing::mutexed_call` - Process message immediately in calling thread, but mutexes the object. Reentrant calls will deadlock.
-  * `active::queueing::try_lock` - Attempt to lock the object but throw an exception on failure.
+  * `active::queueing::mutexed_call` - Process message immediately in calling thread, but mutexes the object with a recursive mutex.
   * `active::queuing::steal<>` - Adapt another queueing strategy by processing the message in the calling thread when the object is idle.
 
 == Sharing implementations ==
@@ -77,16 +78,16 @@ Sharing information controls the pointer type in the message queue. The main use
 
 An implementation may do whatever it likes provided that the following characteristics, or _guarantees_ are met:
 
-  #. *Scalable*: work with a large number of objects. For example, limiting AOs to the number of OS threads could be too limiting for some applications.
+  #. *Scalable*: Work with a large number of objects. For example, limiting AOs to the number of OS threads could be too limiting for some applications.
   #. *Non-overlapping*: Objects process at most one message at a time.
     * *Non-reentrant*: Messages which send messages back to the same object (perhaps indirectly) are processed after the current message is processed.
-    * *Across different threads*: An AO does not execute in two or more threads simultaneously.
+    * *Non-concurrent*: An AO does not execute in two or more threads simultaneously.
   #. *Non-blocking*: Sending a message to an AO does not cause a large delay.
     * Non CPU-wait guarantee
     * Non-deadlock guarantee
     * Non IO-block guarantee
   #. *Recursive*: Messages can be posted recursively to a great depth.
-  #. *Concurrent*: different AOs can run on different hardware processing units concurrently. 
+  #. *Concurrent*: Different AOs can run on different hardware processing units concurrently. 
   #. *Deliverable*: Messages sent to the object are guaranteed to be delivered.
   #. *Safe*: 
     * safe from concurrent access,  
@@ -102,8 +103,7 @@ I just made these up - maybe you could think of some more.
 || `active::shared<>`   || y || y  || y  || y  || y  || y^1^ || yyy|| y  || y^2^ || 
 || `active::fast`       || y || y || n || y || y^3^ || y || yny || y || y ||
 || `active::direct` || y || nn || n || n || n || y^1^ || nnn || y || n || 
-|| `active::mutexed` || y || y || n || n || n || n || ynn || y || n ||
-|| `active::try_lock`|| y || y || n || n || n || n || ynn || y || n ||
+|| `active::synchronous` || y || y || n || n || n || n || ynn || y || n ||
 || `active::thread` || n || y || y || y || y || y || ynn || y || y ||
 || `active::shared_thread<>` || n || y || y || y || y || y || yyy || y || y ||
 
@@ -118,15 +118,22 @@ Notes:
 These figures are generated by the thread-ring test [http://code.google.com/p/cppao/source/browse/trunk/samples/bench.cpp bench.cpp] - YMMV.
 
 || Typename || Schedule || Queueing || Sharing || Million messages per second ||
-|| `active::direct` || `none` || `direct_call` || `disabled` || 26 ||
-|| || `none` || `direct_call` || `enabled<>` || 26 ||
-|| `active::fast` || `thread_pool` || `steal<shared>` || `disabled` || 8.6 ||
-|| || `thread_pool` || `steal<shared>` || `enabled` || 7.7 ||
-|| || `thread_pool` || `steal<separate>` || `disabled` || 8.5 ||
-|| || `thread_pool` || `steal<separate>` || `enabled` || 8.6 ||
-|| `active::object` || `thread_pool` || `shared` || `disabled` || 3.2 ||
-|| `active::shared<>` || `thread_pool` || `shared` || `enabled<>` || 2.8 ||
-|| || `thread_pool` || `separate` || `disabled` || 3.6 ||
-|| || `thread_pool` || `separate` || `enabled<>` || 3.1 ||
-|| `active::thread` || `own_thread` || `shared` || `disabled` || 0.125 ||
-|| `active::shared_thread<>` || `own_thread` || `shared` || `enabled<>` || 0.133 ||
+|| `active::direct` || `none` || `direct_call` || `disabled` || 25 ||
+|| `active::synchronous` || `none` || `mutexed_call` || `disabled` || 19 ||
+|| `active::fast` || `thread_pool` || `steal<shared>` || `disabled` || 19 ||
+|| || `thread_pool` || `steal<shared>` || `enabled` || 19 ||
+|| || `thread_pool` || `steal<separate>` || `disabled` || 16 ||
+|| || `thread_pool` || `steal<separate>` || `enabled` || 17 ||
+|| `active::object` || `thread_pool` || `shared` || `disabled` || 5.1 ||
+|| `active::shared<>` || `thread_pool` || `shared` || `enabled<>` || 4.0 ||
+|| || `thread_pool` || `separate` || `disabled` || 7.1 ||
+|| || `thread_pool` || `separate` || `enabled<>` || 4.7 ||
+|| `active::thread` || `own_thread` || `shared` || `disabled` || 0.19 ||
+|| `active::shared_thread<>` || `own_thread` || `shared` || `enabled<>` || 0.19 ||
+
+== Comment ==
+Using the OS to schedule AOs is of course a reasonable first approach, but cppao implements its own scheduler which is much more scalable and lightweight, and the performance results confirm this.
+
+Hopefully your application is written such that most of the CPU is expended on doing your computation than the overhead of messaging. Some design consideration is needed to get the "right amount" of messaging, so that the overheads of messaging do not outweigh the benefits of concurrency.
+
+With cppao, you can fairly easily reconfigure your active objects using the different AO types.
