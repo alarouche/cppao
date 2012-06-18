@@ -1,0 +1,23 @@
+#summary Detailed description.
+
+= Classes =
+== `struct active::object_impl<typename Schedule, typename Queueing, typename Sharing>` ==
+
+== `class active::pool` ==
+
+== 'class active::sink' ==
+
+= Global variables =
+== `active::pool active::default_pool` ==
+
+= Preprocessor definitions =
+
+== `#define ACTIVE_IFACE` =
+
+== `#define ACTIVE_METHOD` ==
+
+== `#define ACTIVE_IMPL` ==
+
+= Functions =
+
+== `void active::run(int threads=N)` ==
