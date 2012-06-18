@@ -36,6 +36,7 @@ Options for `Queueing`:
 || `struct active::queueing::mutexed_call` || Messages are executed immediately, protected by a recursive mutex. ||
 || `struct active::queueing::shared` || Messages are queued as per normal AO semantics. ||
 || `struct active::queueing::separate` || Alternative implementation. ||
+|| `template<typename Q> struct active::queueing::steal` || Directly executes the message handler if the object is idle. ||
 
 Options for `Sharing`:
 
@@ -62,6 +63,10 @@ struct shared : public object_impl<schedule::thread_pool, queueing::shared, shar
 };
 }}}
 This implements the default AO type for shared pointers.
+== active::fast ==
+{{{
+typedef object_impl<schedule::thread_pool, queuing::steal<queueing::shared>, sharing::disabled> thread;
+}}}
 
 == active::thread ==
 {{{
