@@ -1,14 +1,47 @@
 #summary Detailed description.
 
+= Header =
+{{{
+#include <active_object.hpp>
+}}}
+
+= Namespace =
+All declarations are in the namespace `active`.
 = Classes =
-== `struct active::object_impl<typename Schedule, typename Queueing, typename Sharing>` ==
+== active::object_impl ==
 
-== `class active::pool` ==
+{{{
+template<typename Schedule, typename Queueing, typename Sharing> struct object_impl;
+}}}
 
-== 'class active::sink' ==
+Methods:
+
+|| object_impl(pool & p = default_pool) || Default constructor. Objects are members of the global `default_pool` unless otherwise specified ||
+|| object_impl(const object_impl&) || Does a default copy, but does not copy any messages. ||
+|| object_impl & operator=(const object_impl&) || Default copy operator, but does not copy any messages. ||
+|| ~object_impl() || Destroys the object; must not be called whilst there are unprocessed messages. ||
+|| void set_scheduler(pool & p) || Change the pool. Must not be called after messages have been sent to the object. ||
+
+== active::object ==
+{{{
+typedef object_impl<...> object;
+}}}
+
+== active::shared == 
+
+== active::pool ==
+{{{
+class pool;
+}}}
+
+== class active::sink ==
 
 = Global variables =
-== `active::pool active::default_pool` ==
+== `active::default_pool` ==
+{{{
+extern pool default_pool;
+}}}
+The global scheduler, used by objects by default unless overridden by `object_impl::set_scheduler()`. Global variables are of course to be discouraged
 
 = Preprocessor definitions =
 
