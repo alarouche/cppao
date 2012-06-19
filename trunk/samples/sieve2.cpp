@@ -26,6 +26,19 @@ public:
         }
     }
 
+    // The only reason this is needed is because the std::shared_ptr
+    // causes a stack overflow with 1 million active objects!
+    struct destroy {};
+
+    ACTIVE_METHOD(destroy)
+    {
+        if(next)
+        {
+            (*next)(destroy);
+            next.reset();
+        }
+    }
+
 private:
     ptr next;
     const int prime;
@@ -47,6 +60,8 @@ public:
 
         if( number < max )
             (*this)(number+1);
+        else
+            (*head)(Prime::destroy());
     }
 private:
     Prime::ptr head;

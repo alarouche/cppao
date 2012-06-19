@@ -14,6 +14,7 @@ add_executable( bench bench.cpp )
 add_executable( exception exception.cpp )
 add_executable( object_types object_types.cpp )
 add_executable( sieve sieve.cpp )
+add_executable( sieve2 sieve2.cpp )
 add_library( active_socket active_socket.cpp active_socket.hpp )
 
 link_libraries( active_socket )
