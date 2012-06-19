@@ -7,7 +7,6 @@
 #include <active_object.hpp>
 #include <iostream>
 
-
 class Prime : public active::shared<Prime>
 {
 public:
