@@ -17,7 +17,7 @@ active::any_object::~any_object()
 
 
 // Used by an active object to signal that there are messages to process.
-void active::pool::activate(ObjectPtr p) noexcept
+void active::pool::activate(ObjectPtr p) throw()
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
     p->m_next=nullptr;
@@ -34,7 +34,7 @@ void active::pool::activate(ObjectPtr p) noexcept
 
 // Runs until there are no more messages in the entire pool.
 // Returns false if no more items.
-bool active::pool::run_managed() noexcept
+bool active::pool::run_managed() throw()
 {
 	std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -101,7 +101,7 @@ void active::pool::run_in_thread()
 }
 
 
-void active::any_object::exception_handler() noexcept
+void active::any_object::exception_handler() throw()
 {
 	try
 	{
@@ -123,13 +123,13 @@ void active::run(int threads)
 	default_pool.run(threads);
 }
 
-void active::pool::start_work() noexcept
+void active::pool::start_work() throw()
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
 	++m_busy_count;
 }
 
-void active::pool::stop_work() noexcept
+void active::pool::stop_work() throw()
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
 	if( 0 == --m_busy_count )
@@ -216,7 +216,7 @@ active::schedule::own_thread::~own_thread()
     m_thread.join();
 }
 
-bool active::queueing::direct_call::run_some(any_object * o, int n) noexcept
+bool active::queueing::direct_call::run_some(any_object * o, int n) throw()
 {
     return false;
 }
@@ -234,7 +234,7 @@ active::queueing::mutexed_call::mutexed_call(const mutexed_call&)
 {
 }
 
-bool active::queueing::mutexed_call::run_some(any_object * o, int n) noexcept
+bool active::queueing::mutexed_call::run_some(any_object * o, int n) throw()
 {
     return false;
 }
@@ -257,7 +257,7 @@ bool active::queueing::separate::empty() const
     return m_message_queue.empty();
 }
 
-bool active::queueing::separate::run_some(any_object * o, int n) noexcept
+bool active::queueing::separate::run_some(any_object * o, int n) throw()
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
@@ -308,7 +308,7 @@ bool active::queueing::shared::empty() const
     return !m_head;
 }
 
-bool active::queueing::shared::run_some(any_object * o, int n) noexcept
+bool active::queueing::shared::run_some(any_object * o, int n) throw()
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     while( m_head && n-->0)

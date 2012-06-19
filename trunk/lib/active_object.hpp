@@ -23,9 +23,9 @@ namespace active
 	struct any_object
 	{
 		virtual ~any_object();
-        virtual void run() noexcept=0;
-        virtual bool run_some(int n=100) noexcept=0;
-        virtual void exception_handler() noexcept;
+        virtual void run() throw()=0;
+        virtual bool run_some(int n=100) throw()=0;
+        virtual void exception_handler() throw();
         any_object * m_next;
 	};
 	
@@ -44,11 +44,11 @@ namespace active
 		// void add(ObjectPtr p);
 		
 		// Used by an active object to signal that there are messages to process.
-        void activate(ObjectPtr) noexcept;
+        void activate(ObjectPtr) throw();
 
 		// Thread tracking:
-        void start_work() noexcept;
-        void stop_work() noexcept;
+        void start_work() throw();
+        void stop_work() throw();
 		
         // Runs in current thread until there are no more messages in the entire pool.
 		// Returns false if no more items.
@@ -64,7 +64,7 @@ namespace active
         int m_busy_count;	// Used to work out when we have actually finished.
         std::exception_ptr m_exception;
 		void run_in_thread();
-        bool run_managed() noexcept;
+        bool run_managed() throw();
 	};
 	
 	// As a convenience, provide a global variable to run all active objects.
@@ -164,7 +164,7 @@ namespace active
 				return false;
 			}
 			
-            bool run_some(any_object * o, int n=100) noexcept;
+            bool run_some(any_object * o, int n=100) throw();
 			
 			template<typename T>
 			struct queue_data
@@ -196,7 +196,7 @@ namespace active
 				return false;
 			}
 			
-            bool run_some(any_object * o, int n=100) noexcept;
+            bool run_some(any_object * o, int n=100) throw();
 			
 			template<typename T>
 			struct queue_data
@@ -240,7 +240,7 @@ namespace active
 			
             bool empty() const;
 			
-            bool run_some(any_object * o, int n=100) noexcept;
+            bool run_some(any_object * o, int n=100) throw();
         protected:
             std::mutex m_mutex;
 
@@ -291,7 +291,7 @@ namespace active
 			}
 			
             bool empty() const;
-            bool run_some(any_object * o, int n=100) noexcept;
+            bool run_some(any_object * o, int n=100) throw();
 
         protected:
             std::mutex m_mutex;
@@ -365,7 +365,7 @@ namespace active
 		
 		~object_impl() { if(!m_queue.empty()) std::terminate(); }
 		
-		void run() noexcept
+		void run() throw()
 		{
             typename share_type::pointer_type p=0;
             m_share.deactivate(p);
@@ -374,7 +374,7 @@ namespace active
 				;
 		}
 
-		bool run_some(int n) noexcept
+		bool run_some(int n) throw()
 		{
             typename share_type::pointer_type p=0;
             m_share.deactivate(p);
@@ -419,17 +419,17 @@ namespace active
 #define ACTIVE_IMPL( MSG ) impl_##MSG(const MSG & MSG)
 
 
-#define ACTIVE_METHOD2( MSG, TEMPLATE ) \
-	typename queue_type::TEMPLATE queue_data<MSG>::type queue_data_##MSG; \
+#define ACTIVE_METHOD2( MSG, TYPENAME, TEMPLATE ) \
+	TYPENAME queue_type::TEMPLATE queue_data<MSG>::type queue_data_##MSG; \
 	template<typename C> struct run_##MSG { \
 		static void run(::active::any_object*o, const MSG&m) { static_cast<C>(o)->impl_##MSG(m); } \
-		static typename queue_type::TEMPLATE queue_data<MSG>::type& data(::active::any_object*o) {return static_cast<C>(o)->queue_data_##MSG; } }; \
+		static TYPENAME queue_type::TEMPLATE queue_data<MSG>::type& data(::active::any_object*o) {return static_cast<C>(o)->queue_data_##MSG; } }; \
     void operator()(const MSG & x) { this->enqueue(x, run_##MSG<decltype(this)>() ); } \
 	void ACTIVE_IMPL(MSG)
 	
 	
-#define ACTIVE_METHOD( MSG ) ACTIVE_METHOD2(MSG,)
-#define ACTIVE_TEMPLATE(MSG) ACTIVE_METHOD2(MSG,template)
+#define ACTIVE_METHOD( MSG ) ACTIVE_METHOD2(MSG,,)
+#define ACTIVE_TEMPLATE(MSG) ACTIVE_METHOD2(MSG,typename,template)
 
 	// The default object type.
 	typedef object_impl<schedule::thread_pool, queueing::shared, sharing::disabled> object;
