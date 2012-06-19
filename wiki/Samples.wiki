@@ -46,9 +46,9 @@ However this approach is not a good one because you are mixing paradigms, there 
 
 Demonstrates:
 
-  * Returning results using some kind of shared state.
-  * Separating declaration and definition using _ACTIVE_IMPL_
-  * _const_ active methods.
+  * Returning results using some kind of shared state,
+  * Separating declaration and definition using `ACTIVE_IMPL`,
+  * `const` active methods.
 
 =Promises promises=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp]
@@ -79,7 +79,7 @@ A message is passed to an AO, containing the parameters for a computation, and a
 
 Demonstrates:
 
-  * _ACTIVE_IFACE_ macro
+  * `ACTIVE_IFACE` macro,
   * How to implement interfaces for AOs.
 
 =Message sinks=
@@ -89,7 +89,7 @@ An interface to an AO is defined using the _active::sink<>_ class. The result of
 
 Demonstrates:
 
-  * _active::sink<>_
+  * `active::sink<>`,
   * How to pass messages between objects in a more abstract way.
 
 =Exceptions=
@@ -99,8 +99,21 @@ An active method throws an exception which calls an exception handler.
 
 Demonstrates:
 
-  * How to catch exceptions.
+  * How to catch exceptions,
   * _exception_handler()_
+
+= Prime number sieve =
+[http://code.google.com/p/cppao/source/browse/trunk/samples/sieve.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/sieve2.cpp]
+
+Outputs the list of prime numbers. Creates a list of AOs which are used to filter a sequence of integers.
+
+The second program improves upon the first by handling longer lists (>1000000), since there is a "bug" in `std::shared_ptr<>` in that it cannot represent very long linked lists without the destructor running out of stack space.
+
+Demonstrates:
+
+  * `active::shared<>`,
+  * Dynamic creation of AOs.
 
 =Game of life=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/life.hpp]
@@ -132,9 +145,9 @@ Wrapping a synchronous object inside an AO. Many POSIX/Winsock functions are pro
 
 Demonstrates:
 
-  * Use of `std::shared_ptr` to contain objects
-  * `active::shared<>`
-  * Composite objects: `socket` contains a `reader` and a `writer`; `select` contains a `select_loop`
+  * Use of `std::shared_ptr` to contain objects,
+  * `active::shared<>`,
+  * Composite objects: `socket` contains a `reader` and a `writer`; `select` contains a `select_loop`,
   * Network programming.
 
 =Echo=
@@ -154,7 +167,7 @@ Building on the socket and pipe objects, we construct a TCP/IP client/server. Th
 
 Demonstrates:
 
-  * Asynchronous IO.
-  * Writing network applications.
-  * Concurrent socket operations.
+  * Asynchronous IO,
+  * Writing network applications,
+  * Concurrent socket operations,
   * Multiple message sinks on the same object.
