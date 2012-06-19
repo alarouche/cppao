@@ -1,22 +1,40 @@
+/*  Prime number sieve demonstration in cppao.
+    http://code.google.com/p/cppao
+    Written by Calum Grant
+*/
+
 #include <active_object.hpp>
 #include <iostream>
 
-
-class Filter : public active::shared<Filter>
+class Prime : public active::shared<Prime>
 {
 public:
-    typedef int message;
 
-    Filter(int p) : prime(p) { std::cout << p << "\n"; }
+    Prime(int p) : prime(p) { std::cout << p << "\n"; }
 
-    ACTIVE_METHOD(message)
+    typedef int filter;
+
+    ACTIVE_METHOD(filter)
     {
-        if(message % prime)
+        if(filter % prime)
         {
             if(next)
-                (*next)(message);
+                (*next)(filter);
             else
-                next = std::make_shared<Filter>(message);
+                next = std::make_shared<Prime>(filter);
+        }
+    }
+
+    // This cleanup method is needed because std::shared_ptr
+    // cannot delete a chain of 1 million objects without stack overflow.
+    struct destroy {};
+
+    ACTIVE_METHOD(destroy)
+    {
+        if(next)
+        {
+            (*next)(destroy);
+            next.reset();
         }
     }
 
@@ -24,7 +42,6 @@ private:
     ptr next;
     const int prime;
 };
-
 
 class Source : public active::object
 {
@@ -38,12 +55,15 @@ public:
         if(head)
             (*head)(number);
         else
-            head = std::make_shared<Filter>(number);
+            head = std::make_shared<Prime>(number);
 
-        if( number < max ) (*this)(number+1);
+        if( number < max )
+            (*this)(number+1);
+        else
+            (*head)(Prime::destroy());
     }
 private:
-    Filter::ptr head;
+    Prime::ptr head;
     const int max;
 };
 
