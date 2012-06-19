@@ -301,7 +301,7 @@ struct except_object : public active::object
 
 	struct ex { };
 
-    void exception_handler() noexcept
+    void exception_handler() throw()
 	{
 		try
 		{
@@ -588,7 +588,7 @@ struct result_holder : public active::object, public active::sink<T>
 {
 	typedef T msg;
 	T result;
-	ACTIVE_METHOD(msg) { result = msg; }
+	ACTIVE_TEMPLATE(msg) { result = msg; }
 };
 
 void test_object_mix()
