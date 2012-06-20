@@ -14,28 +14,36 @@ All declarations are in the namespace `active`.
 template<typename Schedule, typename Queueing, typename Sharing> struct object_impl;
 }}}
 
+Types:
+
+|| `queue_type` || `Queueing` ||
+|| `schedule_type` || `Schedule` ||
+|| `sharing_type` || `Sharing` ||
+|| `scheduler_type` || Usually `active::scheduler` ||
+|| `allocator_type` || `Queueing::allocator_type` ||
+
 Methods:
 
-|| `object_impl(pool & p = default_pool)` || Default constructor. Objects are members of the global `default_pool` unless otherwise specified ||
+|| `object_impl(scheduler_type & p = default_scheduler, const allocator_type & alloc = allocator_type())` || Default constructor. Objects are scheduled by the global `default_scheduler` unless otherwise specified. ||
 || `object_impl(const object_impl&)` || Does a default copy, but does not copy any messages. ||
 || `object_impl & operator=(const object_impl&)` || Default copy operator, but does not copy any messages. ||
 || `~object_impl()` || Destroys the object; must not be called whilst there are unprocessed messages. ||
-|| `void set_scheduler(pool & p)` || Change the scheduler. Must not be called after messages have been sent to the object. ||
+|| `void set_scheduler(scheduler_type & p)` || Change the scheduler. Must not be called after messages have been sent to the object. ||
 || `virtual void exception_handler()` || Called when an exception escapes from a message handler. This must not throw an exception. The default implementation is to write a message and continue, but can be overridden. ||
-|| `void operator()(const Msg&)` || Message handlers defined by `ACTIVE_IFACE` and `ACTIVE_METHOD` macros. ||
+|| `void operator()(const Msg&)` || Message handlers defined by `ACTIVE_IFACE` and `ACTIVE_METHOD` macros. This might throw an exception such as `std::bad_alloc` or any exception from the copy constructor of `Msg`. ||
 
 Options for `Schedule`:
 
 ||`struct active::schedule::none` ||Does not schedule the object. ||
 || `struct active::schedule::own_thread` || Dedicates an OS thread for this object. ||
-|| `struct active::schedule::thread_pool` || Uses `active::pool` to schedule this object. ||
+|| `struct active::schedule::thread_pool` || Uses `active::scheduler` to schedule this object. ||
 
 Options for `Queueing`:
 
 || `struct active::queueing::direct_call` || Messages are executed immediately without a mutex. ||
 || `struct active::queueing::mutexed_call` || Messages are executed immediately, protected by a recursive mutex. ||
-|| `struct active::queueing::shared` || Messages are queued as per normal AO semantics. ||
-|| `struct active::queueing::separate` || Alternative implementation. ||
+|| `template<typename Allocator=std::allocator<void>> struct active::queueing::shared` || Messages are queued as per normal AO semantics. ||
+|| `template<typename Allocator=std::allocator<void>> struct active::queueing::separate` || Alternative implementation. ||
 || `template<typename Q> struct active::queueing::steal` || Directly executes the message handler if the object is idle. ||
 
 Options for `Sharing`:
@@ -60,6 +68,7 @@ This implements the default AO type.
 template<typename T>
 struct shared : public object_impl<schedule::thread_pool, queueing::shared, sharing::enabled<T>>
 {
+    ...
 };
 }}}
 This implements the default AO type for shared pointers.
@@ -78,6 +87,7 @@ typedef object_impl<schedule::own_thread, queueing::shared, sharing::disabled> t
 template<typename T>
 struct shared : public object_impl<schedule::own_thread, queueing::shared, sharing::enabled<T>>
 {
+   ...
 };
 }}}
 
@@ -91,19 +101,20 @@ typedef object_impl<schedule::none, queueing::mutexed_call, sharing::disabled> s
 typedef object_impl<schedule::none, queueing::direct_call, sharing::disabled> direct;
 }}}
 
-== active::pool ==
+== active::scheduler ==
+Schedules the message processing on a collection of active objects.
 {{{
-class pool;
+class scheduler;
 }}}
 
 Methods:
 
-|| pool() || ||
-|| pool(const pool&) = delete || ||
-|| pool& operator=(const pool&) = delete || ||
-|| ~pool() || Must not be called during `run()`. ||
-|| void run() || Runs the pool in a single thread. Can be called concurrently from multiple threads. ||
-|| void run(int threads) || Runs the pool using the specified number of threads. Must not be called concurrently from multiple threads. ||
+|| scheduler() || ||
+|| scheduler(const scheduler&) = delete || ||
+|| scheduler& operator=(const scheduler&) = delete || ||
+|| ~scheduler() || Must not be called during `run()`. ||
+|| void run() || Runs the scheduler in a single thread. Can be called concurrently from multiple threads. ||
+|| void run(int threads) || Runs the scheduler using the specified number of threads. Must not be called concurrently from multiple threads. ||
 
 == active::sink ==
 {{{
@@ -113,11 +124,12 @@ struct sink
     ACTIVE_IFACE(T);
 };
 }}}
+Provides a pure virtual base class for accepting messages.
 
 = Global variables =
-== active::default_pool ==
+== active::default_scheduler ==
 {{{
-extern pool default_pool;
+extern scheduler default_scheduler;
 }}}
 The global scheduler, used by objects by default unless overridden by `object_impl::set_scheduler()`. Global variables are of course to be discouraged, and is only provided for convenience.
 
@@ -154,4 +166,4 @@ void ClassName::ACTIVE_IMPL(MSG)
 {{{
 void run(int threads=std::thread::hardware_concurrency());
 }}}
-Calls `default_pool::run(threads)`.
+Calls `default_scheduler::run(threads)`.
