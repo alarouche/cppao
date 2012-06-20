@@ -34,7 +34,6 @@ int main()
         HelloActive::Greet message = { "Hello, world!" };
         hello(message);
         active::run();
-        return 0;
 }
 }}}
 
