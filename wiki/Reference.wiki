@@ -1,4 +1,4 @@
-#summary Detailed description.
+#summary Detailed description of cppao.
 
 = Header =
 {{{
