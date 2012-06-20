@@ -110,12 +110,12 @@ class scheduler;
 
 Methods:
 
-|| scheduler() || ||
-|| scheduler(const scheduler&) = delete || ||
-|| scheduler& operator=(const scheduler&) = delete || ||
-|| ~scheduler() || Must not be called during `run()`. ||
-|| void run() || Runs the scheduler in a single thread. Can be called concurrently from multiple threads. ||
-|| void run(int threads) || Runs the scheduler using the specified number of threads. Must not be called concurrently from multiple threads. ||
+|| `scheduler()` || ||
+|| `scheduler(const scheduler&) = delete` || ||
+|| `scheduler& operator=(const scheduler&) = delete` || ||
+|| `~scheduler()` || Must not be called during `run()`. ||
+|| `void run()` || Runs the scheduler in a single thread. Can be called concurrently from multiple threads. ||
+|| `void run(int threads)` || Runs the scheduler using the specified number of threads. Must not be called concurrently from multiple threads. ||
 
 == active::sink ==
 {{{
@@ -167,4 +167,4 @@ void ClassName::ACTIVE_IMPL(MSG)
 {{{
 void run(int threads=std::thread::hardware_concurrency());
 }}}
-Calls `default_scheduler::run(threads)`.
+Calls `default_scheduler.run(threads)`.
