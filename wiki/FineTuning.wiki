@@ -3,9 +3,11 @@
 = Summary =
 This page goes into quite a lot of detail about design considerations and the various object types, and is best avoided on first reading.
 
-The basic object types (`active::object` and `active::shared<>`) are the default types which should offer reasonable results.  Cppao offers other object types with  different characteristics.
+The basic object types (`active::object` and `active::shared<>`) are the default types which should offer reasonable results.  Cppao offers other object types with different characteristics.
 
 Cppao actually implements a policy framework, where different aspects can be combined. It is possible to implement new strategies (e.g. to prioritise messages, or to limit the message queue size) in an extensible manner.
+
+Another use case is if you want to supply a different allocator to `active::queueing::shared<>` or `active::queueing::separate<>`, the only classes which perform dynamic memory allocation.
 
 = Object types =
 
