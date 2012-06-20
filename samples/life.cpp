@@ -10,7 +10,7 @@
  */
 
 
-Controller::Controller( active::pool & tp, int seed )
+Controller::Controller( active::scheduler & tp, int seed )
 {
 	std::mt19937 rng;
 	rng.seed(seed);
@@ -149,7 +149,7 @@ void Display::ACTIVE_IMPL( redraw )
 int main(int argc, char**argv)
 {
 	int seed = argc>1 ? atoi(argv[1]) : 130;	// 130 is an interesting start position
-	active::pool tp;
+    active::scheduler tp;
 	Controller controller(tp, seed);
 	controller( Controller::compute() );
 	tp.run(4);

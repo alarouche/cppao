@@ -253,7 +253,7 @@ void test_multiple_separate_instances()
 
 void test_pool()
 {
-	active::pool pool;
+    active::scheduler pool;
 
 	const int N=10, M=10;
 	object1 o1[N];
@@ -437,8 +437,8 @@ void test_object2( active::sink<test_message> & ao)
 
 void test_object_types()
 {
-	test_object< active::schedule::thread_pool, active::queueing::separate, active::sharing::disabled> obj1;
-	test_object< active::schedule::thread_pool, active::queueing::shared, active::sharing::disabled> obj2;
+    test_object< active::schedule::thread_pool, active::queueing::separate<>, active::sharing::disabled> obj1;
+    test_object< active::schedule::thread_pool, active::queueing::shared<>, active::sharing::disabled> obj2;
 	test_object< active::schedule::thread_pool, active::queueing::direct_call, active::sharing::disabled> obj3;
 	test_object< active::schedule::thread_pool, active::queueing::mutexed_call, active::sharing::disabled> obj4;
 	
@@ -447,11 +447,11 @@ void test_object_types()
 	test_object2(obj3);
 	test_object2(obj4);
 	
-	typedef active::queueing::steal<active::queueing::shared> steal1;
-	typedef active::queueing::steal<active::queueing::separate> steal2;
+    typedef active::queueing::steal<active::queueing::shared<>> steal1;
+    typedef active::queueing::steal<active::queueing::separate<>> steal2;
 
-	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, active::queueing::separate, active::sharing::enabled<> >>() );
-	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, active::queueing::shared, active::sharing::enabled<> >>() );
+    test_object2( *std::make_shared<test_object< active::schedule::thread_pool, active::queueing::separate<>, active::sharing::enabled<> >>() );
+    test_object2( *std::make_shared<test_object< active::schedule::thread_pool, active::queueing::shared<>, active::sharing::enabled<> >>() );
 	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, active::queueing::direct_call, active::sharing::enabled<> >>() );
 	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, active::queueing::mutexed_call, active::sharing::enabled<> >>() );
 	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, steal1, active::sharing::enabled<> >>() );
@@ -560,22 +560,22 @@ std::shared_ptr<mix_interface> mix_factory(int n)
     switch( n%20 )
 	{
 	default:
-	case 0: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared, active::sharing::disabled> >();
-	case 1: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared, active::sharing::enabled<>> >();
-	case 2: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::separate, active::sharing::disabled> >();
-	case 3: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::separate, active::sharing::enabled<>> >();
-	case 4: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::shared>, active::sharing::disabled> >();
-	case 5: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::shared>, active::sharing::enabled<>> >();
-	case 6: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::separate>, active::sharing::disabled> >();
-	case 7: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::separate>, active::sharing::enabled<>> >();
-	case 8: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::shared, active::sharing::disabled> >();
-	case 9: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::shared, active::sharing::enabled<>> >();
-	case 10: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::separate, active::sharing::disabled> >();
-	case 11: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::separate, active::sharing::enabled<>> >();
-	case 12: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::shared>, active::sharing::disabled> >();
-	case 13: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::shared>, active::sharing::enabled<>> >();
-	case 14: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::separate>, active::sharing::disabled> >();
-	case 15: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::separate>, active::sharing::enabled<>> >();
+    case 0: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared<>, active::sharing::disabled> >();
+    case 1: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared<>, active::sharing::enabled<>> >();
+    case 2: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::separate<>, active::sharing::disabled> >();
+    case 3: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::separate<>, active::sharing::enabled<>> >();
+    case 4: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::shared<>>, active::sharing::disabled> >();
+    case 5: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::shared<>>, active::sharing::enabled<>> >();
+    case 6: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::separate<>>, active::sharing::disabled> >();
+    case 7: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::separate<>>, active::sharing::enabled<>> >();
+    case 8: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::shared<>, active::sharing::disabled> >();
+    case 9: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::shared<>, active::sharing::enabled<>> >();
+    case 10: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::separate<>, active::sharing::disabled> >();
+    case 11: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::separate<>, active::sharing::enabled<>> >();
+    case 12: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::shared<>>, active::sharing::disabled> >();
+    case 13: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::shared<>>, active::sharing::enabled<>> >();
+    case 14: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::separate<>>, active::sharing::disabled> >();
+    case 15: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::separate<>>, active::sharing::enabled<>> >();
 	case 16: return std::make_shared< mix_object<active::schedule::none, active::queueing::direct_call, active::sharing::disabled> >();
 	case 17: return std::make_shared< mix_object<active::schedule::none, active::queueing::direct_call, active::sharing::enabled<>> >();
 	case 18: return std::make_shared< mix_object<active::schedule::none, active::queueing::mutexed_call, active::sharing::disabled> >();
@@ -616,6 +616,131 @@ void test_object_mix()
 	assert( total_allocated ==0 );
 }
 
+int bytes_allocated=0, objects_constructed=0;
+
+template<typename T>
+struct my_allocator : public std::allocator<T>
+{
+    my_allocator() { }
+
+    template<typename U>
+    my_allocator(const my_allocator<U>&) { }
+
+    T * allocate(int n)
+    {
+        bytes_allocated += n * sizeof(T);
+        return std::allocator<T>::allocate(n);
+    }
+
+    void deallocate(T*p, int n)
+    {
+        std::allocator<T>::deallocate(p,n);
+        bytes_allocated -= n * sizeof(T);
+    }
+
+    void construct(T*p, const T&v)
+    {
+        std::allocator<T>::construct(p,v);
+        ++objects_constructed;
+    }
+
+    void destroy(T*p)
+    {
+        std::allocator<T>::destroy(p);
+        --objects_constructed;
+    }
+
+    template<typename U>
+    struct rebind
+    {
+        typedef my_allocator<U> other;
+    };
+};
+
+template<typename T>
+struct awkward_allocator : public my_allocator<T>
+{
+    const int value;
+    awkward_allocator(int i) : value(i) { }
+
+    template<typename U>
+    awkward_allocator(const awkward_allocator<U>&o) : value(o.value) { }
+
+    template<typename U>
+    struct rebind
+    {
+        typedef awkward_allocator<U> other;
+    };
+};
+
+struct my_object : public active::object_impl<active::schedule::thread_pool, active::queueing::shared<awkward_allocator<int>>, active::sharing::disabled>
+{
+    my_object(const allocator_type & a) : active::object_impl<active::schedule::thread_pool, active::queueing::shared<awkward_allocator<int>>, active::sharing::disabled>(
+            active::default_scheduler, a), total(0)
+    {
+    }
+    int total;
+
+    typedef int message;
+    ACTIVE_METHOD( message )
+    {
+        total += message;
+    }
+};
+
+struct my_object2 : public active::object_impl<active::schedule::thread_pool, active::queueing::separate<my_allocator<int>>, active::sharing::disabled>
+{
+    my_object2() : total(0)
+    {
+    }
+    int total;
+
+    typedef int message;
+    ACTIVE_METHOD( message )
+    {
+        total += message;
+    }
+};
+
+void test_allocators()
+{
+    {
+        std::vector<int,my_allocator<int>> vec1(2,1);
+        std::vector<int,awkward_allocator<int>> vec2(3,4,12);
+
+        assert( vec2.get_allocator().value == 12);
+        assert( bytes_allocated>0 );
+        assert( objects_constructed == 5 );
+    }
+    assert( bytes_allocated==0 );
+    assert( objects_constructed==0 );
+
+    {
+        my_object obj1(14);
+        assert( obj1.get_allocator().value == 14 );
+
+        obj1(99);
+        obj1(101);
+        active::run();
+        assert( obj1.total == 200 );
+    }
+    assert( bytes_allocated==0 );
+    assert( objects_constructed==0 );
+
+    {
+        my_object2 obj2;
+
+        obj2(99);
+        obj2(101);
+        active::run();
+        assert( obj2.total == 200 );
+        obj2.get_allocator();
+    }
+    assert( bytes_allocated==0 );
+    assert( objects_constructed==0 );
+
+}
+
 int main()
 {
 	// Single-object tests
@@ -643,6 +768,7 @@ int main()
 	test_own_thread();
 	test_shared_thread();
 	test_object_mix();
+    test_allocators();
 	
 	std::cout << "All tests passed!\n";
 	return 0;

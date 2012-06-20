@@ -2,12 +2,12 @@
 #include <thread>
 #include <iostream>
 
-#define ACTIVE_OBJECT_CONDITION 0
+#define ACTIVE_OBJECT_CONDITION 1
 
 
-active::pool active::default_pool;
+active::scheduler active::default_scheduler;
 
-active::pool::pool() : m_head(nullptr), m_tail(nullptr), m_busy_count(0)
+active::scheduler::scheduler() : m_head(nullptr), m_tail(nullptr), m_busy_count(0)
 {
 }
 
@@ -17,7 +17,7 @@ active::any_object::~any_object()
 
 
 // Used by an active object to signal that there are messages to process.
-void active::pool::activate(ObjectPtr p) throw()
+void active::scheduler::activate(ObjectPtr p) throw()
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
     p->m_next=nullptr;
@@ -34,7 +34,7 @@ void active::pool::activate(ObjectPtr p) throw()
 
 // Runs until there are no more messages in the entire pool.
 // Returns false if no more items.
-bool active::pool::run_managed() throw()
+bool active::scheduler::run_managed() throw()
 {
 	std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -55,21 +55,18 @@ bool active::pool::run_managed() throw()
 }
 		
 // Runs all objects in a thread pool, until there are no more messages.
-void active::pool::run(int threads)
+void active::scheduler::run(int threads)
 {
-	std::deque<std::thread> tp(threads);	// ?? Why not vector ??
+    std::deque<std::thread> tp(threads);
 	
 	for(int i=0; i<threads; ++i)
-		tp[i] = std::thread( std::bind(&pool::run_in_thread, this) ); 
+        tp[i] = std::thread( std::bind(&scheduler::run_in_thread, this) );
 	
 	for(int i=0; i<threads; ++i)
 		tp[i].join();
-
-    if( m_exception )
-        std::rethrow_exception( m_exception );
 }
 
-void active::pool::run()
+void active::scheduler::run()
 {
 	while( run_managed() )
 	{
@@ -84,20 +81,9 @@ void active::pool::run()
 	m_ready.notify_all();
 }
 
-// Like run(), but when starved, waits for a little while instead of exiting.
-// Note we could use a condition variable here, but this is slow when you have a 
-// silly number of threads like 503...
-void active::pool::run_in_thread()
+void active::scheduler::run_in_thread()
 {
-	try 
-	{
-		run();
-	}
-	catch( ... )
-	{
-		// Basically something like bad_alloc.
-		m_exception = std::current_exception();
-	}
+    run();
 }
 
 
@@ -120,16 +106,16 @@ void active::any_object::exception_handler() throw()
 void active::run(int threads)
 {
 	if( threads<=0 ) threads=4;
-	default_pool.run(threads);
+    default_scheduler.run(threads);
 }
 
-void active::pool::start_work() throw()
+void active::scheduler::start_work() throw()
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
 	++m_busy_count;
 }
 
-void active::pool::stop_work() throw()
+void active::scheduler::stop_work() throw()
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
 	if( 0 == --m_busy_count )
@@ -138,11 +124,11 @@ void active::pool::stop_work() throw()
 	}
 }
 
-active::schedule::thread_pool::thread_pool(pool & p) : m_pool(&p)
+active::schedule::thread_pool::thread_pool(type & p) : m_pool(&p)
 {
 }
 
-void active::schedule::thread_pool::set_pool(type&p)
+void active::schedule::thread_pool::set_scheduler(type&p)
 {
 	m_pool = &p;
 }
@@ -198,7 +184,7 @@ active::schedule::own_thread::own_thread(const own_thread&other) :
 {
 }
 
-active::schedule::own_thread::own_thread(pool & p) :
+active::schedule::own_thread::own_thread(type & p) :
     m_pool(&p),
     m_shutdown(false),
     m_object(nullptr),
@@ -216,6 +202,10 @@ active::schedule::own_thread::~own_thread()
     m_thread.join();
 }
 
+active::queueing::direct_call::direct_call(const allocator_type&)
+{
+}
+
 bool active::queueing::direct_call::run_some(any_object * o, int n) throw()
 {
     return false;
@@ -226,7 +216,7 @@ bool active::queueing::direct_call::empty() const
     return true;
 }
 
-active::queueing::mutexed_call::mutexed_call()
+active::queueing::mutexed_call::mutexed_call(const allocator_type&)
 {
 }
 
@@ -244,91 +234,3 @@ bool active::queueing::mutexed_call::empty() const
     return true;
 }
 
-active::queueing::separate::separate()
-{
-}
-
-active::queueing::separate::separate(const separate&)
-{
-}
-
-bool active::queueing::separate::empty() const
-{
-    return m_message_queue.empty();
-}
-
-bool active::queueing::separate::run_some(any_object * o, int n) throw()
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    while( !m_message_queue.empty() && n-->0 )
-    {
-        m_mutex.unlock();
-        try
-        {
-			ActiveRun run = m_message_queue.front();
-            (*run)(o);
-        }
-        catch (...)
-        {
-            o->exception_handler();
-        }
-        m_mutex.lock();
-        m_message_queue.pop_front();
-    }
-    return !m_message_queue.empty();
-}
-
-active::queueing::shared::shared() : m_head(nullptr), m_tail(nullptr)
-{
-}
-
-active::queueing::shared::shared(const shared&) : m_head(nullptr), m_tail(nullptr)
-{
-}
-
-bool active::queueing::shared::enqueue(message*impl)
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    if( m_tail )
-    {
-        m_tail->m_next = impl;
-        m_tail = impl;
-        return false;
-    }
-    else
-    {
-        m_head = m_tail = impl;
-        return true;
-    }
-}
-
-bool active::queueing::shared::empty() const
-{
-    return !m_head;
-}
-
-bool active::queueing::shared::run_some(any_object * o, int n) throw()
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    while( m_head && n-->0)
-    {
-        message * m = m_head;
-
-        m_mutex.unlock();
-        try
-        {
-            m->run(o);
-        }
-        catch (...)
-        {
-            o->exception_handler();
-        }
-        m_mutex.lock();
-        m_head = m_head->m_next;
-        if(!m_head) m_tail=nullptr;
-        delete m;
-    }
-    return m_head;
-}
-		

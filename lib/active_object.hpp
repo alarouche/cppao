@@ -31,12 +31,12 @@ namespace active
 	
 	
 	// Represents a pool of active objects which can be executed in a thread pool.
-	class pool
+    class scheduler
 	{
 	public:
 		typedef any_object * ObjectPtr;
 
-		pool();
+        scheduler();
 		
 		// Adds an active object to the pool.
 		// There is no need to "un-add", but deleting an active object with active messages
@@ -62,13 +62,12 @@ namespace active
         any_object *m_head, *m_tail;   // List of activated objects.
         std::condition_variable m_ready;
         int m_busy_count;	// Used to work out when we have actually finished.
-        std::exception_ptr m_exception;
-		void run_in_thread();
         bool run_managed() throw();
+        void run_in_thread();
 	};
 	
 	// As a convenience, provide a global variable to run all active objects.
-	extern pool default_pool;
+    extern scheduler default_scheduler;
 
 	namespace sharing	// Namespace for sharing concepts
 	{
@@ -99,9 +98,9 @@ namespace active
         // The object is not scheduled
 		struct none
 		{
-			typedef active::pool type;
+            typedef active::scheduler type;
 			none(type&) { }
-			void set_pool(type&p) { }
+            void set_scheduler(type&p) { }
             void activate(const std::shared_ptr<any_object> & sp) { }
             void activate(any_object * obj) { }
 		};
@@ -109,10 +108,10 @@ namespace active
         // The object is scheduled using the thread pool (active::pool)
 		struct thread_pool
 		{
-			typedef active::pool type;
+            typedef active::scheduler type;
 			thread_pool(type&);
 			
-			void set_pool(type&p);
+            void set_scheduler(type&p);
             void activate(const std::shared_ptr<any_object> & sp);
             void activate(any_object * obj);
 		private:
@@ -122,12 +121,12 @@ namespace active
         // The object is scheduled by the OS in its own thread.
 		struct own_thread
 		{
-			typedef active::pool type;			
+            typedef active::scheduler type;
 
             own_thread(const own_thread&);
             own_thread(type&);
 
-            void set_pool(type&p);
+            void set_scheduler(type&p);
             void activate(any_object * obj);
             void activate(const std::shared_ptr<any_object> & sp);
 
@@ -150,7 +149,13 @@ namespace active
         // No queueing; run in calling thread without protection.
         struct direct_call
 		{
-			template<typename Message, typename Accessor>		
+            typedef std::allocator<void> allocator_type;
+
+            direct_call(const allocator_type& =allocator_type());
+
+            allocator_type get_allocator() const { return allocator_type(); }
+
+            template<typename Message, typename Accessor>
 			bool enqueue(any_object * object, const Message & msg, const Accessor&)
 			{
 				try
@@ -178,8 +183,12 @@ namespace active
         // Safe but runs in the calling thread and can deadlock.
 		struct mutexed_call
 		{
-            mutexed_call();
+            typedef std::allocator<void> allocator_type;
+
+            mutexed_call(const allocator_type & alloc = allocator_type());
             mutexed_call(const mutexed_call&);
+
+            allocator_type get_allocator() const { return allocator_type(); }
 			
 			template<typename Message, typename Accessor>		
 			bool enqueue(any_object * object, const Message & msg, const Accessor&)
@@ -212,20 +221,34 @@ namespace active
 		
 
         // Default message queue shared between all message types.
+        template<typename Allocator=std::allocator<void>>
         class shared
 		{	
-            struct message
-            {
-                message() : m_next(nullptr) { }
-                virtual void run(any_object * obj)=0;
-                virtual ~message() { }
-                message *m_next;
-            };
-
         public:
-            shared();
-            shared(const shared&);
-			
+            typedef Allocator allocator_type;
+
+        private:
+           struct message
+           {
+               message() : m_next(nullptr) { }
+               virtual void run(any_object * obj)=0;
+               virtual void destroy(allocator_type&)=0;
+               message *m_next;
+           };
+        public:
+
+            shared(const allocator_type & alloc = allocator_type()) :
+                m_head(nullptr), m_tail(nullptr), m_allocator(alloc)
+            {
+            }
+
+            shared(const shared&o) :
+                 m_head(nullptr), m_tail(nullptr), m_allocator(o.m_allocator)
+            {
+            }
+
+            allocator_type get_allocator() const { return m_allocator; }
+
 			template<typename T>
 			struct queue_data
 			{
@@ -235,14 +258,70 @@ namespace active
 			template<typename Message, typename Accessor>		
 			bool enqueue( any_object *, const Message & msg, const Accessor&)
 			{
-                return enqueue( new message_impl<Message, Accessor>(msg) );
+                typename allocator_type::template rebind<message_impl<Message, Accessor>>::other realloc(m_allocator);
+
+                message_impl<Message, Accessor> * impl = realloc.allocate(1);
+                try
+                {
+                    new(impl) message_impl<Message, Accessor>(msg);
+                    // realloc.construct(impl, msg);
+                }
+                catch(...)
+                {
+                    realloc.deallocate(impl,1);
+                    throw;
+                }
+
+                return enqueue( impl );
             }
-			
-            bool empty() const;
-			
-            bool run_some(any_object * o, int n=100) throw();
-        protected:
-            std::mutex m_mutex;
+
+            bool empty() const
+            {
+                return !m_head;
+            }
+
+            bool run_some(any_object * o, int n=100) throw()
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                while( m_head && n-->0)
+                {
+                    message * m = m_head;
+
+                    m_mutex.unlock();
+                    try
+                    {
+                        m->run(o);
+                    }
+                    catch (...)
+                    {
+                        o->exception_handler();
+                    }
+                    m_mutex.lock();
+                    m_head = m_head->m_next;
+                    if(!m_head) m_tail=nullptr;
+                    m->destroy(m_allocator);
+                }
+                return m_head;
+            }
+
+        private:
+            // Push to tail, pop from head:
+            message *m_head, *m_tail;
+            bool enqueue(message*impl)
+            {
+                 std::lock_guard<std::mutex> lock(m_mutex);
+                 if( m_tail )
+                 {
+                     m_tail->m_next = impl;
+                     m_tail = impl;
+                     return false;
+                 }
+                 else
+                 {
+                     m_head = m_tail = impl;
+                     return true;
+                 }
+            }
 
         private:
             template<typename Message, typename Accessor>
@@ -254,23 +333,41 @@ namespace active
                 {
                     Accessor::run(o, m_message);
                 }
+                void destroy(allocator_type&a)
+                {
+                    typename allocator_type::template rebind<message_impl<Message, Accessor>>::other realloc(a);
+                    realloc.destroy(this);
+                    realloc.deallocate(this,1);
+                }
             };
 
-            bool enqueue(message*impl);
+            allocator_type m_allocator;
+        protected:
+            std::mutex m_mutex;
 
-            // Push to tail, pop from head:
-            message *m_head, *m_tail;
 		};
 		
+        template<typename Allocator=std::allocator<void>>
 		struct separate
-		{			
-            separate();
-            separate(const separate&);
+        {
+            typedef Allocator allocator_type;
+
+            separate(const allocator_type & alloc=allocator_type()) :
+               m_message_queue(alloc)
+            {
+            }
+
+            allocator_type get_allocator() const { return m_message_queue.get_allocator(); }
+
+            separate(const separate&o) :
+                m_message_queue(o.m_message_queue.get_allocator())
+            {
+            }
 
 			template<typename T>
 			struct queue_data
 			{
-				typedef std::deque<T> type;
+                typedef std::deque<T, typename allocator_type::template rebind<T>::other> type;
 			};
 						
 			template<typename Message, typename Accessor>		
@@ -290,15 +387,39 @@ namespace active
                 return m_message_queue.size()==1;
 			}
 			
-            bool empty() const;
-            bool run_some(any_object * o, int n=100) throw();
+            bool empty() const
+            {
+                return m_message_queue.empty();
+            }
+
+            bool run_some(any_object * o, int n=100) throw()
+            {
+               std::lock_guard<std::mutex> lock(m_mutex);
+
+               while( !m_message_queue.empty() && n-->0 )
+               {
+                   m_mutex.unlock();
+                   try
+                   {
+                       ActiveRun run = m_message_queue.front();
+                       (*run)(o);
+                   }
+                   catch (...)
+                   {
+                       o->exception_handler();
+                   }
+                   m_mutex.lock();
+                   m_message_queue.pop_front();
+               }
+               return !m_message_queue.empty();
+            }
 
         protected:
             std::mutex m_mutex;
 
         private:
             typedef void (*ActiveRun)(any_object*);
-            std::deque<ActiveRun> m_message_queue;
+            std::deque<ActiveRun, typename allocator_type::template rebind<ActiveRun>::other> m_message_queue;
 
             template<typename Message, typename Accessor>
             static void run(any_object*obj)
@@ -312,7 +433,8 @@ namespace active
 		template<typename Queue>
         struct steal  : public Queue
 		{
-			steal() : m_running(false) { }
+            typedef typename Queue::allocator_type allocator_type;
+            steal(const allocator_type & alloc = allocator_type()) : Queue(alloc), m_running(false) { }
 			
 			template<typename Message, typename Accessor>		
 			bool enqueue( any_object * object, const Message & msg, const Accessor& accessor)
@@ -351,20 +473,26 @@ namespace active
 	
 	
 	template<
-		typename Schedule=schedule::thread_pool, 
-		typename Queue=queueing::shared, 
-		typename Share=sharing::disabled>
+        typename Schedule,
+        typename Queue,
+        typename Share>
 	class object_impl : public any_object, public Share::base
 	{
 	public:
 		typedef Schedule schedule_type;
 		typedef Share share_type;
 		typedef Queue queue_type;
+        typedef typename schedule_type::type scheduler_type;
+        typedef typename queue_type::allocator_type allocator_type;
 		
-		object_impl(typename schedule_type::type & tp = default_pool) : m_schedule(tp) { }
+        object_impl(scheduler_type & tp = default_scheduler,
+                    const allocator_type & alloc = allocator_type())
+                    : m_schedule(tp), m_queue(alloc) { }
 		
 		~object_impl() { if(!m_queue.empty()) std::terminate(); }
 		
+        allocator_type get_allocator() const { return m_queue.get_allocator(); }
+
 		void run() throw()
 		{
             typename share_type::pointer_type p=0;
@@ -393,9 +521,9 @@ namespace active
 			}
 		}
 		
-		void set_scheduler(typename schedule_type::type & pool)
+        void set_scheduler(typename schedule_type::type & sch)
 		{
-			m_schedule.set_pool(pool);
+            m_schedule.set_scheduler(sch);
 		}
 		
 	protected:
@@ -432,27 +560,40 @@ namespace active
 #define ACTIVE_TEMPLATE(MSG) ACTIVE_METHOD2(MSG,typename,template)
 
 	// The default object type.
-	typedef object_impl<schedule::thread_pool, queueing::shared, sharing::disabled> object;
-	typedef object_impl<schedule::own_thread, queueing::shared, sharing::disabled> thread;
+    typedef object_impl<schedule::thread_pool, queueing::shared<>, sharing::disabled> object;
+    typedef object_impl<schedule::own_thread, queueing::shared<>, sharing::disabled> thread;
 	
-	typedef object_impl<schedule::thread_pool, queueing::steal<queueing::shared>, sharing::disabled> fast;
+    typedef object_impl<schedule::thread_pool, queueing::steal<queueing::shared<>>, sharing::disabled> fast;
 	typedef object_impl<schedule::none, queueing::direct_call, sharing::disabled> direct;
     typedef object_impl<schedule::none, queueing::mutexed_call, sharing::disabled> synchronous;
 	
 	// An active object which could be stored in a std::shared_ptr.
 	// If this is the case, then a safer message queueing scheme is implemented
 	// which for example guarantees to deliver all messages before destroying the object.
-	template<typename T=any_object, typename Schedule=schedule::thread_pool, typename Queueing = queueing::shared>
+    template<typename T=any_object, typename Schedule=schedule::thread_pool, typename Queueing = queueing::shared<>>
 	class shared : public object_impl<Schedule, Queueing, sharing::enabled<T> >
 	{
 	public:
-		typedef std::shared_ptr<T> ptr;
+        typedef typename Queueing::allocator_type allocator_type;
+        typedef typename Schedule::type scheduler_type;
+        shared(scheduler_type & sch=default_scheduler, const allocator_type & alloc = allocator_type()) :
+            object_impl<Schedule, Queueing, sharing::enabled<T> >(sch, alloc)
+        {
+        }                                                                                                           // !!shared_thread(shceduler, allocator)
+        typedef std::shared_ptr<T> ptr;
 	};
 	
-	template<typename T=any_object, typename Queueing = queueing::shared>
+    template<typename T=any_object, typename Queueing = queueing::shared<>>
 	class shared_thread : public object_impl<schedule::own_thread, Queueing, sharing::enabled<T> >
 	{
 	public:
+        typedef typename Queueing::allocator_type allocator_type;
+        typedef schedule::own_thread::type scheduler_type;
+        shared_thread(scheduler_type & sch=default_scheduler, const allocator_type & alloc = allocator_type()) :
+            object_impl<schedule::own_thread, Queueing, sharing::enabled<T> >(sch, alloc)
+        {
+        }
+
 		typedef std::shared_ptr<T> ptr;
 	};
 
