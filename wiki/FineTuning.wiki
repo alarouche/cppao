@@ -57,13 +57,13 @@ The schedule determines which AO  is next run.  The provided schedulers are:
 
 An AO becomes "activated" when it receives its first message. The `thread_pool` scheduler passes the AO to `active::pool`, which puts the AO onto a FIFO of activated objects. A thread (or pool of threads) can then pop the next AO from the queue, and run the AO (using `active::any_object::run_some()`), which will process a number of messages, and if there are any remaining messages, re-activate the AO to re-schedule its execution.
 
-In this way, `active::pool` is able to process many AOs in a small number of threads.
+In this way, `active::scheduler` is able to process many AOs in a small number of threads.
 
 == Queueing implementation ==
 The queue determines which message to service next, and provides a container for storing messages. The provide queues are:
 
-  * `active::queueing::shared`  (default) - uses a single linked list to store all messages for an object
-  * `active::queueing::separate` - an alternative implementation.
+  * `active::queueing::shared<>`  (default) - uses a single linked list to store all messages for an object
+  * `active::queueing::separate<>` - an alternative implementation.
   * `active::queuing::direct_call` - Process message immediately in calling thread without a mutex.
   * `active::queueing::mutexed_call` - Process message immediately in calling thread, but mutexes the object with a recursive mutex.
   * `active::queueing::steal<>` - Adapt another queueing strategy by processing the message in the calling thread when the object is idle.
