@@ -82,7 +82,7 @@ public:
 	struct compute_complete { };
 	ACTIVE_METHOD( compute_complete );
 	
-	Controller( active::pool & tp, int seed );
+    Controller( active::scheduler & tp, int seed );
 private:
 	static const int total_cells = num_cols*num_rows;
 	Cell cell[num_cols][num_rows];

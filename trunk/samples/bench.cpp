@@ -61,65 +61,65 @@ int main(int argc, char**argv)
 	if( argc>2 )
 	{
 		// Churn up memory a little
-		bench_object( active::schedule::none(active::default_pool), active::queueing::direct_call(), active::sharing::disabled(), 10000, false );
-		bench_object( active::schedule::none(active::default_pool), active::queueing::direct_call(), active::sharing::enabled<>(), 10000, false );
+        bench_object( active::schedule::none(active::default_scheduler), active::queueing::direct_call(), active::sharing::disabled(), 10000, false );
+        bench_object( active::schedule::none(active::default_scheduler), active::queueing::direct_call(), active::sharing::enabled<>(), 10000, false );
 
 		// Now run tests
         std::cout << "active::direct (shared): ";
-		bench_object( active::schedule::none(active::default_pool), active::queueing::direct_call(), active::sharing::enabled<>(), 10000 );
+        bench_object( active::schedule::none(active::default_scheduler), active::queueing::direct_call(), active::sharing::enabled<>(), 10000 );
         std::cout << "active::direct: ";
-		bench_object( active::schedule::none(active::default_pool), active::queueing::direct_call(), active::sharing::disabled(), 10000 );
+        bench_object( active::schedule::none(active::default_scheduler), active::queueing::direct_call(), active::sharing::disabled(), 10000 );
         std::cout << "active::direct (shared): ";
-		bench_object( active::schedule::none(active::default_pool), active::queueing::direct_call(), active::sharing::enabled<>(), 10000 );
+        bench_object( active::schedule::none(active::default_scheduler), active::queueing::direct_call(), active::sharing::enabled<>(), 10000 );
 
         std::cout << "active::synchronous: ";
-        bench_object( active::schedule::none(active::default_pool), active::queueing::mutexed_call(), active::sharing::enabled<>(), 10000 );
+        bench_object( active::schedule::none(active::default_scheduler), active::queueing::mutexed_call(), active::sharing::enabled<>(), 10000 );
 
-		//bench_object( active::schedule::none(active::default_pool), active::queueing::mutexed_call(), active::sharing::disabled(), 10000 );
-		//bench_object( active::schedule::none(active::default_pool), active::queueing::mutexed_call(), active::sharing::enabled<>(), 10000 );
+        //bench_object( active::schedule::none(active::default_scheduler), active::queueing::mutexed_call(), active::sharing::disabled(), 10000 );
+        //bench_object( active::schedule::none(active::default_scheduler), active::queueing::mutexed_call(), active::sharing::enabled<>(), 10000 );
 		
-		//bench_object( active::schedule::none(active::default_pool), active::queueing::try_lock(), active::sharing::disabled(), 10000 );
-		//bench_object( active::schedule::none(active::default_pool), active::queueing::try_lock(), active::sharing::enabled<>(), 10000 );
+        //bench_object( active::schedule::none(active::default_scheduler), active::queueing::try_lock(), active::sharing::disabled(), 10000 );
+        //bench_object( active::schedule::none(active::default_scheduler), active::queueing::try_lock(), active::sharing::enabled<>(), 10000 );
 
 		std::cout << "active::fast: ";
-		bench_object( active::schedule::thread_pool(active::default_pool), active::queueing::steal<active::queueing::shared>(), active::sharing::disabled(), N );
+        bench_object( active::schedule::thread_pool(active::default_scheduler), active::queueing::steal<active::queueing::shared<>>(), active::sharing::disabled(), N );
 
 		std::cout << "active::steal<shared>  shared: ";		
-		bench_object( active::schedule::thread_pool(active::default_pool), active::queueing::steal<active::queueing::shared>(), active::sharing::enabled<>(), N );
+        bench_object( active::schedule::thread_pool(active::default_scheduler), active::queueing::steal<active::queueing::shared<>>(), active::sharing::enabled<>(), N );
 
 		std::cout << "active::steal<separate>: ";		
-		bench_object( active::schedule::thread_pool(active::default_pool), active::queueing::steal<active::queueing::separate>(), active::sharing::disabled(), N );
+        bench_object( active::schedule::thread_pool(active::default_scheduler), active::queueing::steal<active::queueing::separate<>>(), active::sharing::disabled(), N );
 		std::cout << "active::steal<separate> shared: ";		
-		bench_object( active::schedule::thread_pool(active::default_pool), active::queueing::steal<active::queueing::separate>(), active::sharing::enabled<>(), N );
+        bench_object( active::schedule::thread_pool(active::default_scheduler), active::queueing::steal<active::queueing::separate<>>(), active::sharing::enabled<>(), N );
 		
 		std::cout << "active::object: ";
-		bench_object( active::schedule::thread_pool(active::default_pool), active::queueing::shared(), active::sharing::disabled(), N );
+        bench_object( active::schedule::thread_pool(active::default_scheduler), active::queueing::shared<>(), active::sharing::disabled(), N );
 		std::cout << "active::shared<>: ";
-		bench_object( active::schedule::thread_pool(active::default_pool), active::queueing::shared(), active::sharing::enabled<>(), N );
+        bench_object( active::schedule::thread_pool(active::default_scheduler), active::queueing::shared<>(), active::sharing::enabled<>(), N );
 		
 		std::cout << "active::separate: ";
-		bench_object( active::schedule::thread_pool(active::default_pool), active::queueing::separate(), active::sharing::disabled(), N );
+        bench_object( active::schedule::thread_pool(active::default_scheduler), active::queueing::separate<>(), active::sharing::disabled(), N );
 		std::cout << "active::separate shared: ";
-		bench_object( active::schedule::thread_pool(active::default_pool), active::queueing::separate(), active::sharing::enabled<>(), N );
+        bench_object( active::schedule::thread_pool(active::default_scheduler), active::queueing::separate<>(), active::sharing::enabled<>(), N );
 
         std::cout << "active::thread: ";
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        bench_object( active::schedule::own_thread(active::default_pool), active::queueing::separate(), active::sharing::disabled(), N );
+        bench_object( active::schedule::own_thread(active::default_scheduler), active::queueing::separate<>(), active::sharing::disabled(), N );
         std::this_thread::sleep_for(std::chrono::seconds(1));
         std::cout << "active::thread: ";
-        bench_object( active::schedule::own_thread(active::default_pool), active::queueing::separate(), active::sharing::disabled(), N );
+        bench_object( active::schedule::own_thread(active::default_scheduler), active::queueing::separate<>(), active::sharing::disabled(), N );
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
         std::cout << "active::shared_thread<>: ";
-		bench_object( active::schedule::own_thread(active::default_pool), active::queueing::separate(), active::sharing::enabled<>(), N );
+        bench_object( active::schedule::own_thread(active::default_scheduler), active::queueing::separate<>(), active::sharing::enabled<>(), N );
 		
         std::this_thread::sleep_for(std::chrono::seconds(1));
         std::cout << "active::shared_thread<>: ";
-        bench_object( active::schedule::own_thread(active::default_pool), active::queueing::separate(), active::sharing::enabled<>(), N );
+        bench_object( active::schedule::own_thread(active::default_scheduler), active::queueing::separate<>(), active::sharing::enabled<>(), N );
     }
 	else
 	{
-		bench_object( active::schedule::thread_pool(active::default_pool), active::queueing::steal<active::queueing::shared>(), active::sharing::disabled(), N, false );
+        bench_object( active::schedule::thread_pool(active::default_scheduler), active::queueing::steal<active::queueing::shared<>>(), active::sharing::disabled(), N, false );
 	}
 
 }
