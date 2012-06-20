@@ -126,7 +126,7 @@ Demonstrates:
   * Multiple classes with multiple message types.
   * A more complex example.
   * Using _ACTIVE_IMPL_ to separate method declarations from definitions.
-  * _active::pool_
+  * `active::scheduler`
 
 = Object types =
 http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp
