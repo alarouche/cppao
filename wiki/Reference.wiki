@@ -30,6 +30,7 @@ Methods:
 || `~object_impl()` || Destroys the object; must not be called whilst there are unprocessed messages. ||
 || `void set_scheduler(scheduler_type & p)` || Change the scheduler. Must not be called after messages have been sent to the object. ||
 || `virtual void exception_handler()` || Called when an exception escapes from a message handler. This must not throw an exception. The default implementation is to write a message and continue, but can be overridden. ||
+|| `allocator_type get_allocator() const` || Returns a copy of the allocator passed into the constructor. ||
 || `void operator()(const Msg&)` || Message handlers defined by `ACTIVE_IFACE` and `ACTIVE_METHOD` macros. This might throw an exception such as `std::bad_alloc` or any exception from the copy constructor of `Msg`. ||
 
 Options for `Schedule`:
