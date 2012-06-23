@@ -169,7 +169,14 @@ void active::schedule::own_thread::thread_fn()
             lock.lock();
             if(m_pool) m_pool->stop_work();
             m_object = nullptr;
-            m_shared.reset();	// Allow to exit
+			if( m_shared )
+			{
+				std::weak_ptr<any_object> wp(m_shared);
+				lock.unlock();
+				m_shared.reset();
+				if( wp.expired() ) return;	// Object destroyed
+				lock.lock();
+			}
         }
         m_ready.wait(lock);
     }
@@ -198,7 +205,10 @@ active::schedule::own_thread::~own_thread()
         m_shutdown = true;
         m_ready.notify_one();
     }
-    m_thread.join();
+	if( std::this_thread::get_id() == m_thread.get_id())
+		m_thread.detach();	// Destroyed from within thread
+    else
+		m_thread.join();	// Destroyed outside of thread
 }
 
 active::queueing::direct_call::direct_call(const allocator_type&)
