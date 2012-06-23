@@ -538,8 +538,8 @@ namespace active
 
 
     private:
-        queue_type m_queue;
         schedule_type m_schedule;
+        queue_type m_queue;
         share_type m_share;
     };
 

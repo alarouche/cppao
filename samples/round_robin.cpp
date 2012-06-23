@@ -1,5 +1,5 @@
 #include <active_object.hpp>
-#include <iostream>
+#include <cstdio>
 
 /* A slightly more sophisticated example.
  * In this case, each node punts a message to its next node in a loop.
@@ -14,7 +14,7 @@ struct RoundRobin : public active::object
 
     ACTIVE_METHOD( packet )
     {
-        std::cout << "Received packet " << packet << "\n";
+		printf( "Received packed %d\n", packet );
         if( packet>0 ) (*next)(packet-1);
     }
 };
