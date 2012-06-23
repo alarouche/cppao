@@ -1,8 +1,7 @@
 #include "active_object.hpp"
-// #include <thread>
 #include <iostream>
 
-#define ACTIVE_OBJECT_CONDITION 1
+#define ACTIVE_OBJECT_CONDITION 0	// !! Slow
 
 
 active::scheduler active::default_scheduler;

@@ -345,8 +345,9 @@ namespace active
             std::mutex m_mutex;
 
         };
-
-        template<typename Allocator=std::allocator<void>>
+        
+		
+		template<typename Allocator=std::allocator<void>>
         struct separate
         {
             typedef Allocator allocator_type;
