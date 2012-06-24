@@ -144,9 +144,9 @@ void active::schedule::thread_pool::activate(any_object * obj)
 
 void active::schedule::own_thread::activate(any_object * obj)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     m_object = obj;
     if( m_pool ) m_pool->start_work();
-    std::lock_guard<std::mutex> lock(m_mutex);
     m_ready.notify_one();
 }
 
@@ -163,11 +163,12 @@ void active::schedule::own_thread::thread_fn()
     {
         if( m_object )
         {
+			any_object * obj = m_object;
+            m_object = nullptr;
             lock.unlock();
-            m_object->run();
+            obj->run();
             lock.lock();
             if(m_pool) m_pool->stop_work();
-            m_object = nullptr;
 			if( m_shared )
 			{
 				std::weak_ptr<any_object> wp(m_shared);
@@ -177,7 +178,8 @@ void active::schedule::own_thread::thread_fn()
 				lock.lock();
 			}
         }
-        m_ready.wait(lock);
+		if( !m_object && !m_shutdown )
+			m_ready.wait(lock);
     }
 }
 
