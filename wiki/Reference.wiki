@@ -49,8 +49,8 @@ Options for `Queueing`:
 
 Options for `Sharing`:
 
-|| `struct active::queueing::disabled` || No explicit shared pointer support. ||
-|| `template<typename T> struct active::queueing::enabled` || Enhanced shared pointer support. `shared_from_this()` returns a pointer of type `std::shared_ptr<T>`. ||
+|| `struct active::sharing::disabled` || No explicit shared pointer support. ||
+|| `template<typename T> struct active::sharinging::enabled` || Enhanced shared pointer support. `shared_from_this()` returns a pointer of type `std::shared_ptr<T>`. ||
  
 
 Threading guarantees:
