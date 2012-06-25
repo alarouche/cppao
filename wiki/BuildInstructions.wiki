@@ -4,7 +4,7 @@
 
 C++ Active Objects (cppao) is a very small library consisting of one header file [http://code.google.com/p/cppao/source/browse/trunk/lib/active_object.hpp active_object.hpp] and one source file [http://code.google.com/p/cppao/source/browse/trunk/lib/active_object.cpp active_object.cpp]. You can just copy them into your project.
 
-Cppao use C++11 (C++0x). This means that you may need to change your compiler settings.
+Cppao uses C++11 (C++0x). This means that you may need to change your compiler settings.
 
 = Supported platforms =
 
