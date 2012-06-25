@@ -1,4 +1,4 @@
-#summary Getting the most out of cppao.
+#summary Getting the most out of cppao
 
 = Summary =
 This page goes into quite a lot of detail about design considerations and the various object types, and is best avoided on first reading.
