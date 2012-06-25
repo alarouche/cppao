@@ -10,27 +10,27 @@
 class ComplexComputation : public active::object
 {
 public:
-    struct computation
-    {
-        int a, b, result;
-    };
+	struct computation
+	{
+		int a, b, result;
+	};
 
-    typedef computation * computationp;
+	typedef computation * computationp;
 
-    // Example of a forward declaration
-    ACTIVE_METHOD( computationp ) const;	 // Look we can even have const active methods
+	// Example of a forward declaration
+	ACTIVE_METHOD( computationp ) const;	 // Look we can even have const active methods
 };
 
 void ComplexComputation::ACTIVE_IMPL( computationp ) const
 {
-    computationp->result = computationp->a + computationp->b;
+	computationp->result = computationp->a + computationp->b;
 }
 
 int main()
 {
-    ComplexComputation cc;
-    ComplexComputation::computation comp = { 1,2,0 };
-    cc(&comp);
-    cc.run();
-    std::cout << "Result of computation = " << comp.result << "\n";
+	ComplexComputation cc;
+	ComplexComputation::computation comp = { 1,2,0 };
+	cc(&comp);
+	cc.run();
+	std::cout << "Result of computation = " << comp.result << "\n";
 }
