@@ -1,15 +1,30 @@
 #summary How to build cppao
 
+= General build instructions =
+
 C++ Active Objects (cppao) is a very small library consisting of one header file [http://code.google.com/p/cppao/source/browse/trunk/lib/active_object.hpp active_object.hpp] and one source file [http://code.google.com/p/cppao/source/browse/trunk/lib/active_object.cpp active_object.cpp]. You can just copy them into your project.
 
-Cppao use C++11 (formerly, C++0x). This means that you may need to change your compiler settings.
+Cppao use C++11 (C++0x). This means that you may need to change your compiler settings.
 
-= Visual Studio 11 =
-A solution file has been provided for Visual Studio 11.
+= Supported platforms =
 
-= CMake =
-CMakeLists.txt has been provided for CMake. Don't forget to set the compiler flags e.g.
+Validated platforms:
 
+  * Visual Studio 11
+  * Linux (CMake), g++-4.6
+  * Xcode 4.2 (CMake), clang llvm 3.0
+
+Non-validated platforms:
+ 
+  * Any C++11 (C++0x)
+
+= Platform-specific instructions =
+
+== Visual Studio 11 ==
+A solution file has been provided for Visual Studio 11. Just open this to compile and run the samples.
+
+== GNU/Linux ==
+CMakeLists.txt has been provided for CMake. Don't forget to set the compiler flags for C++11, e.g.
 {{{
 $ cmake -DCMAKE_CXX_FLAGS="-std=c++0x -pthread" .
 $ make all test
@@ -19,5 +34,11 @@ Hello, world!
 $ 
 }}}
 
-= Xcode =
-Change compiler settings and library options to C++0x. CMake can generate an Xcode project for you.
+== Xcode ==
+Use cmake to create an xproj file, then open that file in Xcode.
+{{{
+$ mkdir build
+$ cd build
+$ cmake -GXcode ..
+}}}
+Then, change compiler settings and library options to C++0x.
