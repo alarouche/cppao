@@ -9,132 +9,132 @@
 #endif
 
 struct my_server :
-    public active::shared<my_server>,
-    active::sink<active::socket::bind_response>,
-    active::sink<active::socket::listen_result>,
-    active::sink<active::socket::accept_response>,
-    active::sink<active::select::read_ready>
+	public active::shared<my_server>,
+	active::sink<active::socket::bind_response>,
+	active::sink<active::socket::listen_result>,
+	active::sink<active::socket::accept_response>,
+	active::sink<active::select::read_ready>
 {
-    typedef active::socket::bind_response bind_response;
+	typedef active::socket::bind_response bind_response;
 
-    ACTIVE_METHOD( bind_response )
-    {
-        if( bind_response.result == -1 )
-        {
-            perror("bind");
-        }
-        else
-        {
-            std::cout << "Accepting TCP connections on port " << m_port << "\n";
+	ACTIVE_METHOD( bind_response )
+	{
+		if( bind_response.result == -1 )
+		{
+			perror("bind");
+		}
+		else
+		{
+			std::cout << "Accepting TCP connections on port " << m_port << "\n";
 
-            active::socket::listen listen = { 100, shared_from_this() };
-            (*m_sock)(listen);
+			active::socket::listen listen = { 100, shared_from_this() };
+			(*m_sock)(listen);
 
-        }
-    }
+		}
+	}
 
-    typedef active::socket::listen_result listen_result;
+	typedef active::socket::listen_result listen_result;
 
-    ACTIVE_METHOD( listen_result )
-    {
-        if( !listen_result.error )
-        {
-            active::select::read read = { m_sock->m_fd, shared_from_this() };
-            (*m_select)(read);
-        }
-        else
-        {
-            perror("listen");
-        }
-    }
+	ACTIVE_METHOD( listen_result )
+	{
+		if( !listen_result.error )
+		{
+			active::select::read read = { m_sock->m_fd, shared_from_this() };
+			(*m_select)(read);
+		}
+		else
+		{
+			perror("listen");
+		}
+	}
 
-    typedef active::select::read_ready read_ready;
+	typedef active::select::read_ready read_ready;
 
-    ACTIVE_METHOD( read_ready )
-    {
-        active::socket::accept accept = { shared_from_this() };
-        (*m_sock)(accept);
-    }
+	ACTIVE_METHOD( read_ready )
+	{
+		active::socket::accept accept = { shared_from_this() };
+		(*m_sock)(accept);
+	}
 
-    struct connection: public active::shared<connection>
-    {
-        connection(int fd, active::select::ptr select) :
-            m_sock(new active::socket(fd)), m_select(select)
-        {
-        }
+	struct connection: public active::shared<connection>
+	{
+		connection(int fd, active::select::ptr select) :
+			m_sock(new active::socket(fd)), m_select(select)
+		{
+		}
 
-        struct start { };
+		struct start { };
 
-        ACTIVE_METHOD( start )
-        {
-            m_pipe.reset( new active::pipe(m_sock, m_sock, m_select ) );
-            (*m_pipe)(active::pipe::start());
-        }
+		ACTIVE_METHOD( start )
+		{
+			m_pipe.reset( new active::pipe(m_sock, m_sock, m_select ) );
+			(*m_pipe)(active::pipe::start());
+		}
 
-    private:
-        active::socket::ptr m_sock;
-        active::select::ptr m_select;
-        active::pipe::ptr m_pipe;
-    };
+	private:
+		active::socket::ptr m_sock;
+		active::select::ptr m_select;
+		active::pipe::ptr m_pipe;
+	};
 
-    typedef active::socket::accept_response accept_response;
+	typedef active::socket::accept_response accept_response;
 
-    ACTIVE_METHOD( accept_response )
-    {
-        if( !accept_response.error )
-        {
-            std::shared_ptr<connection> conn( new connection(accept_response.fd, m_select) );
-            (*conn)(connection::start());
-        }
+	ACTIVE_METHOD( accept_response )
+	{
+		if( !accept_response.error )
+		{
+			std::shared_ptr<connection> conn( new connection(accept_response.fd, m_select) );
+			(*conn)(connection::start());
+		}
 
-        // Wait for the socket to again be ready to accept
-        active::select::read read = { m_sock->m_fd, shared_from_this() };
-        (*m_select)(read);
-    }
+		// Wait for the socket to again be ready to accept
+		active::select::read read = { m_sock->m_fd, shared_from_this() };
+		(*m_select)(read);
+	}
 
-    struct start { int port; };
+	struct start { int port; };
 
-    my_server() :
-        m_select(new active::select()),
-        m_sock(new active::socket(AF_INET, SOCK_STREAM, 0))
-    {
-    }
+	my_server() :
+		m_select(new active::select()),
+		m_sock(new active::socket(AF_INET, SOCK_STREAM, 0))
+	{
+	}
 
-    ACTIVE_METHOD(start)
-    {
-        m_port = start.port;
+	ACTIVE_METHOD(start)
+	{
+		m_port = start.port;
 
-        active::socket::bind_in bind;
+		active::socket::bind_in bind;
 
-        bind.sa.sin_family = AF_INET;
-        bind.sa.sin_port = htons(start.port);
-        inet_pton(AF_INET, "0.0.0.0", &bind.sa.sin_addr);
+		bind.sa.sin_family = AF_INET;
+		bind.sa.sin_port = htons(start.port);
+		inet_pton(AF_INET, "0.0.0.0", &bind.sa.sin_addr);
 
-        bind.response = shared_from_this();
-        (*m_sock)(bind);
-    }
+		bind.response = shared_from_this();
+		(*m_sock)(bind);
+	}
 
-    active::select::ptr m_select;
+	active::select::ptr m_select;
 private:
-    active::socket::ptr m_sock;
-    int m_port;
+	active::socket::ptr m_sock;
+	int m_port;
 };
 
 
 int main(int argc, char**argv)
 {
 #if WIN32
-    WSADATA wsaData;
-    WSAStartup( MAKEWORD(2, 2), &wsaData );
+	WSADATA wsaData;
+	WSAStartup( MAKEWORD(2, 2), &wsaData );
 #endif
-    const int port = argc<2 ? 12345 : atoi(argv[1]);
-    const int num_threads = argc<3 ? 5 : atoi(argv[2]);
-    if( num_threads<2 ) std::cerr << "Warning: server needs at least 2 threads\n";
+	const int port = argc<2 ? 12345 : atoi(argv[1]);
+	const int num_threads = argc<3 ? 5 : atoi(argv[2]);
+	if( num_threads<2 ) std::cerr << "Warning: server needs at least 2 threads\n";
 
-    std::shared_ptr<my_server> server(new my_server());
+	std::shared_ptr<my_server> server(new my_server());
 
-    my_server::start start = { port };
-    (*server)(start);
+	my_server::start start = { port };
+	(*server)(start);
 
-    active::run(num_threads);
+	active::run(num_threads);
 }
