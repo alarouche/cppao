@@ -15,6 +15,7 @@ add_executable( exception exception.cpp )
 add_executable( object_types object_types.cpp )
 add_executable( sieve sieve.cpp )
 add_executable( sieve2 sieve2.cpp )
+add_executable( mandelbrot mandelbrot.cpp )
 add_library( active_socket active_socket.cpp active_socket.hpp )
 
 link_libraries( active_socket )
@@ -25,3 +26,5 @@ add_executable( echo echo.cpp )
 # Just comment these out if they don't build
 # add_executable( shootout shootout.cpp )
 # target_link_libraries( shootout boost_system )
+
+target_link_libraries( mandelbrot glut )
