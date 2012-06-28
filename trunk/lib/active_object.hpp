@@ -15,7 +15,7 @@
 #include <memory>
 #include <thread>
 
-#define ACTIVE_IFACE(TYPE) virtual void operator()( const TYPE & )=0;
+#define ACTIVE_IFACE(MSG) virtual void operator()( MSG & )=0; virtual void operator()( MSG && )=0;
 
 namespace active
 {
@@ -156,7 +156,7 @@ namespace active
 			allocator_type get_allocator() const { return allocator_type(); }
 
 			template<typename Message, typename Accessor>
-			bool enqueue(any_object * object, const Message & msg, const Accessor&)
+			bool enqueue(any_object * object, Message & msg, const Accessor&)
 			{
 				try
 				{
@@ -191,7 +191,7 @@ namespace active
 			allocator_type get_allocator() const { return allocator_type(); }
 
 			template<typename Message, typename Accessor>
-			bool enqueue(any_object * object, const Message & msg, const Accessor&)
+			bool enqueue(any_object * object, Message & msg, const Accessor&)
 			{
 				std::lock_guard<std::recursive_mutex> lock(m_mutex);
 				try
@@ -256,14 +256,14 @@ namespace active
 			};
 
 			template<typename Message, typename Accessor>
-			bool enqueue( any_object *, const Message & msg, const Accessor&)
+			bool enqueue( any_object *, Message & msg, const Accessor&)
 			{
 				typename allocator_type::template rebind<message_impl<Message, Accessor>>::other realloc(m_allocator);
 
 				message_impl<Message, Accessor> * impl = realloc.allocate(1);
 				try
 				{
-					realloc.construct(impl, msg);
+					realloc.construct(impl, std::move(msg));
 				}
 				catch(...)
 				{
@@ -371,13 +371,13 @@ namespace active
 			};
 
 			template<typename Message, typename Accessor>
-			bool enqueue( any_object * object, const Message & msg, const Accessor&)
+			bool enqueue( any_object * object, Message & msg, const Accessor&)
 			{
 				std::lock_guard<std::mutex> lock(m_mutex);
 				m_message_queue.push_back( &run<Message, Accessor> );
 				try
 				{
-					Accessor::data(object).push_back(msg);
+					Accessor::data(object).push_back(std::move(msg));
 				}
 				catch(...)
 				{
@@ -437,7 +437,7 @@ namespace active
 			steal(const allocator_type & alloc = allocator_type()) : Queue(alloc), m_running(false) { }
 
 			template<typename Message, typename Accessor>
-			bool enqueue( any_object * object, const Message & msg, const Accessor& accessor)
+			bool enqueue( any_object * object, Message & msg, const Accessor& accessor)
 			{
 				this->m_mutex.lock();
 				if( m_running || !this->empty())
@@ -528,7 +528,7 @@ namespace active
 
 	protected:
 		template<typename T, typename M>
-		void enqueue( const T & msg, const M & accessor)
+		void enqueue( T & msg, const M & accessor)
 		{
 			if( m_queue.enqueue(this, msg, accessor) )
 			{
@@ -537,27 +537,27 @@ namespace active
 			}
 		}
 
-
 	private:
 		schedule_type m_schedule;
 		queue_type m_queue;
 		share_type m_share;
 	};
 
-#define ACTIVE_IMPL( MSG ) impl_##MSG(const MSG & MSG)
+#define ACTIVE_IMPL( MSG ) impl_##MSG(MSG & MSG)
 
 
-#define ACTIVE_METHOD2( MSG, TYPENAME, TEMPLATE ) \
+#define ACTIVE_METHOD2( MSG, TYPENAME, TEMPLATE, CAST ) \
 	TYPENAME queue_type::TEMPLATE queue_data<MSG>::type queue_data_##MSG; \
 	template<typename C> struct run_##MSG { \
-		static void run(::active::any_object*o, const MSG&m) { static_cast<C>(o)->impl_##MSG(m); } \
-		static TYPENAME queue_type::TEMPLATE queue_data<MSG>::type& data(::active::any_object*o) {return static_cast<C>(o)->queue_data_##MSG; } }; \
-	void operator()(const MSG & x) { this->enqueue(x, run_##MSG<decltype(this)>() ); } \
+		static void run(::active::any_object*o, MSG&m) { CAST<C>(o)->impl_##MSG(m); } \
+		static TYPENAME queue_type::TEMPLATE queue_data<MSG>::type& data(::active::any_object*o) {return CAST<C>(o)->queue_data_##MSG; } }; \
+	void operator()(MSG && m) { this->enqueue(static_cast<MSG&>(m), run_##MSG<decltype(this)>() ); } \
+	void operator()(MSG & m) { this->enqueue(m, run_##MSG<decltype(this)>() ); } \
 	void ACTIVE_IMPL(MSG)
 
 
-#define ACTIVE_METHOD( MSG ) ACTIVE_METHOD2(MSG,,)
-#define ACTIVE_TEMPLATE(MSG) ACTIVE_METHOD2(MSG,typename,template)
+#define ACTIVE_METHOD( MSG ) ACTIVE_METHOD2(MSG,,,static_cast)
+#define ACTIVE_TEMPLATE(MSG) ACTIVE_METHOD2(MSG,typename,template,reinterpret_cast)
 
 	// The default object type.
 	typedef object_impl<schedule::thread_pool, queueing::shared<>, sharing::disabled> object;
