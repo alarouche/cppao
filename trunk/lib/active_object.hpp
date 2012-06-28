@@ -326,7 +326,7 @@ namespace active
 			template<typename Message, typename Accessor>
 			struct message_impl : public message
 			{
-				message_impl(const Message & m) : m_message(m) { }
+				message_impl(Message && m) : m_message(std::forward<Message&&>(m)) { }
 				Message m_message;
 				void run(any_object * o)
 				{
