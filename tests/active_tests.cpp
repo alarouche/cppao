@@ -752,6 +752,45 @@ void test_allocators()
 
 }
 
+struct MoveObject : public active::object
+{
+	struct Counted
+	{
+		static int instances;
+		Counted() { ++instances; }
+		~Counted() { }
+		Counted(const Counted&) { ++instances; }
+		Counted(Counted&&) { ++instances; }
+	private:
+	};
+
+	struct MoveMessage
+	{
+		std::vector<Counted> vec;
+		//MoveMessage()=default;
+		// MoveMessage(const MoveMessage&m) : vec(m.vec) { }
+		//MoveMessage(MoveMessage&&m) : vec(std::move(m.vec)) { }
+	};
+
+	ACTIVE_METHOD( MoveMessage )
+	{
+	}
+};
+
+int MoveObject::Counted::instances=0;
+
+void test_move_semantics()
+{
+	MoveObject::MoveMessage m;
+	m.vec.resize(5);
+	assert( MoveObject::Counted::instances==5 );
+	MoveObject obj;
+	obj(m);
+	assert( MoveObject::Counted::instances==5 );
+	active::run();
+	assert( MoveObject::Counted::instances==5 );
+}
+
 int main()
 {
 	// Single-object tests
@@ -780,6 +819,7 @@ int main()
 	test_shared_thread();
 	test_object_mix();
 	test_allocators();
+	test_move_semantics();
 
 	std::cout << "All tests passed!\n";
 	return 0;
