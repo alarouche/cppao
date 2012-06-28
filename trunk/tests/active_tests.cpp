@@ -767,9 +767,6 @@ struct MoveObject : public active::object
 	struct MoveMessage
 	{
 		std::vector<Counted> vec;
-		//MoveMessage()=default;
-		// MoveMessage(const MoveMessage&m) : vec(m.vec) { }
-		//MoveMessage(MoveMessage&&m) : vec(std::move(m.vec)) { }
 	};
 
 	ACTIVE_METHOD( MoveMessage )

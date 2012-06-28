@@ -156,11 +156,11 @@ namespace active
 			allocator_type get_allocator() const { return allocator_type(); }
 
 			template<typename Message, typename Accessor>
-			bool enqueue(any_object * object, Message & msg, const Accessor&)
+			bool enqueue(any_object * object, Message && msg, const Accessor&)
 			{
 				try
 				{
-					Accessor::run(object, msg);
+					Accessor::run(object, std::forward<Message&&>(msg));
 				}
 				catch(...)
 				{
@@ -191,12 +191,12 @@ namespace active
 			allocator_type get_allocator() const { return allocator_type(); }
 
 			template<typename Message, typename Accessor>
-			bool enqueue(any_object * object, Message & msg, const Accessor&)
+			bool enqueue(any_object * object, Message && msg, const Accessor&)
 			{
 				std::lock_guard<std::recursive_mutex> lock(m_mutex);
 				try
 				{
-					Accessor::run(object, msg);
+					Accessor::run(object, std::forward<Message&&>(msg));
 				}
 				catch(...)
 				{
@@ -256,14 +256,14 @@ namespace active
 			};
 
 			template<typename Message, typename Accessor>
-			bool enqueue( any_object *, Message & msg, const Accessor&)
+			bool enqueue( any_object *, Message && msg, const Accessor&)
 			{
 				typename allocator_type::template rebind<message_impl<Message, Accessor>>::other realloc(m_allocator);
 
 				message_impl<Message, Accessor> * impl = realloc.allocate(1);
 				try
 				{
-					realloc.construct(impl, std::move(msg));
+					realloc.construct(impl, std::forward<Message&&>(msg));
 				}
 				catch(...)
 				{
@@ -330,7 +330,7 @@ namespace active
 				Message m_message;
 				void run(any_object * o)
 				{
-					Accessor::run(o, m_message);
+					Accessor::run(o, std::move(m_message));
 				}
 				void destroy(allocator_type&a)
 				{
@@ -371,13 +371,13 @@ namespace active
 			};
 
 			template<typename Message, typename Accessor>
-			bool enqueue( any_object * object, Message & msg, const Accessor&)
+			bool enqueue( any_object * object, Message && msg, const Accessor&)
 			{
 				std::lock_guard<std::mutex> lock(m_mutex);
 				m_message_queue.push_back( &run<Message, Accessor> );
 				try
 				{
-					Accessor::data(object).push_back(std::move(msg));
+					Accessor::data(object).push_back(std::forward<Message&&>(msg));
 				}
 				catch(...)
 				{
@@ -424,9 +424,9 @@ namespace active
 			template<typename Message, typename Accessor>
 			static void run(any_object*obj)
 			{
-				Message m = Accessor::data(obj).front();
+				Message m = Accessor::data(obj).front();	// Note: Message is copied! :-(
 				Accessor::data(obj).pop_front();
-				Accessor::run(obj, m);
+				Accessor::run(obj, std::move(m));
 			}
 		};
 
@@ -437,13 +437,13 @@ namespace active
 			steal(const allocator_type & alloc = allocator_type()) : Queue(alloc), m_running(false) { }
 
 			template<typename Message, typename Accessor>
-			bool enqueue( any_object * object, Message & msg, const Accessor& accessor)
+			bool enqueue( any_object * object, Message && msg, const Accessor& accessor)
 			{
 				this->m_mutex.lock();
 				if( m_running || !this->empty())
 				{
 					this->m_mutex.unlock();	// ?? Better use of locks; also exception safety.
-					Queue::enqueue( object, msg, accessor );
+					Queue::enqueue( object, std::forward<Message&&>(msg), accessor );
 					return false;
 				}
 				else
@@ -452,7 +452,7 @@ namespace active
 					this->m_mutex.unlock();
 					try
 					{
-						Accessor::run(object, msg);
+						Accessor::run(object, std::forward<Message&&>(msg));
 					}
 					catch(...)
 					{
@@ -528,9 +528,9 @@ namespace active
 
 	protected:
 		template<typename T, typename M>
-		void enqueue( T & msg, const M & accessor)
+		void enqueue( T && msg, const M & accessor)
 		{
-			if( m_queue.enqueue(this, msg, accessor) )
+			if( m_queue.enqueue(this, std::forward<T&&>(msg), accessor) )
 			{
 				m_share.activate(this);
 				m_schedule.activate(m_share.pointer(this));
@@ -543,16 +543,16 @@ namespace active
 		share_type m_share;
 	};
 
-#define ACTIVE_IMPL( MSG ) impl_##MSG(MSG & MSG)
+#define ACTIVE_IMPL( MSG ) impl_##MSG(MSG && MSG)
 
 
 #define ACTIVE_METHOD2( MSG, TYPENAME, TEMPLATE, CAST ) \
 	TYPENAME queue_type::TEMPLATE queue_data<MSG>::type queue_data_##MSG; \
 	template<typename C> struct run_##MSG { \
-		static void run(::active::any_object*o, MSG&m) { CAST<C>(o)->impl_##MSG(m); } \
+		static void run(::active::any_object*o, MSG&&m) { CAST<C>(o)->impl_##MSG(std::forward<MSG&&>(m)); } \
 		static TYPENAME queue_type::TEMPLATE queue_data<MSG>::type& data(::active::any_object*o) {return CAST<C>(o)->queue_data_##MSG; } }; \
-	void operator()(MSG && m) { this->enqueue(static_cast<MSG&>(m), run_##MSG<decltype(this)>() ); } \
-	void operator()(MSG & m) { this->enqueue(m, run_##MSG<decltype(this)>() ); } \
+	void operator()(MSG && m) { this->enqueue(std::forward<MSG&&>(m), run_##MSG<decltype(this)>() ); } \
+	void operator()(MSG & m) { this->enqueue(std::move(m), run_##MSG<decltype(this)>() ); } \
 	void ACTIVE_IMPL(MSG)
 
 
