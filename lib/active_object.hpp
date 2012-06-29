@@ -50,10 +50,10 @@ namespace active
 		void start_work() throw();
 		void stop_work() throw();
 
-        // Runs in current thread until there are no more messages in the entire pool.
-        // Returns false if no more items.
+		// Runs in current thread until there are no more messages in the entire pool.
+		// Returns false if no more items.
 		// Can be run concurrently.
-        void run();
+		void run();
 
 	private:
 		std::mutex m_mutex;
@@ -605,13 +605,14 @@ namespace active
 		run(const run&);
 		run & operator=(const run&);
 		scheduler & m_scheduler;
-		std::deque<std::thread> m_threads;	
+		std::deque<std::thread> m_threads;
 	};
-	
+
 	template<typename T>
 	struct sink
 	{
-		typedef std::shared_ptr<sink<T>> ptr;
+		typedef std::shared_ptr<sink<T>> sp;
+		typedef std::weak_ptr<sink<T>> wp;
 		ACTIVE_IFACE( T );
 	};
 } // namespace active

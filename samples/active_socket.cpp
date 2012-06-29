@@ -296,7 +296,7 @@ void active::select::select_loop::ACTIVE_IMPL( write )
 active::pipe::pipe(socket::ptr input,
 				   socket::ptr output,
 				   select::ptr sel,
-				   sink<closed>::ptr closed_response ) :
+				   sink<closed>::sp closed_response ) :
 	m_input(input), m_output(output), m_select(sel), m_closed_response(closed_response)
 {
 }

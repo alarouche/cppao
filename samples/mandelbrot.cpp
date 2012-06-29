@@ -1,206 +1,338 @@
 #include <active_object.hpp>
 #include <vector>
-#include <OpenGL/gl.h>
-#include <OpenGL/glu.h>
-#include <GLUT/GLUT.h>
+#include <GL/gl.h>
+#include <GL/glut.h>
 
 #include <iostream>
 
-const double SCALE=0.5;
+const double SCALE=0.25;
 static const int STEP=200;
-static const int THRESHOLD=100;
+static const int THRESHOLD=1;
 
 
-struct cell
+struct Cell
 {
-	double x,y,x0,y0;
-	bool escaped;
-	int iterations;
-	void iterate()
+	Cell() : x(0), y(0), m_escaped(false), m_iterations(0)
 	{
-		if( !escaped )
+	}
+
+	void iterate(double x0, double y0)
+	{
+		if( !m_escaped )
 		{
 			double xx = x*x, yy=y*y;
-			escaped = xx+yy>4.0;
-			if( !escaped )
+			m_escaped = xx+yy>4.0;
+			if( !m_escaped )
 			{
 				double x1 = xx - yy + x0;
 				double y1 = 2*x*y + y0;
 				x=x1;
 				y=y1;
-				++iterations;
+				++m_iterations;
 			}
 		}
 	}
-	cell(double x, double y) : 
-		x(x), y(y), x0(x), y0(y), escaped(false), iterations(0)
-	{
-	}
+
+	int iterations() const { return m_escaped ? m_iterations : 0; }
+	bool escaped() const { return m_escaped; }
+
+private:
+	double x,y;
+	bool m_escaped;
+	int m_iterations;
 };
 
-struct region
+struct Region
 {
 	double x0, y0, dx, dy;
 	int width, height;
 	int offset_x, offset_y;
 };
 
-struct tile : public active::shared<tile>
+struct ComputeTile : public active::shared<ComputeTile>
 {
-	std::vector<cell> m_cells;
-	region m_region;
-	int m_black_cells;
-	bool m_out_of_date;
-	
-	ACTIVE_METHOD( region )
+	ACTIVE_METHOD( Region )
 	{
-		std::vector<cell> cells;
-		cells.reserve( region.width * region.height );
-		double x,y;
-		int i,j;
-		for(j=0,y=region.y0; j<region.height; ++j,y+=region.dy)
-			for(i=0,x=region.x0; i<region.width; ++i,x+=region.dx)
-				cells.push_back( cell(x,y) );
+		std::vector<Cell> cells(Region.width*Region.height);
 		m_cells.swap(cells);
-		m_region = region;
-		m_black_cells=region.width * region.height;
-		m_out_of_date=false;
+		m_region = Region;
 	}
-	
-	struct iteration_done 
-	{ 
-		// region reg;
+
+	struct Ready
+	{
+		Region region;
+		std::vector<int> iterations;
 		int completed;
-		tile::ptr tile;
+		int min_iterations, max_iterations;
 	};
-	
+
 	// Iterate a number of times
-	struct iterate
+	struct Iterate
 	{
 		int times;
-		active::sink<iteration_done> * finished;
+		active::sink<Ready>::sp finished;
 	};
-	
-	ACTIVE_METHOD( iterate )
+
+	ACTIVE_METHOD( Iterate )
 	{
-		int old_black_cells = m_black_cells;
-		for(auto & cell : m_cells)
-			for(int i=0; i<iterate.times && !cell.escaped; ++i)
+		Ready result;
+		result.region = m_region;
+		result.iterations.reserve(m_cells.size());
+		result.min_iterations=1000000;
+		result.max_iterations=0;
+		result.completed=0;
+
+		double x,y;
+		int i,j;
+		auto cell = m_cells.begin();
+		for(j=0,y=m_region.y0; j<m_region.height; ++j,y+=m_region.dy)
+			for(i=0,x=m_region.x0; i<m_region.width; ++i,x+=m_region.dx,++cell)
 			{
-				cell.iterate();
-				if( cell.escaped ) --m_black_cells;
+				for(int i=0; i<Iterate.times && !cell->escaped(); ++i)
+				{
+					cell->iterate(x,y);
+					if( cell->escaped() ) ++result.completed;
+				}
+				if( cell->escaped() )
+				{
+					result.min_iterations = std::min( result.min_iterations, cell->iterations() );
+					result.max_iterations = std::max( result.max_iterations, cell->iterations() );
+				}
+				result.iterations.push_back( cell->iterations() );
 			}
-		iteration_done result = { old_black_cells - m_black_cells, shared_from_this() };
-		(*iterate.finished)(result);	
+
+		(*Iterate.finished)(std::move(result));
 	}
+
+private:
+	std::vector<Cell> m_cells;
+	Region m_region;
 };
 
+struct RenderTile : public active::shared<RenderTile>, public active::sink<ComputeTile::Ready>
+{
+	struct Ready
+	{
+		Region reg;
+		std::vector<GLbyte> buffer;
+		int completed;
+	};
 
+	typedef ComputeTile::Ready ComputeReady;
+
+	ACTIVE_METHOD( ComputeReady )
+	{
+		auto notifier(m_notifier.lock());
+		if( !notifier ) return;
+
+		Ready ready = { ComputeReady.region };
+		ready.buffer.resize(3*ComputeReady.iterations.size());
+		ready.completed = ComputeReady.completed;
+
+		std::cout << "Minimum iterations = " << ComputeReady.min_iterations << "\n";
+		std::cout << "Maximum iterations = " << ComputeReady.max_iterations << "\n";
+		int i=0;
+		auto j = ComputeReady.iterations.cbegin();
+		for(int y=0; y<ComputeReady.region.height; ++y)
+			for(int x=0; x<ComputeReady.region.width; ++x)
+			{
+				if( *j>0 )
+				{
+					int iterations = *j;
+					while( iterations>1024 ) iterations>>=1;
+
+					ready.buffer[i++] = (iterations) % 255;
+					ready.buffer[i++] = (80+iterations) % 255;
+					ready.buffer[i++] = (160+iterations) % 255;
+				}
+				else
+				{
+					ready.buffer[i++] = 0;
+					ready.buffer[i++] = 0;
+					ready.buffer[i++] = 0;
+				}
+				++j;
+			}
+
+		(*notifier)(std::move(ready));
+	}
+
+
+	typedef active::sink<Ready>::sp SetNotifier;
+
+	ACTIVE_METHOD( SetNotifier )
+	{
+		m_notifier = SetNotifier;
+	}
+
+private:
+	active::sink<Ready>::wp m_notifier;
+};
+
+struct View : public active::shared<View>, public active::sink<RenderTile::Ready>
+{
+// Messages:
+
+	struct Update
+	{
+		int width;
+		int height;
+		std::vector<GLbyte> buffer;
+	};
+
+	struct Start
+	{
+		Region region;
+		active::sink<Update>::sp updater;	// Whom to notify when contents have changed
+	};
+
+	struct Stop { };
+
+// Handlers:
+
+	ACTIVE_METHOD( Start )
+	{
+		m_region = Start.region;
+
+		// !! Get the initial display buffer from the start message
+		m_displayBuffer.resize( 3 * m_region.width * m_region.height );
+
+		m_dismissed = false;
+		m_update = Start.updater;
+
+		m_render = std::make_shared<RenderTile>();
+		(*m_render)(shared_from_this());
+
+		m_tile = std::make_shared<ComputeTile>();
+		(*m_tile)(m_region);
+
+		// !! Adaptive step
+		ComputeTile::Iterate iterate = { STEP, m_render };
+		(*m_tile)(iterate);
+	}
+
+	ACTIVE_METHOD( Stop )
+	{
+		m_dismissed = true;
+	}
+
+	typedef RenderTile::Ready RenderReady;
+
+	ACTIVE_METHOD( RenderReady )
+	{
+		if( m_dismissed ) return;
+		active::sink<Update>::sp update(m_update.lock());
+		if( !update ) return;
+
+		m_displayBuffer = std::move(RenderReady.buffer);
+
+		Update up = { m_region.width, m_region.height, m_displayBuffer };
+
+		(*update)(up);
+
+		if( RenderReady.completed>THRESHOLD )
+		{
+			std::cout << RenderReady.completed << " left" << std::endl;
+			ComputeTile::Iterate iterate = { STEP, m_render };
+			(*m_tile)(iterate);
+		}
+		else
+		{
+			std::cout << "Ready" << std::endl;
+		}
+	}
+
+private:
+	Region m_region;
+	bool m_dismissed;
+	std::vector<GLbyte> m_displayBuffer;
+	ComputeTile::ptr m_tile;
+	RenderTile::ptr m_render;
+	active::sink<Update>::wp m_update;
+	int m_min_iterations;
+};
 
 
 static const int KEY_SPACE = ' ';
 static const int KEY_ESCAPE = '\033';
 
 
-class GlutWindow : public active::object, public active::sink<tile::iteration_done>
+class GlutWindow :
+		public active::shared<GlutWindow>,
+		public active::sink<View::Update>
 {
+private:
+	std::shared_ptr<View> view;
+	Region m_region;
 public:
 
 	struct zoom_to
 	{
 		double x0, y0, x1, y1;
 	};
-	
-	region m_region;
-	tile::ptr m_tile;
-	
+
+
 	ACTIVE_METHOD( zoom_to )
-	{		
+	{
 		m_region.x0 = zoom_to.x0;
 		m_region.y0 = zoom_to.y0;
 		m_region.dx = (zoom_to.x1-zoom_to.x0)/m_region.width;
 		m_region.dy = (zoom_to.y1-zoom_to.y0)/m_region.height;
 		m_region.offset_x=0;
 		m_region.offset_y=0;
-		
+
 		m_displayBuffer.resize( 3 * m_region.width * m_region.height );
 		std::fill( m_displayBuffer.begin(), m_displayBuffer.end(), 0 );
-		
-		if(m_tile) m_tile->m_out_of_date = true;
-		m_tile = std::make_shared<tile>();
-		(*m_tile)(m_region);
-		
-		tile::iterate iterate = { STEP, this };
-		(*m_tile)(iterate);
+
+		if( view )
+		{
+			(*view)(View::Stop());
+		}
+
+		View::Start start = { m_region, shared_from_this() };
+		view = std::make_shared<View>();
+		(*view)(start);
 	}
 	struct zoom{};
-	
+
+	typedef View::Update view_update;
+
+	ACTIVE_METHOD( view_update )
+	{
+		{
+			std::lock_guard<std::mutex> lock(global->m_mutex);
+			m_displayBuffer = std::move(view_update.buffer);
+		}
+		glutPostWindowRedisplay(win);
+	}
+
 	ACTIVE_METHOD(zoom)
 	{
-		if(m_tile) m_tile->m_out_of_date = true;
-		m_tile = std::make_shared<tile>();
-		(*m_tile)(m_region);
-		
-		tile::iterate iterate = { STEP, this };
-		(*m_tile)(iterate);
+		// !! Actually want minimum iterations *IN THE REGION WE HAVE ZOOMED TO*
+
+		if( view )
+		{
+			(*view)(View::Stop());
+		}
+
+		View::Start start = { m_region, shared_from_this() };
+		view = std::make_shared<View>();
+		(*view)(start);
 	}
-	
+
 	struct resize
 	{
 		int width, height;
 	};
-	
+
 	ACTIVE_METHOD( resize )
 	{
 		m_region.width = resize.width;
 		m_region.height = resize.height;
-		
+
 		// !! Now see what do to
 	}
-		
-	typedef tile::iteration_done iteration_done;
-	// int iterations
-	
-	ACTIVE_METHOD( iteration_done )
-	{
-		// std::cout << "Iteration complete!\n";
-		if( iteration_done.tile->m_out_of_date ) return;	// Ignore this one
-		int i=0;
-		auto j = iteration_done.tile->m_cells.cbegin();
-		for(int y=0; y<iteration_done.tile->m_region.height; ++y)
-			for(int x=0; x<iteration_done.tile->m_region.width; ++x)
-			{
-				if( j->escaped )
-				{
-					m_displayBuffer[i++] = (j->iterations) % 255;
-					m_displayBuffer[i++] = (80+j->iterations) % 255;
-					m_displayBuffer[i++] = (160+j->iterations) % 255;
-				}
-				else
-				{
-					m_displayBuffer[i++] = 0;
-					m_displayBuffer[i++] = 0;
-					m_displayBuffer[i++] = 0;
-				}
-				++j;
-			}
-		glutPostWindowRedisplay(win);
-		//Draw();
-		
-		if( iteration_done.completed>THRESHOLD )
-		{
-			std::cout << iteration_done.completed << " left\n";
-			tile::iterate iterate = { STEP, this };
-			(*m_tile)(iterate);		
-		}
-		else
-		{
-			std::cout << "Ready\n";
-		}
-	}
-	
-	static GlutWindow * global;
-	
+
 	GlutWindow(int argc, char**argv)
 	{
 		glutInit( &argc, argv );
@@ -208,12 +340,12 @@ public:
 		glutInitDisplayMode( GLUT_RGBA | GLUT_DOUBLE );
 		m_region.width=800;
 		m_region.height=800;
-		m_displayBuffer.resize( 3 * m_region.width * m_region.height );		
-		glutInitWindowSize(m_region.width, m_region.height);		
-		win = glutCreateWindow("Mandelbrot");	
-		
-		glutDisplayFunc( Draw );	
-		glutKeyboardFunc( Keyboard );	
+		m_displayBuffer.resize( 3 * m_region.width * m_region.height );
+		glutInitWindowSize(m_region.width, m_region.height);
+		win = glutCreateWindow("Mandelbrot");
+
+		glutDisplayFunc( Draw );
+		glutKeyboardFunc( Keyboard );
 		glutMouseFunc( Mouse );
 		glutReshapeFunc(Reshape);
 		glutIdleFunc(Idle);
@@ -224,7 +356,7 @@ public:
 
 	void runMainLoop()
 	{
-		// Non-active method runs concurrently with 
+		// Non-active method runs concurrently with
 		// active methods
 		try
 		{
@@ -232,36 +364,38 @@ public:
 		}
 		catch( exit_main_loop )
 		{
-		}		
+		}
 	}
-	
+
 private:
 	int win;
-	
+	static GlutWindow * global;
+
+
 	// Because GLUT itself is not threadsafe and insists on running
 	// in the main thread. Sigh, defeats the elegance of active objects really.
 	std::mutex m_mutex;
 
 	std::vector<GLbyte> m_displayBuffer;
-	
+
 	static void Idle()
 	{
 		// std::cout << "Idle function called\n";
 	}
-	
+
 	static void Reshape(int width, int height)
 	{
 		//global->m_region.width = width;
 		// global->m_region.height = height;
-		
+
 		// glViewport(0, 0, width, height);
-		
+
 		//glMatrixMode(GL_PROJECTION);
 		//glLoadIdentity();
 		//gluOrtho2D(-175, 175, -175, 175);
 		//glMatrixMode(GL_MODELVIEW);
 	}
-	
+
 	static void
 	Keyboard( unsigned char c, int x, int y )
 	{
@@ -276,10 +410,10 @@ private:
 				break;
 			case 'q':
 			case KEY_ESCAPE:
-				// this is really bad -- the program cannot 
-				// do proper cleanup etc. 
-				// the exception mechanism provides a much better 
-				// solution, but it still cannot be relied upon in 
+				// this is really bad -- the program cannot
+				// do proper cleanup etc.
+				// the exception mechanism provides a much better
+				// solution, but it still cannot be relied upon in
 				// som compilers, so we do not use it
 				// exit( 0 );
 				throw exit_main_loop();
@@ -289,67 +423,58 @@ private:
 				;
 		}
 	}
-	
+
 	static void
 	Draw( void )
 	{
-#if 0
-		// std::cout << "Draw\n";
-		static GLfloat polygonColor[] = { .25f, .8f, .8f };
-		static GLfloat polygonVertices[][2] =
-		{ {-.5f,  .5f}, { .5f,  .5f}, { .5f, -.5f}, {-.5f, -.5f} };
-		
-		// clear out buffer
-		glClearColor( 0.f, 0.f, 0.f, 0.f );
-		glClear( GL_COLOR_BUFFER_BIT );
-		
-		// draw primitives
-		glColor3fv( polygonColor );
-		glBegin( GL_POLYGON );
-		glVertex2fv( polygonVertices[0] );
-		glVertex2fv( polygonVertices[1] );
-		glVertex2fv( polygonVertices[2] );
-		glVertex2fv( polygonVertices[3] );
-		glEnd();
-#endif
-		
 		{
-			std::lock_guard<std::mutex> lock(global->m_mutex);		
-			glDrawPixels( global->m_region.width, global->m_region.height, 
+			std::lock_guard<std::mutex> lock(global->m_mutex);
+			glDrawPixels( global->m_region.width, global->m_region.height,
 						 GL_RGB, GL_UNSIGNED_BYTE, &global->m_displayBuffer[0]);
 		}
-		
+
 		glutSwapBuffers();
 	}
-	
+
 	static void
 	Mouse( int button, int state, int x, int y )
 	{
 		if( state !=0 ) return;
 		switch( button ){
-				
+
 			case GLUT_LEFT_BUTTON:
 			{
-				region & r = global->m_region;
+				Region & r = global->m_region;
 				double cx = r.x0 + x * r.dx;
 				double cy = r.y0 + (r.height-y) * r.dy;
-				
+
 				r.dx*=SCALE;
 				r.dy*=SCALE;
 				r.x0 = cx - r.dx*r.width*0.5;
 				r.y0 = cy - r.dy*r.height*0.5;
-				std::cout << "Clicked on " << x << "," << y << "\n";
 				std::cout << "Clicked on " << cx << "," << cy << "\n";
 				(*global)(zoom());
 				//glutIdleFunc( UIState::Animate() );
 				// glutPostRedisplay();
 			}
 				break;
-				
+
 			case GLUT_RIGHT_BUTTON:
+			{
+				Region & r = global->m_region;
+				double cx = r.x0 + x * r.dx;
+				double cy = r.y0 + (r.height-y) * r.dy;
+
+				r.dx/=SCALE;
+				r.dy/=SCALE;
+				r.x0 = cx - r.dx*r.width*0.5;
+				r.y0 = cy - r.dy*r.height*0.5;
+				std::cout << "Clicked on " << cx << "," << cy << "\n";
+				(*global)(zoom());
+			}
 				break;
 		}
-	}	
+	}
 };
 
 GlutWindow * GlutWindow::global;
@@ -357,9 +482,9 @@ GlutWindow * GlutWindow::global;
 
 int main(int argc, char**argv)
 {
-	GlutWindow win(argc, argv);
-	GlutWindow::zoom_to z = { -2, -2, 2, 2 };
-	win(z);
+	std::shared_ptr<GlutWindow> win = std::make_shared<GlutWindow>(argc, argv);
+	GlutWindow::zoom_to z = { -2.5, -2, 1.5, 2 };
+	(*win)(z);
 	active::run run;
-	win.runMainLoop();	// Must be called from main thread - limitation of GLUT
+	win->runMainLoop();	// Must be called from main thread - limitation of GLUT
 }
