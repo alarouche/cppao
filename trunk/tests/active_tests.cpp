@@ -503,7 +503,7 @@ void test_shared_thread(bool reset, int sleep1, int sleep2, int threads)
 	if(reset) st.reset();
 
 	std::this_thread::sleep_for(std::chrono::milliseconds(sleep2));
-	active::run(threads);
+	active::run r(threads);
 	assert( finished==25 );
 }
 

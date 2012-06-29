@@ -50,12 +50,10 @@ namespace active
 		void start_work() throw();
 		void stop_work() throw();
 
-		// Runs in current thread until there are no more messages in the entire pool.
-		// Returns false if no more items.
-		void run();
-
-		// Runs all objects in a thread pool, until there are no more messages.
-		void run(int threads);
+        // Runs in current thread until there are no more messages in the entire pool.
+        // Returns false if no more items.
+		// Can be run concurrently.
+        void run();
 
 	private:
 		std::mutex m_mutex;
@@ -597,9 +595,19 @@ namespace active
 		typedef std::shared_ptr<T> ptr;
 	};
 
-	// Run all objects in the default thread pool
-	void run(int threads=std::thread::hardware_concurrency());
-
+	// Runs the scheduler for a given duration.
+	class run
+	{
+	public:
+		explicit run(int threads=std::thread::hardware_concurrency(), scheduler & sched = default_scheduler);
+		~run();
+	private:
+		run(const run&);
+		run & operator=(const run&);
+		scheduler & m_scheduler;
+		std::deque<std::thread> m_threads;	
+	};
+	
 	template<typename T>
 	struct sink
 	{
