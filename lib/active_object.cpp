@@ -53,16 +53,20 @@ bool active::scheduler::run_managed() throw()
 	return m_busy_count!=0;
 }
 
-// Runs all objects in a thread pool, until there are no more messages.
-void active::scheduler::run(int threads)
+active::run::run(int threads, scheduler & sched) : 
+	m_scheduler(sched),
+	m_threads(threads<1 ? 4 : threads)
 {
-	std::deque<std::thread> tp(threads);
+	m_scheduler.start_work();	// Prevent threads from exiting immediately
+	for( auto & t : m_threads )
+        t = std::thread( std::bind(&scheduler::run, &sched) );
+}
 
-	for(int i=0; i<threads; ++i)
-		tp[i] = std::thread( std::bind(&scheduler::run_in_thread, this) );
-
-	for(int i=0; i<threads; ++i)
-		tp[i].join();
+active::run::~run()
+{
+	m_scheduler.stop_work();
+	for( auto & t : m_threads )
+		t.join();
 }
 
 void active::scheduler::run()
@@ -100,12 +104,6 @@ void active::any_object::exception_handler() throw()
 	{
 		std::cerr << "Unprocessed exception during message processing" << std::endl;
 	}
-}
-
-void active::run(int threads)
-{
-	if( threads<=0 ) threads=4;
-	default_scheduler.run(threads);
 }
 
 void active::scheduler::start_work() throw()

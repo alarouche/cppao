@@ -136,5 +136,5 @@ int main(int argc, char**argv)
 	my_server::start start = { port };
 	(*server)(start);
 
-	active::run(num_threads);
+	active::run r(num_threads);
 }

@@ -149,5 +149,5 @@ int main(int argc, char**argv)
 	else
 		(*in)(c);
 
-	active::run(num_threads);
+	active::run r(num_threads);
 }

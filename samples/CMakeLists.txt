@@ -1,3 +1,20 @@
+#IF(APPLE)
+#   INCLUDE_DIRECTORIES ( /System/Library/Frameworks )
+#   FIND_LIBRARY(COCOA_LIBRARY Cocoa)
+#   FIND_LIBRARY(GLUT_LIBRARY GLUT )
+#   FIND_LIBRARY(OpenGL_LIBRARY OpenGL )
+#   MARK_AS_ADVANCED (COCOA_LIBRARY
+#                     GLUT_LIBRARY
+#                     OpenGL_LIBRARY)
+#   SET(EXTRA_LIBS ${COCOA_LIBRARY} ${GLUT_LIBRARY} ${OpenGL_LIBRARY})
+#ENDIF (APPLE)
+
+# SET(EXTRA_LIBS ${OpenGL_LIBRARY})
+
+#Find_Package(GLUT)
+#Find_Package(OpenGL)
+
+
 link_libraries( active_object )
 include_directories( ../lib )
 
@@ -17,6 +34,7 @@ add_executable( sieve sieve.cpp )
 add_executable( sieve2 sieve2.cpp )
 add_executable( mandelbrot mandelbrot.cpp )
 add_library( active_socket active_socket.cpp active_socket.hpp )
+target_link_libraries( mandelbrot )
 
 link_libraries( active_socket )
 add_executable( echo_server echo_server.cpp )
