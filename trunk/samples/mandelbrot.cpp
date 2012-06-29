@@ -4,11 +4,14 @@
 #include <GL/glut.h>
 
 #include <iostream>
+#include <cassert>
 
 const double SCALE=0.25;
 static const int STEP=200;
 static const int THRESHOLD=1;
 
+
+// !! Move into mandelbrot.h
 
 struct Cell
 {
@@ -47,6 +50,17 @@ struct Region
 	double x0, y0, dx, dy;
 	int width, height;
 	int offset_x, offset_y;
+
+	int framebuffer_offset(int x, int y, int bpp=3) const
+	{
+		if( x<0 || x>= width || y<0 || y>=height ) return -1;
+		return 3*(y*width + x);
+	}
+
+	int framebuffer_offset(double x, double y, int bpp=3) const
+	{
+		return framebuffer_offset( int((x-x0)/dx), int((y-y0)/dy), bpp);
+	}
 };
 
 struct ComputeTile : public active::shared<ComputeTile>
@@ -116,6 +130,7 @@ struct RenderTile : public active::shared<RenderTile>, public active::sink<Compu
 		Region reg;
 		std::vector<GLbyte> buffer;
 		int completed;
+		int minIterations;
 	};
 
 	typedef ComputeTile::Ready ComputeReady;
@@ -128,6 +143,7 @@ struct RenderTile : public active::shared<RenderTile>, public active::sink<Compu
 		Ready ready = { ComputeReady.region };
 		ready.buffer.resize(3*ComputeReady.iterations.size());
 		ready.completed = ComputeReady.completed;
+		ready.minIterations = ComputeReady.min_iterations;
 
 		std::cout << "Minimum iterations = " << ComputeReady.min_iterations << "\n";
 		std::cout << "Maximum iterations = " << ComputeReady.max_iterations << "\n";
@@ -186,29 +202,141 @@ struct View : public active::shared<View>, public active::sink<RenderTile::Ready
 		active::sink<Update>::sp updater;	// Whom to notify when contents have changed
 	};
 
+	struct StartFromOtherView
+	{
+		Start newSettings;
+		std::vector<GLbyte> newBuffer;
+		int minIterations[8][8];
+	};
+
+	// Destroy this view and start another view
+	struct ZoomTo
+	{
+		Start newSettings;
+		ptr newView;
+	};
+
 	struct Stop { };
 
 // Handlers:
 
+	ACTIVE_METHOD( ZoomTo )
+	{
+		m_dismissed = true;
+
+		if( m_displayBuffer.empty() )
+		{
+			// We got to this handler too quickly - we haven't even been initialized ourselves yet!
+			(*ZoomTo.newView)(ZoomTo.newSettings);
+		}
+		else
+		{
+			StartFromOtherView start = { ZoomTo.newSettings };
+			start.newBuffer.resize( 3 * m_region.width * m_region.height );
+
+			double x,y;
+			int i,j;
+
+			auto output=start.newBuffer.begin();
+			for(j=0,y=ZoomTo.newSettings.region.y0; j<m_region.height; ++j,y+=ZoomTo.newSettings.region.dy)
+				for(i=0,x=ZoomTo.newSettings.region.x0; i<m_region.width; ++i,x+=ZoomTo.newSettings.region.dx)
+				{
+					int src = m_region.framebuffer_offset(x,y);
+					if( src>=0 )
+					{
+						*output++ = m_displayBuffer[src++];
+						*output++ = m_displayBuffer[src++];
+						*output++ = m_displayBuffer[src++];
+					}
+					else
+					{
+						output+=3;
+					}
+				}
+
+			for(int tx=0; tx<8; ++tx)
+				for(int ty=0; ty<8; ++ty)
+				{
+
+				}
+
+			(*ZoomTo.newSettings.updater)( Update{m_region.width, m_region.height, start.newBuffer} );
+			(*ZoomTo.newView)( start );
+		}
+	}
+
+	ACTIVE_METHOD( StartFromOtherView )
+	{
+		if( m_dismissed ) return;
+		m_region = StartFromOtherView.newSettings.region;
+		m_update = StartFromOtherView.newSettings.updater;
+
+		m_displayBuffer = std::move(StartFromOtherView.newBuffer);
+		m_dismissed = false;
+		assert( !m_displayBuffer.empty() );
+
+		int xstep = m_region.width / 8;
+		int ystep = m_region.height / 8;
+		for(int tx=0; tx<8; ++tx)
+			for(int ty=0; ty<8; ++ty)
+			{
+				auto render = std::make_shared<RenderTile>();
+				m_tiles[tx][ty].render = render;
+				(*render)(shared_from_this());
+
+				Region subregion{
+					m_region.x0 + tx*xstep*m_region.dx,
+					m_region.y0 + ty*ystep*m_region.dy,
+					m_region.dx,
+					m_region.dy,
+					xstep, ystep, tx, ty
+					};
+
+				auto compute = std::make_shared<ComputeTile>();
+				m_tiles[tx][ty].compute = compute;
+
+				(*compute)(subregion);
+
+				(*compute)(ComputeTile::Iterate{StartFromOtherView.minIterations[tx][ty] + STEP,render});
+			}
+	}
+
 	ACTIVE_METHOD( Start )
 	{
-		m_region = Start.region;
+		if( m_dismissed ) return;
 
-		// !! Get the initial display buffer from the start message
+		m_region = Start.region;
 		m_displayBuffer.resize( 3 * m_region.width * m_region.height );
 
 		m_dismissed = false;
 		m_update = Start.updater;
 
-		m_render = std::make_shared<RenderTile>();
-		(*m_render)(shared_from_this());
+		// Create compute and render tiles....
 
-		m_tile = std::make_shared<ComputeTile>();
-		(*m_tile)(m_region);
+		int xstep = m_region.width / 8;
+		int ystep = m_region.height / 8;
+		for(int tx=0; tx<8; ++tx)
+			for(int ty=0; ty<8; ++ty)
+			{
+				auto render = std::make_shared<RenderTile>();
+				m_tiles[tx][ty].render = render;
+				(*render)(shared_from_this());
 
-		// !! Adaptive step
-		ComputeTile::Iterate iterate = { STEP, m_render };
-		(*m_tile)(iterate);
+				Region subregion{
+					m_region.x0 + tx*xstep*m_region.dx,
+					m_region.y0 + ty*ystep*m_region.dy,
+					m_region.dx,
+					m_region.dy,
+					xstep, ystep, tx, ty
+					};
+
+				auto compute = std::make_shared<ComputeTile>();
+				m_tiles[tx][ty].compute = compute;
+
+				(*compute)(subregion);
+
+				(*compute)(ComputeTile::Iterate{STEP,render});
+			}
 	}
 
 	ACTIVE_METHOD( Stop )
@@ -221,20 +349,41 @@ struct View : public active::shared<View>, public active::sink<RenderTile::Ready
 	ACTIVE_METHOD( RenderReady )
 	{
 		if( m_dismissed ) return;
-		active::sink<Update>::sp update(m_update.lock());
+		auto update(m_update.lock());
 		if( !update ) return;
 
-		m_displayBuffer = std::move(RenderReady.buffer);
+		assert( m_region.width>0 );
+		assert( m_region.height>0 );
+		assert( m_displayBuffer.size() == m_region.width * m_region.height * 3 );
+
+		// Copy RenderReady.buffer into m_displayBuffer
+		{
+			auto dest = m_displayBuffer.begin() + 3* (
+						RenderReady.reg.width * RenderReady.reg.offset_x +
+						m_region.width * RenderReady.reg.height * RenderReady.reg.offset_y);
+			auto src = RenderReady.buffer.begin();
+
+			for(int row=0; row<RenderReady.reg.height; ++row, src+=3*RenderReady.reg.width, dest+=3*m_region.width)
+			{
+				std::copy( src,  src + 3 * RenderReady.reg.width, dest);
+			}
+		}
 
 		Update up = { m_region.width, m_region.height, m_displayBuffer };
 
 		(*update)(up);
 
-		if( RenderReady.completed>THRESHOLD )
+		if( true || RenderReady.completed>THRESHOLD )
 		{
-			std::cout << RenderReady.completed << " left" << std::endl;
-			ComputeTile::Iterate iterate = { STEP, m_render };
-			(*m_tile)(iterate);
+			int tx = RenderReady.reg.offset_x;
+			int ty = RenderReady.reg.offset_y;
+
+			m_tiles[tx][ty].minIterations = RenderReady.minIterations;
+			(*m_tiles[tx][ty].compute)( ComputeTile::Iterate{STEP,m_tiles[tx][ty].render} );
+
+			// std::cout << RenderReady.completed << " left" << std::endl;
+			//ComputeTile::Iterate iterate = { STEP, m_render };
+			//(*m_tile)(iterate);
 		}
 		else
 		{
@@ -242,14 +391,21 @@ struct View : public active::shared<View>, public active::sink<RenderTile::Ready
 		}
 	}
 
+	View() : m_dismissed(false) { }
+
 private:
 	Region m_region;
 	bool m_dismissed;
 	std::vector<GLbyte> m_displayBuffer;
-	ComputeTile::ptr m_tile;
-	RenderTile::ptr m_render;
 	active::sink<Update>::wp m_update;
 	int m_min_iterations;
+
+	struct Tile
+	{
+		ComputeTile::ptr compute;
+		RenderTile::ptr render;
+		int minIterations;
+	} m_tiles[8][8];
 };
 
 
@@ -310,14 +466,18 @@ public:
 	{
 		// !! Actually want minimum iterations *IN THE REGION WE HAVE ZOOMED TO*
 
+		auto new_view = std::make_shared<View>();
 		if( view )
 		{
 			(*view)(View::Stop());
+			(*view)(View::ZoomTo{m_region,shared_from_this(),new_view});
+			// Warning: This message could reach the view before it's even been properly initialized with Start/StartFromOther
 		}
-
-		View::Start start = { m_region, shared_from_this() };
-		view = std::make_shared<View>();
-		(*view)(start);
+		else
+		{
+			(*new_view)(View::Start{m_region, shared_from_this()});
+		}
+		view = new_view;
 	}
 
 	struct resize
@@ -371,19 +531,24 @@ private:
 	int win;
 	static GlutWindow * global;
 
-
 	// Because GLUT itself is not threadsafe and insists on running
 	// in the main thread. Sigh, defeats the elegance of active objects really.
 	std::mutex m_mutex;
 
 	std::vector<GLbyte> m_displayBuffer;
 
-	static void Idle()
+	void OnIdle()
 	{
-		// std::cout << "Idle function called\n";
+		// Stop being a CPU hog
+		std::this_thread::sleep_for( std::chrono::milliseconds(10) );
 	}
 
-	static void Reshape(int width, int height)
+	static void Idle()
+	{
+		global->OnIdle();
+	}
+
+	void OnReshape(int width, int height)
 	{
 		//global->m_region.width = width;
 		// global->m_region.height = height;
@@ -396,17 +561,24 @@ private:
 		//glMatrixMode(GL_MODELVIEW);
 	}
 
-	static void
-	Keyboard( unsigned char c, int x, int y )
+	static void Reshape(int width, int height)
 	{
-		switch( c ){
+		global->OnReshape(width,height);
+	}
+
+	static void Keyboard( unsigned char c, int x, int y )
+	{
+		global->OnKeyboard(c,x,y);
+	}
+
+	void OnKeyboard(unsigned char c, int x, int y )
+	{
+		switch( c )
+		{
 			case KEY_SPACE:
-				// nice convention: reset the model matrix
-				// UIState::ResetModelTransform();
-			{
-				GlutWindow::zoom_to z = { -2, -2, 2, 2 };
-				(*global)(z);
-			}
+				{
+					(*this)(GlutWindow::zoom_to { -2.5, -2, 1.5, 2 });
+				}
 				break;
 			case 'q':
 			case KEY_ESCAPE:
@@ -424,27 +596,35 @@ private:
 		}
 	}
 
-	static void
-	Draw( void )
+	static void Draw( void )
+	{
+		global->OnDraw();
+	}
+
+	void OnDraw()
 	{
 		{
-			std::lock_guard<std::mutex> lock(global->m_mutex);
-			glDrawPixels( global->m_region.width, global->m_region.height,
-						 GL_RGB, GL_UNSIGNED_BYTE, &global->m_displayBuffer[0]);
+			std::lock_guard<std::mutex> lock(m_mutex);
+			glDrawPixels( m_region.width, m_region.height,
+						 GL_RGB, GL_UNSIGNED_BYTE, &m_displayBuffer[0]);
 		}
 
 		glutSwapBuffers();
 	}
 
-	static void
-	Mouse( int button, int state, int x, int y )
+	static void Mouse( int button, int state, int x, int y )
+	{
+		global->OnMouse( button, state, x, y );
+	}
+
+	void OnMouse(int button, int state, int x, int y)
 	{
 		if( state !=0 ) return;
-		switch( button ){
-
-			case GLUT_LEFT_BUTTON:
+		switch( button )
+		{
+		case GLUT_LEFT_BUTTON:
 			{
-				Region & r = global->m_region;
+				Region & r = m_region;
 				double cx = r.x0 + x * r.dx;
 				double cy = r.y0 + (r.height-y) * r.dy;
 
@@ -453,15 +633,14 @@ private:
 				r.x0 = cx - r.dx*r.width*0.5;
 				r.y0 = cy - r.dy*r.height*0.5;
 				std::cout << "Clicked on " << cx << "," << cy << "\n";
-				(*global)(zoom());
-				//glutIdleFunc( UIState::Animate() );
+				(*this)(zoom());
 				// glutPostRedisplay();
 			}
-				break;
+			break;
 
-			case GLUT_RIGHT_BUTTON:
+		case GLUT_RIGHT_BUTTON:
 			{
-				Region & r = global->m_region;
+				Region & r = m_region;
 				double cx = r.x0 + x * r.dx;
 				double cy = r.y0 + (r.height-y) * r.dy;
 
@@ -470,9 +649,9 @@ private:
 				r.x0 = cx - r.dx*r.width*0.5;
 				r.y0 = cy - r.dy*r.height*0.5;
 				std::cout << "Clicked on " << cx << "," << cy << "\n";
-				(*global)(zoom());
+				(*this)(zoom());
 			}
-				break;
+			break;
 		}
 	}
 };

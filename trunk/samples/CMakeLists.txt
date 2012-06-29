@@ -11,9 +11,9 @@
 
 # SET(EXTRA_LIBS ${OpenGL_LIBRARY})
 
-#Find_Package(GLUT)
-#Find_Package(OpenGL)
-
+# Only needed for Mandelbrot
+Find_Package(GLUT)
+Find_Package(OpenGL)
 
 link_libraries( active_object )
 include_directories( ../lib )
@@ -32,7 +32,7 @@ add_executable( exception exception.cpp )
 add_executable( object_types object_types.cpp )
 add_executable( sieve sieve.cpp )
 add_executable( sieve2 sieve2.cpp )
-add_executable( mandelbrot mandelbrot.cpp )
+add_executable( mandelbrot mandelbrot.cpp mandelbrot.hpp )
 add_library( active_socket active_socket.cpp active_socket.hpp )
 target_link_libraries( mandelbrot )
 
