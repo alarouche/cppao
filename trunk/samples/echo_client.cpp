@@ -26,7 +26,7 @@ struct echo_client :
 		std::string host;
 		int port;
 		active::select::ptr select;
-		active::sink<connected>::ptr response;
+		active::sink<connected>::sp response;
 	};
 
 	echo_client() : m_sock( new active::socket(AF_INET, SOCK_STREAM, 0) )
@@ -90,7 +90,7 @@ struct echo_client :
 private:
 	bool m_connected;
 	active::socket::ptr m_sock, m_sink;
-	active::sink<connected>::ptr m_notify_connection;
+	active::sink<connected>::sp m_notify_connection;
 	active::select::ptr m_select;
 	active::pipe::ptr m_pipe;
 };
@@ -129,7 +129,7 @@ int main(int argc, char**argv)
 
 	active::select::ptr select(new active::select());
 
-	input::ptr in(new input(select));
+	input::sp in(new input(select));
 	active::socket::ptr out(new active::socket(1));
 
 	std::vector<std::shared_ptr<echo_client>> client_list( num_clients );
@@ -149,5 +149,5 @@ int main(int argc, char**argv)
 	else
 		(*in)(c);
 
-	active::run r(num_threads);
+	active::run{num_threads};
 }

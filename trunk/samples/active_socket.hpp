@@ -30,7 +30,7 @@ namespace active
 		struct read
 		{
 			int fd;
-			sink<read_ready>::ptr response;
+			sink<read_ready>::sp response;
 		};
 
 		ACTIVE_METHOD( read );
@@ -40,7 +40,7 @@ namespace active
 		struct write
 		{
 			int fd;
-			sink<write_ready>::ptr response;
+			sink<write_ready>::sp response;
 		};
 
 		ACTIVE_METHOD( write );
@@ -89,7 +89,7 @@ namespace active
 		{
 			void * buffer;
 			int buffer_size;
-			sink<read_response>::ptr response;
+			sink<read_response>::sp response;
 		};
 
 		ACTIVE_METHOD( read );
@@ -106,7 +106,7 @@ namespace active
 		{
 			const void * buffer;
 			int buffer_size;
-			sink<write_response>::ptr response;
+			sink<write_response>::sp response;
 		};
 
 		ACTIVE_METHOD( write );
@@ -119,7 +119,7 @@ namespace active
 
 		struct accept
 		{
-			sink<accept_response>::ptr response;
+			sink<accept_response>::sp response;
 		};
 
 		ACTIVE_METHOD( accept );
@@ -132,7 +132,7 @@ namespace active
 		struct listen
 		{
 			int backlog;
-			sink<listen_result>::ptr response;
+			sink<listen_result>::sp response;
 		};
 
 		ACTIVE_METHOD( listen );
@@ -152,7 +152,7 @@ namespace active
 		struct connect_in
 		{
 			sockaddr_in sa;
-			sink<connect_response>::ptr response;
+			sink<connect_response>::sp response;
 		};
 
 		ACTIVE_METHOD(connect_in);
@@ -166,7 +166,7 @@ namespace active
 		struct bind_in
 		{
 			sockaddr_in sa;
-			sink<bind_response>::ptr response;
+			sink<bind_response>::sp response;
 		};
 
 		ACTIVE_METHOD(bind_in);
@@ -204,7 +204,7 @@ namespace active
 		pipe(	socket::ptr input,
 				socket::ptr output,
 				select::ptr sel,
-				sink<closed>::ptr closed_response = sink<closed>::ptr() );
+				sink<closed>::sp closed_response = sink<closed>::sp() );
 
 		struct start { };
 
@@ -226,7 +226,7 @@ namespace active
 
 		socket::ptr m_input, m_output;
 		select::ptr m_select;
-		sink<closed>::ptr m_closed_response;
+		sink<closed>::sp m_closed_response;
 	};
 } // namespace active
 
