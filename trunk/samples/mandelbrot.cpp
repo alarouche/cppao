@@ -9,6 +9,7 @@
 const double SCALE=0.25;
 static const int STEP=200;
 static const int THRESHOLD=1;
+static const int MAX_ITERATIONS=20000;
 
 
 // !! Move into mandelbrot.h
@@ -70,6 +71,7 @@ struct ComputeTile : public active::shared<ComputeTile>
 		std::vector<Cell> cells(Region.width*Region.height);
 		m_cells.swap(cells);
 		m_region = Region;
+		m_totalIterations=0;
 	}
 
 	struct Ready
@@ -78,6 +80,7 @@ struct ComputeTile : public active::shared<ComputeTile>
 		std::vector<int> iterations;
 		int completed;
 		int min_iterations, max_iterations;
+		int escapedCount;
 	};
 
 	// Iterate a number of times
@@ -95,6 +98,7 @@ struct ComputeTile : public active::shared<ComputeTile>
 		result.min_iterations=1000000;
 		result.max_iterations=0;
 		result.completed=0;
+		result.escapedCount=0;
 
 		double x,y;
 		int i,j;
@@ -109,18 +113,24 @@ struct ComputeTile : public active::shared<ComputeTile>
 				}
 				if( cell->escaped() )
 				{
+					++result.escapedCount;
 					result.min_iterations = std::min( result.min_iterations, cell->iterations() );
 					result.max_iterations = std::max( result.max_iterations, cell->iterations() );
 				}
 				result.iterations.push_back( cell->iterations() );
 			}
-
+		
+		m_totalIterations += Iterate.times;
+		if( result.escapedCount==0 ) result.min_iterations = m_totalIterations;
+		
+		std::cout << ".";
 		(*Iterate.finished)(std::move(result));
 	}
 
 private:
 	std::vector<Cell> m_cells;
 	Region m_region;
+	int m_totalIterations;
 };
 
 struct RenderTile : public active::shared<RenderTile>, public active::sink<ComputeTile::Ready>
@@ -131,6 +141,7 @@ struct RenderTile : public active::shared<RenderTile>, public active::sink<Compu
 		std::vector<GLbyte> buffer;
 		int completed;
 		int minIterations;
+		int escapedCount;
 	};
 
 	typedef ComputeTile::Ready ComputeReady;
@@ -144,9 +155,8 @@ struct RenderTile : public active::shared<RenderTile>, public active::sink<Compu
 		ready.buffer.resize(3*ComputeReady.iterations.size());
 		ready.completed = ComputeReady.completed;
 		ready.minIterations = ComputeReady.min_iterations;
+		ready.escapedCount = ComputeReady.escapedCount;
 
-		std::cout << "Minimum iterations = " << ComputeReady.min_iterations << "\n";
-		std::cout << "Maximum iterations = " << ComputeReady.max_iterations << "\n";
 		int i=0;
 		auto j = ComputeReady.iterations.cbegin();
 		for(int y=0; y<ComputeReady.region.height; ++y)
@@ -372,8 +382,10 @@ struct View : public active::shared<View>, public active::sink<RenderTile::Ready
 		Update up = { m_region.width, m_region.height, m_displayBuffer };
 
 		(*update)(up);
+		
+		std::cout << "Escaped count=" << RenderReady.escapedCount << " min iterations=" << RenderReady.minIterations << std::endl;
 
-		if( true || RenderReady.completed>THRESHOLD )
+		if( RenderReady.completed>THRESHOLD || (RenderReady.escapedCount==0 && RenderReady.minIterations<MAX_ITERATIONS) )
 		{
 			int tx = RenderReady.reg.offset_x;
 			int ty = RenderReady.reg.offset_y;

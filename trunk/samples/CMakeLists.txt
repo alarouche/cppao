@@ -34,7 +34,7 @@ add_executable( sieve sieve.cpp )
 add_executable( sieve2 sieve2.cpp )
 add_executable( mandelbrot mandelbrot.cpp mandelbrot.hpp )
 add_library( active_socket active_socket.cpp active_socket.hpp )
-target_link_libraries( mandelbrot )
+target_link_libraries( mandelbrot gl glut )
 
 link_libraries( active_socket )
 add_executable( echo_server echo_server.cpp )
