@@ -7,9 +7,9 @@
 #include <cassert>
 
 const double SCALE=0.25;
-static const int STEP=200;
+static const int STEP=250;
 static const int THRESHOLD=1;
-static const int MAX_ITERATIONS=20000;
+static const int MAX_ITERATIONS=100000;
 
 
 // !! Move into mandelbrot.h
@@ -81,6 +81,7 @@ struct ComputeTile : public active::shared<ComputeTile>
 		int completed;
 		int min_iterations, max_iterations;
 		int escapedCount;
+		int totalIterations;
 	};
 
 	// Iterate a number of times
@@ -122,8 +123,8 @@ struct ComputeTile : public active::shared<ComputeTile>
 		
 		m_totalIterations += Iterate.times;
 		if( result.escapedCount==0 ) result.min_iterations = m_totalIterations;
+		result.totalIterations = m_totalIterations;
 		
-		std::cout << ".";
 		(*Iterate.finished)(std::move(result));
 	}
 
@@ -142,6 +143,7 @@ struct RenderTile : public active::shared<RenderTile>, public active::sink<Compu
 		int completed;
 		int minIterations;
 		int escapedCount;
+		int totalIterations;
 	};
 
 	typedef ComputeTile::Ready ComputeReady;
@@ -156,6 +158,7 @@ struct RenderTile : public active::shared<RenderTile>, public active::sink<Compu
 		ready.completed = ComputeReady.completed;
 		ready.minIterations = ComputeReady.min_iterations;
 		ready.escapedCount = ComputeReady.escapedCount;
+		ready.totalIterations = ComputeReady.totalIterations;
 
 		int i=0;
 		auto j = ComputeReady.iterations.cbegin();
@@ -216,7 +219,7 @@ struct View : public active::shared<View>, public active::sink<RenderTile::Ready
 	{
 		Start newSettings;
 		std::vector<GLbyte> newBuffer;
-		int minIterations[8][8];
+		int minIterations, maxIterations;
 	};
 
 	// Destroy this view and start another view
@@ -263,12 +266,9 @@ struct View : public active::shared<View>, public active::sink<RenderTile::Ready
 						output+=3;
 					}
 				}
-
-			for(int tx=0; tx<8; ++tx)
-				for(int ty=0; ty<8; ++ty)
-				{
-
-				}
+			
+			start.minIterations = m_minIterations;
+			start.maxIterations = m_maxIterations;
 
 			(*ZoomTo.newSettings.updater)( Update{m_region.width, m_region.height, start.newBuffer} );
 			(*ZoomTo.newView)( start );
@@ -284,7 +284,11 @@ struct View : public active::shared<View>, public active::sink<RenderTile::Ready
 		m_displayBuffer = std::move(StartFromOtherView.newBuffer);
 		m_dismissed = false;
 		assert( !m_displayBuffer.empty() );
-
+		m_minIterations = MAX_ITERATIONS;
+		m_maxIterations = 0;
+		m_tilesRemaining=64;
+		m_maxUnescapedIterations = StartFromOtherView.maxIterations;
+				
 		int xstep = m_region.width / 8;
 		int ystep = m_region.height / 8;
 		for(int tx=0; tx<8; ++tx)
@@ -307,8 +311,9 @@ struct View : public active::shared<View>, public active::sink<RenderTile::Ready
 
 				(*compute)(subregion);
 
-				(*compute)(ComputeTile::Iterate{StartFromOtherView.minIterations[tx][ty] + STEP,render});
+				(*compute)(ComputeTile::Iterate{std::min(STEP+StartFromOtherView.minIterations,1000),render});
 			}
+		std::cout << "[" << std::flush;		
 	}
 
 	ACTIVE_METHOD( Start )
@@ -320,7 +325,11 @@ struct View : public active::shared<View>, public active::sink<RenderTile::Ready
 
 		m_dismissed = false;
 		m_update = Start.updater;
-
+		m_minIterations = MAX_ITERATIONS;
+		m_maxIterations = 0;
+		m_tilesRemaining=64;
+		m_maxUnescapedIterations = MAX_ITERATIONS;
+		
 		// Create compute and render tiles....
 
 		int xstep = m_region.width / 8;
@@ -347,11 +356,15 @@ struct View : public active::shared<View>, public active::sink<RenderTile::Ready
 
 				(*compute)(ComputeTile::Iterate{STEP,render});
 			}
+		std::cout << "[" << std::flush;
 	}
 
 	ACTIVE_METHOD( Stop )
 	{
 		m_dismissed = true;
+		for(int i=0; i<m_tilesRemaining; ++i) std::cout << "-";
+		if( m_tilesRemaining ) std::cout << "]" << std::endl;
+
 	}
 
 	typedef RenderTile::Ready RenderReady;
@@ -383,14 +396,15 @@ struct View : public active::shared<View>, public active::sink<RenderTile::Ready
 
 		(*update)(up);
 		
-		std::cout << "Escaped count=" << RenderReady.escapedCount << " min iterations=" << RenderReady.minIterations << std::endl;
+		//std::cout << "Escaped count=" << RenderReady.escapedCount << " min iterations=" << RenderReady.minIterations <//< std::endl;
 
-		if( RenderReady.completed>THRESHOLD || (RenderReady.escapedCount==0 && RenderReady.minIterations<MAX_ITERATIONS) )
+		int tx = RenderReady.reg.offset_x;
+		int ty = RenderReady.reg.offset_y;
+		if( RenderReady.escapedCount < 10000-THRESHOLD  && RenderReady.totalIterations<20*m_minIterations /*MAX_ITERATIONS */ )
+		//if( RenderReady.completed>THRESHOLD || (RenderReady.escapedCount==0 && RenderReady.minIterations<MAX_ITERATIONS) )
 		{
-			int tx = RenderReady.reg.offset_x;
-			int ty = RenderReady.reg.offset_y;
 
-			m_tiles[tx][ty].minIterations = RenderReady.minIterations;
+			// m_tiles[tx][ty].minIterations = RenderReady.minIterations;
 			(*m_tiles[tx][ty].compute)( ComputeTile::Iterate{STEP,m_tiles[tx][ty].render} );
 
 			// std::cout << RenderReady.completed << " left" << std::endl;
@@ -399,7 +413,11 @@ struct View : public active::shared<View>, public active::sink<RenderTile::Ready
 		}
 		else
 		{
-			std::cout << "Ready" << std::endl;
+			--m_tilesRemaining;
+			m_minIterations = std::min(m_minIterations, RenderReady.minIterations);
+			m_maxIterations = std::max(m_maxIterations, RenderReady.minIterations);
+			if( m_tilesRemaining==0 ) std::cout << "=]\nReady: min iterations=" << m_minIterations << ", width=" << m_region.dx*m_region.width << " x=" << m_region.x0 << " y=" << m_region.y0 << std::endl;
+			else std::cout << "=" << std::flush;
 		}
 	}
 
@@ -410,14 +428,17 @@ private:
 	bool m_dismissed;
 	std::vector<GLbyte> m_displayBuffer;
 	active::sink<Update>::wp m_update;
-	int m_min_iterations;
+	int m_minIterations, m_maxIterations;
+	int m_tilesRemaining;
+	int m_maxUnescapedIterations;
 
 	struct Tile
 	{
 		ComputeTile::ptr compute;
 		RenderTile::ptr render;
-		int minIterations;
+		// int minIterations;
 	} m_tiles[8][8];
+	
 };
 
 
@@ -544,9 +565,8 @@ private:
 	static GlutWindow * global;
 
 	// Because GLUT itself is not threadsafe and insists on running
-	// in the main thread. Sigh, defeats the elegance of active objects really.
+	// in the main thread...
 	std::mutex m_mutex;
-
 	std::vector<GLbyte> m_displayBuffer;
 
 	void OnIdle()
@@ -562,15 +582,7 @@ private:
 
 	void OnReshape(int width, int height)
 	{
-		//global->m_region.width = width;
-		// global->m_region.height = height;
-
-		// glViewport(0, 0, width, height);
-
-		//glMatrixMode(GL_PROJECTION);
-		//glLoadIdentity();
-		//gluOrtho2D(-175, 175, -175, 175);
-		//glMatrixMode(GL_MODELVIEW);
+		glutReshapeWindow(800, 800);
 	}
 
 	static void Reshape(int width, int height)
@@ -615,6 +627,7 @@ private:
 
 	void OnDraw()
 	{
+		// glClear(GL_COLOR_BUFFER_BIT);
 		{
 			std::lock_guard<std::mutex> lock(m_mutex);
 			glDrawPixels( m_region.width, m_region.height,
@@ -644,7 +657,7 @@ private:
 				r.dy*=SCALE;
 				r.x0 = cx - r.dx*r.width*0.5;
 				r.y0 = cy - r.dy*r.height*0.5;
-				std::cout << "Clicked on " << cx << "," << cy << "\n";
+				// std::cout << "Clicked on " << cx << "," << cy << "\n";
 				(*this)(zoom());
 				// glutPostRedisplay();
 			}
@@ -660,7 +673,7 @@ private:
 				r.dy/=SCALE;
 				r.x0 = cx - r.dx*r.width*0.5;
 				r.y0 = cy - r.dy*r.height*0.5;
-				std::cout << "Clicked on " << cx << "," << cy << "\n";
+				// std::cout << "Clicked on " << cx << "," << cy << "\n";
 				(*this)(zoom());
 			}
 			break;

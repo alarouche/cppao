@@ -15,6 +15,8 @@ public:
 int main()
 {
 	HelloActive hello;
-	hello( HelloActive::Greet{"Hello, world!"} );
+	// hello( HelloActive::Greet{"Hello, world!"} );
+	HelloActive::Greet message = { "Hello, world!" };
+	hello(message);
 	active::run();
 }
