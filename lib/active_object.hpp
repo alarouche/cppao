@@ -298,7 +298,7 @@ namespace active
 					if(!m_head) m_tail=nullptr;
 					m->destroy(m_allocator);
 				}
-				return m_head;
+				return m_head!=nullptr;
 			}
 
 		private:
