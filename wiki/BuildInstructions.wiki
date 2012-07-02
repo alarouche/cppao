@@ -42,3 +42,12 @@ $ cd build
 $ cmake -GXcode ..
 }}}
 Then, change compiler settings and library options to C++0x.
+
+== Macports ==
+The following works for me; you may need to hack this around a bit to get the Mandelbrot sample to work.
+{{{
+$ sudo port install freeglut
+$ mkdir build
+$ cd build
+$ cmake -DCMAKE_CXX_COMPILER=g++-mp-4.7 -DCMAKE_CXX_FLAGS="-std=c++11 -pthread -D_GLIBCXX_USE_NANOSLEEP -L/opt/local/lib" ..
+}}}
