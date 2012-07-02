@@ -18,7 +18,7 @@ public:
 	struct computation
 	{
 		int a, b;
-		ComputationHandler * handler;
+		ComputationHandler & handler;
 	};
 
 	ACTIVE_METHOD( computation ) const;	 // Look we can even have const active methods
@@ -26,14 +26,14 @@ public:
 
 void ComplexComputation::ACTIVE_IMPL( computation ) const
 {
-	(*computation.handler)(computation.a + computation.b);
+	computation.handler(computation.a + computation.b);
 }
 
 int main()
 {
 	ComputationHandler handler;
 	ComplexComputation cc;
-	ComplexComputation::computation comp = { 1,2,&handler };
+	ComplexComputation::computation comp = { 1,2,handler };
 	cc(comp);
 	active::run();
 }
