@@ -171,3 +171,17 @@ Demonstrates:
   * Writing network applications,
   * Concurrent socket operations,
   * Multiple message sinks on the same object.
+
+=Mandelbrot=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/mandelbrot.hpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/mandelbrot.cpp]
+
+An interactive viewer of the Mandelbrot fractal. The screen is divided into 256 segments which are computed in independent active objects.
+
+Demonstrates:
+  * Dividing large problems.
+  * Array processing.
+  * Passing large arrays using move semantics.
+  * Integrating with a GUI.
+  * Running concurrently with a GUI message loop.
+  * Using `active::run` as a scoped object not a function.
