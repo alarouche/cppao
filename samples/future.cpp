@@ -1,8 +1,7 @@
 #include <active_object.hpp>
 #include <iostream>
-#include <future>
 
-/* This example demonstrates using futures to return results (via a std::promise).
+/* This example demonstrates using futures to return results.
  */
 
 class ComplexComputation : public active::object
@@ -11,22 +10,21 @@ public:
 	struct computation
 	{
 		int a, b;
-		std::promise<int> * result;
+		active::sink<int> & result;
 	};
 
 	ACTIVE_METHOD( computation )
 	{
-		computation.result->set_value( computation.a + computation.b );
+		computation.result(computation.a + computation.b );
 	}
 };
 
 
 int main()
 {
-	std::promise<int> result;
+	active::run run;	// Run threads concurrently for scope of this function.
+	active::promise<int> result;
 	ComplexComputation cc;
-	ComplexComputation::computation comp = { 1,2, &result };
-	cc(comp);
-	cc.run();
+	cc(ComplexComputation::computation{ 1,2, result });
 	std::cout << "Result of computation = " << result.get_future().get() << "\n";
 }

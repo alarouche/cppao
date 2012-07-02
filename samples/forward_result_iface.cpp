@@ -13,7 +13,7 @@ public:
 	struct computation
 	{
 		int a, b;
-		result_handler * handler;
+		result_handler & handler;
 	};
 
 	ACTIVE_METHOD( computation ) const;
@@ -32,14 +32,13 @@ public:
 
 void ComplexComputation::ACTIVE_IMPL( computation ) const
 {
-	(*computation.handler)(computation.a + computation.b);
+	computation.handler(computation.a + computation.b);
 }
 
 int main()
 {
 	ComputationHandler handler;
 	ComplexComputation cc;
-	ComplexComputation::computation comp = { 1,2,&handler };
-	cc(comp);
+	cc(ComplexComputation::computation{ 1,2,handler });
 	active::run();
 }

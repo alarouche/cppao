@@ -14,6 +14,7 @@
 #include <condition_variable>
 #include <memory>
 #include <thread>
+#include <future>
 
 #define ACTIVE_IFACE(MSG) virtual void operator()( MSG & )=0; virtual void operator()( MSG && )=0;
 
@@ -614,6 +615,16 @@ namespace active
 		typedef std::shared_ptr<sink<T>> sp;
 		typedef std::weak_ptr<sink<T>> wp;
 		ACTIVE_IFACE( T );
+	};
+
+	template<typename T>
+	struct promise : public direct, public active::sink<T>
+	{
+		typedef T value_type;
+		ACTIVE_TEMPLATE(value_type) { m_value.set_value(value_type); }
+		std::future<value_type> get_future() { return m_value.get_future(); }
+	private:
+		std::promise<value_type> m_value;
 	};
 } // namespace active
 
