@@ -93,7 +93,7 @@ Create a new message to send to the object.
         hello(message);
 }}}
 
-Pass the message to the object. The object will receive the message at some point in the future, and in fact will just sit in the message queue of the object until it is run. Messages are passed by value (copied) into the message queue, so once it's sent, the original message can be destroyed.
+Pass the message to the object. The object will receive the message at some point in the future, and in fact will just sit in the message queue of the object until it is run. Messages are *moved* into the message queue and cannot be reused.
 
 {{{
         active::run();
@@ -209,7 +209,7 @@ In the same way that return values can't be delivered to the point of calling, s
 
 Instead they are delivered to the `exception_handler()` method (which is not an active method), which can rethrow, catch and handle the exception. If `exception_handler()` emits an exception, then application terminates. 
 
-Of course, if an active method wants to do something different, then it must implement try...catch itself.
+Of course, if an active method wants to do something different, then it must implement `try...catch` itself.
 
 = Using shared pointers =
 
@@ -239,6 +239,24 @@ There are actually a number of base classes you could choose for your active obj
  * `active::synchronous` - Always processes message in the calling thread, but guarded by a mutex. Not a true AO.
 
 See FineTuning for further details, and the sample [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp object_types.cpp] shows off the different implementations.
+
+= Staying safe =
+Active objects guarantee that your program will be thread-safe, if you follow these guidelines: 
+
+  * Communicate only via messages:
+    * Make all mutable class-members private.
+    * Make all non-active methods private.
+  * Ensure messages are thread-safe:
+    * Restrict messages to value-types and pointers to AOs.
+    * Use move semantics (`std::move()` etc.) when passing large arrays between objects.
+    * Avoid (shared) pointers to anything else, unless they are `unique()`.
+    * Avoid weak pointers in messages, as they aren't needed.
+  * Avoid dangling pointers; cppao can't help you here, but try shared pointers.
+  * Avoid blocking calls (e.g. network, `std::future<>::get()`), unless using `active::thread`.
+
+Deadlock cannot occur; what happens is that your program runs out of messages and exits. 
+
+If you break these guidelines, then your code may well still be correct, but you will forever have the worry that it may not be....
 
 = Where next? =
 Now you have the tools, it is time to apply them! Check out the [Samples] and the [Reference]. You can also read FineTuning if you want to compose your own AO.
