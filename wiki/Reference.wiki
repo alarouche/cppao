@@ -117,6 +117,17 @@ Methods:
 || `void run()` || Runs the scheduler in a single thread. Can be called concurrently from multiple threads. ||
 || `void run(int threads)` || Runs the scheduler using the specified number of threads. Must not be called concurrently from multiple threads. ||
 
+== active::run ==
+Runs a scheduler in a thread pool. Note that this class is often used as a function.
+{{{
+class run;
+}}}
+
+Methods:
+
+|| `run(int num_threads=std::thread::hardware_concurrency(), scheduler & sched=default_scheduler)` || Starts the thread pool and starts processing messages. ||
+|| `~run()` || Waits for all messages to be processed and stops the thread pool. ||
+
 == active::sink ==
 {{{
 template<typename T>
@@ -132,7 +143,7 @@ Provides a pure virtual base class for accepting messages.
 {{{
 extern scheduler default_scheduler;
 }}}
-The global scheduler, used by objects by default unless overridden by `object_impl::set_scheduler()`. Global variables are of course to be discouraged, and is only provided for convenience.
+The global scheduler, used by objects by default unless overridden by `object_impl::set_scheduler()`. Global variables are of course to be discouraged, and are only provided for convenience.
 
 = Macros =
 
@@ -160,11 +171,3 @@ void ClassName::ACTIVE_IMPL(MSG)
     ...
 }
 }}}
-
-= Functions =
-
-= active::run ==
-{{{
-void run(int threads=std::thread::hardware_concurrency());
-}}}
-Calls `default_scheduler.run(threads)`.
