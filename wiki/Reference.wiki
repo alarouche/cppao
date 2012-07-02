@@ -11,7 +11,7 @@ All declarations are in the namespace `active`.
 == active::object_impl ==
 
 {{{
-template<typename Schedule, typename Queueing, typename Sharing> struct object_impl;
+template<typename Schedule, typename Queueing, typename Sharing> class object_impl;
 }}}
 
 Types:
@@ -137,6 +137,16 @@ struct sink
 };
 }}}
 Provides a pure virtual base class for accepting messages.
+== active::promise ==
+Provides a promise/future mechanism for returning results from AOs.
+{{{
+template<typename T> class promise : public direct, public sink<T>;
+}}}
+Typenames:
+|| value_type || T ||
+Methods:
+|| `promise()` || Default constructor. ||
+|| `std::future<T> get_future()` || Returns a future for the promise. ||  
 
 = Global variables =
 == active::default_scheduler ==
