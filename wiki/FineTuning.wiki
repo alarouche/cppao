@@ -30,7 +30,7 @@ Available object types:
 
 == Fake AOs ==
 
-The following classes are very similar to normal AOs, and are in many cases much faster. Their main use is for interfacing with other AOs (e.g. to implement callbacks), for simple connecting objects, or for experimenting with a blend of object types for optimum performance. Beware stack overflows.
+The following classes are very similar to normal AOs, and are in many cases much faster. Their main use is for interfacing with other AOs (e.g. to implement callbacks), for simple connecting objects, or for experimenting with a blend of object types for optimum performance. Beware of stack overflows.
 
 || Type name || Description || Use case ||
 || `active::synchronous` || A very simple mutexed object, which does not use queueing. Could be reentrant (so not true AO semantics). || For lightweight thread-safe processing. ||
