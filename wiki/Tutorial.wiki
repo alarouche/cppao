@@ -141,9 +141,8 @@ int main()
         // Send each node a packet.
         for(int i=0; i<Count; ++i) nodes[i](10);
                 
-        // Run all objects in 16 threads.
-        active::run(16);
-        return 0;
+        // Run all objects using all available cores.
+        active::run();
 }
 }}}
 
