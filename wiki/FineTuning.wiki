@@ -46,7 +46,7 @@ The underlying AO is implemented by the `active::object_impl<>` template which n
 namespace active
 {
     template<typename Schedule, typename Queueing, typename Sharing>
-    struct object_impl;
+    class object_impl;
 }
 }}}
 
@@ -141,3 +141,8 @@ Using the OS to schedule AOs is of course a reasonable first approach, but cppao
 Hopefully your application is written such that most of the CPU is expended on doing your computation than the overhead of messaging. Some design consideration is needed to get the "right amount" of messaging, so that the overheads of messaging do not outweigh the benefits of concurrency.
 
 With cppao, you can fairly easily reconfigure your active objects using the different AO types.
+
+= More advanced message queues =
+Message queues are often associated with features such as limiting the size, cancellation or prioritising messages. They could even be persistent or offer inter-process communication.
+
+Such features will have to wait for a later date, however there are two basic ways these could be delivered. The first is via the `object_impl` policy framework, where a new queue type could be provided. The second approach would be to implement a `synchronous` proxy AO which would implement the queue.
