@@ -149,11 +149,11 @@ int main()
 
 = Returning results =
 
-Our next examples ([http://code.google.com/p/cppao/source/browse/trunk/samples/return_result.cpp return_result.cpp], [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result.cpp forward_result.cpp], [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp future.cpp], [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface.cpp forward_result_iface.cpp], [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp forward_result_sink.cpp]) show different approaches for returning results from an active object.
+The biggest conceptual difficulty with active objects is actually designing your application (in my opinion). Because active methods are fire-and-forget, you can't get a result from them. Instead of _returning_ results, we should instead think about _forwarding_ results. You must design your application like a message-processing pipeline, where active objects are interlinked, and pass messages between each other.
 
-The main problem is of course that the result of an active method cannot be returned to the point of calling.
+So to ask how results are returned is to ask the wrong question. The question is really, how to interconnect objects?
 
-My favoured approach is to use a "message sink", which is an active object which receives the result of the calculation. The message sink (provided by `active::sink<>`) provides a pure virtual base class. Your receiving object must then implement this method in order to receive the result.
+The basic method of interconnection is shown in [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result.cpp forward_result.cpp], where one AO passes the result to another as specified in the message itself. The tiny problem with this example is that the `ComplexComputation` class is bound to the `ComputationHandler` class. Ideally we would like to decouple the sender from the recipient, and this is achievable through pure virtual base classes. We can use `ACTIVE_IFACE` or `active::sink<>` to define an interface through which AOs communicate, as illustrated in [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface.cpp forward_result_iface.cpp] and [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp forward_result_sink.cpp].
 
 In this example, we implement a computation in the class `ComplexComputation`, which then forward its result to an object of type `active::sink<>`. The recipient is specified in the `ComplexComputation::computation` message itself.
 {{{
@@ -166,7 +166,7 @@ public:
         struct computation
         {
                 int a, b;
-                active::sink<int> * handler;
+                active::sink<int> & handler;
         };
         
         ACTIVE_METHOD( computation ) const;      // Look we can even have const active methods
@@ -185,14 +185,14 @@ public:
 
 void ComplexComputation::ACTIVE_IMPL( computation ) const
 {
-        (*computation.handler)(computation.a + computation.b);
+        computation.handler(computation.a + computation.b);
 }
 
 int main()
 {
         ComputationHandler handler;
         ComplexComputation cc;
-        ComplexComputation::computation comp = { 1,2,&handler };
+        ComplexComputation::computation comp = { 1,2,handler };
         cc(comp);
         active::run();
         return 0;
@@ -202,12 +202,13 @@ The recipient of the result is implemented in class `ComputationHandler`, which 
 
 Also observe that we can implement active methods outside of the class (thankfully), using the `ACTIVE_IMPL` macro, and we can even make active methods const.
 
+Finally, because the literature says we must, we can also put results into _promise_, as shown in [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp future.cpp]. The `active::promise<>` class is an active object which can also be accessed from synchronous code. Personally I would design the entire application using active objects so as to not mix paradigms.
 
 = Exception handling =
 
 In the same way that return values can't be delivered to the point of calling, so exceptions can't be propagated to the caller either. So where to deliver the exception? 
 
-Instead they are delivered to the `exception_handler()` method (which is not an active method), which can rethrow, catch and handle the exception. If `exception_handler()` emits an exception, then application terminates. 
+Instead they are delivered to the `exception_handler()` method (which is not an active method), which can rethrow, catch and handle the exception. If `exception_handler()` emits an exception, then the application terminates. 
 
 Of course, if an active method wants to do something different, then it must implement `try...catch` itself.
 
