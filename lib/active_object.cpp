@@ -19,7 +19,6 @@ active::any_object::~any_object()
 {
 }
 
-
 // Used by an active object to signal that there are messages to process.
 void active::scheduler::activate(ObjectPtr p) throw()
 {
@@ -34,7 +33,6 @@ void active::scheduler::activate(ObjectPtr p) throw()
 	m_ready.notify_one();
 #endif
 }
-
 
 bool active::scheduler::run_one()
 {
@@ -56,7 +54,6 @@ bool active::scheduler::run_one()
 
 	return m_busy_count!=0;
 }
-
 
 // Runs until there are no more messages in the entire pool.
 // Returns false if no more items.
@@ -115,7 +112,6 @@ void active::scheduler::run_in_thread()
 {
 	run();
 }
-
 
 void active::any_object::exception_handler() throw()
 {
