@@ -503,7 +503,7 @@ void test_shared_thread(bool reset, int sleep1, int sleep2, int threads)
 	if(reset) st.reset();
 
 	std::this_thread::sleep_for(std::chrono::milliseconds(sleep2));
-	active::run r(threads);
+	{ active::run r(threads); }	// Want: active::run{threads}; but thanks clang for not implementing this.
 	assert( finished==25 );
 }
 
@@ -539,7 +539,7 @@ struct mix_object : public active::object_impl<Schedule,Queueing,Sharing>, publi
 {
 	typedef Queueing queue_type;
 	int m_id;
-	std::weak_ptr<active::sink<mix_message>> m_sink, m_result;
+	active::sink<mix_message>::wp m_sink, m_result;
 
 	mix_object() { ++total_allocated; }
 	~mix_object() { --total_allocated; }
@@ -561,7 +561,7 @@ struct mix_object : public active::object_impl<Schedule,Queueing,Sharing>, publi
 
 std::shared_ptr<mix_interface> mix_factory(int n)
 {
-	switch( n%20 )
+	switch( n%22 )
 	{
 	default:
 	case 0: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared<>, active::sharing::disabled> >();
@@ -584,6 +584,8 @@ std::shared_ptr<mix_interface> mix_factory(int n)
 	case 17: return std::make_shared< mix_object<active::schedule::none, active::queueing::direct_call, active::sharing::enabled<>> >();
 	case 18: return std::make_shared< mix_object<active::schedule::none, active::queueing::mutexed_call, active::sharing::disabled> >();
 	case 19: return std::make_shared< mix_object<active::schedule::none, active::queueing::mutexed_call, active::sharing::enabled<>> >();
+	case 20: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::advanced<>, active::sharing::disabled> >();
+	case 21: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::advanced<>, active::sharing::enabled<>> >();
 	}
 }
 
@@ -788,6 +790,138 @@ void test_move_semantics()
 	assert( MoveObject::Counted::instances==5 );
 }
 
+void test_promise()
+{
+	active::promise<int> x;
+	x(12);
+	assert( x.get() == 12 );
+}
+
+template<> int active::priority<int>(const int & i) { return i; }
+
+struct my_advanced : public active::advanced
+{
+	typedef int msg;
+	int previous;
+	my_advanced() : previous(4) { }
+	my_advanced(int limit) : previous(4)
+	{ 
+		set_capacity(limit);
+	}
+	ACTIVE_METHOD( msg )
+	{
+		assert( msg == previous-1 );
+		previous = msg;
+	}
+};
+
+void test_advanced_ordering()
+{
+	my_advanced obj;
+	obj(3);
+	obj(1);
+	obj(2);
+	active::run();
+	assert( obj.previous == 1 );
+}
+
+void test_advanced_queue_limit()
+{
+	my_advanced obj(3);
+	obj(1);
+	obj(2);
+	obj(3);
+	
+	try 
+	{
+		obj(6);
+		assert(0 && "Exception not thrown");
+	} catch (std::bad_alloc) 
+	{
+	}
+	active::run();
+}
+
+struct my_advanced2 : public active::advanced
+{
+	struct msg { int i; };
+	struct msg2 { };
+	struct msg3 { };
+	int previous;
+	my_advanced2() : previous(0) { }
+
+	ACTIVE_METHOD( msg )
+	{
+		assert( msg.i == previous+1 );
+		previous = msg.i;
+	}
+	
+	ACTIVE_METHOD( msg2 )
+	{
+		assert( previous==0 );
+	}
+	ACTIVE_METHOD( msg3 )
+	{
+		assert( previous==0 );
+	}
+};
+
+template<> int active::priority(const my_advanced2::msg2&) { return 2; }
+template<> int active::priority(const my_advanced2::msg3&) { return 3; }
+
+void test_advanced_noreorder()
+{	
+	my_advanced2 obj;
+	my_advanced2::msg m = {1};
+	obj( my_advanced2::msg2() );
+	obj(m);
+	m.i=2;
+	obj(m);
+	m.i=3;
+	obj(m);
+	obj( my_advanced2::msg3() );
+	
+	active::run();
+}
+
+struct my_advanced3 : public active::advanced
+{
+	struct abort { };
+	struct work1 { int x; };
+	struct work2 { };
+
+	ACTIVE_METHOD( abort )
+	{
+		clear();
+		assert( empty() );
+	}
+	
+	ACTIVE_METHOD( work1 )
+	{
+	}
+	
+	ACTIVE_METHOD( work2 )
+	{
+	}
+	
+	struct data { };
+	ACTIVE_METHOD( data );
+};
+
+void test_advanced_queue_control()
+{
+	my_advanced3 obj;
+	assert( obj.empty() );
+	assert( obj.size()==0 );
+	obj( my_advanced3::work2() );
+	assert( !obj.empty() );
+	assert( obj.size()==1 );
+	
+	obj( my_advanced3::abort() );
+	obj( my_advanced3::work2() );	
+	active::run();
+}
+
 int main()
 {
 	// Single-object tests
@@ -817,6 +951,13 @@ int main()
 	test_object_mix();
 	test_allocators();
 	test_move_semantics();
+	
+	// Advanced queueing object
+	test_advanced_ordering();
+	test_advanced_queue_limit();
+	test_advanced_noreorder();
+	test_advanced_queue_control();
+	test_promise();
 
 	std::cout << "All tests passed!\n";
 	return 0;
