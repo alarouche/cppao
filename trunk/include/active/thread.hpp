@@ -45,8 +45,9 @@ namespace active
 	public:
 		typedef typename Queueing::allocator_type allocator_type;
 		typedef schedule::own_thread::type scheduler_type;
-		shared_thread(scheduler_type & sch=default_scheduler, const allocator_type & alloc = allocator_type()) :
-		object_impl<schedule::own_thread, Queueing, sharing::enabled<T> >(sch, alloc)
+		shared_thread(scheduler_type & sch=default_scheduler, 
+					  const allocator_type & alloc = allocator_type()) :
+			object_impl<schedule::own_thread, Queueing, sharing::enabled<T> >(sch, alloc)
 		{
 		}
 		
