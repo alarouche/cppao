@@ -4,7 +4,7 @@
  * but have their own foibles and personalities.
  */
 
-#include <active_object.hpp>
+#include <active/object.hpp>
 #include <iostream>
 
 typedef const char * greeting;

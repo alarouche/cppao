@@ -1,4 +1,4 @@
-#include <active_object.hpp>
+#include <active/promise.hpp>
 #include <iostream>
 
 /* This example demonstrates using futures to return results.
@@ -26,5 +26,5 @@ int main()
 	active::promise<int> result;
 	ComplexComputation cc;
 	cc(ComplexComputation::computation{ 1,2, result });
-	std::cout << "Result of computation = " << result.get_future().get() << "\n";
+	std::cout << "Result of computation = " << result.get() << "\n";
 }

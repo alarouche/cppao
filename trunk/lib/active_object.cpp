@@ -1,4 +1,6 @@
-#include "active_object.hpp"
+#include <active/object.hpp>
+#include <active/scheduler.hpp>
+
 #include <iostream>
 
 #define ACTIVE_OBJECT_CONDITION 0	// !! Slow
@@ -43,8 +45,8 @@ bool active::scheduler::run_one()
 		lock.lock();
 		--m_busy_count;
 	}
-	
-	if( m_head == nullptr ) 
+
+	if( m_head == nullptr )
 	{
 		m_tail=nullptr;
 	}
@@ -75,13 +77,13 @@ bool active::scheduler::run_managed() throw()
 	return m_busy_count!=0;
 }
 
-active::run::run(int threads, scheduler & sched) : 
+active::run::run(int threads, scheduler & sched) :
 	m_scheduler(sched),
 	m_threads(threads<1 ? 4 : threads)
 {
 	m_scheduler.start_work();	// Prevent threads from exiting immediately
 	for( auto & t : m_threads )
-        t = std::thread( std::bind(&scheduler::run, &sched) );
+		t = std::thread( std::bind(&scheduler::run, &sched) );
 }
 
 active::run::~run()

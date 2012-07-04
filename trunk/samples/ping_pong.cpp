@@ -1,4 +1,4 @@
-#include "active_object.hpp"
+#include "active/object.hpp"
 #include <iostream>
 
 class PingPong : public active::object

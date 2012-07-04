@@ -4,7 +4,7 @@
 	Written by Calum Grant
 */
 
-#include <active_object.hpp>
+#include <active/object.hpp>
 #include <iostream>
 
 class Prime : public active::shared<Prime>
