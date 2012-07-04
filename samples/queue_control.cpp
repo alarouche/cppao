@@ -1,4 +1,4 @@
-#include <active_object.hpp>
+#include <active/object.hpp>
 #include <iostream>
 
 struct Result
@@ -6,7 +6,7 @@ struct Result
 	int value;
 };
 
-class Computation : public active::object
+class Computation : public active::advanced
 {
 public:
 	struct Compute
@@ -14,15 +14,15 @@ public:
 		int a, b;
 		active::sink<Result> & result;
 	};
-	
+
 	ACTIVE_METHOD( Compute )
 	{
 		Result r = { Compute.a + Compute.b };
 		Compute.result(r);
 	}
-	
+
 	struct Shutdown { };
-	
+
 	ACTIVE_METHOD( Shutdown )
 	{
 		std::cout << "Shutting down now...\n";
@@ -30,10 +30,12 @@ public:
 	}
 };
 
-template<> 
-int active::priority<Computation::Shutdown>(const Computation::Shutdown&) 
-{ 
-	return 10; 
+namespace active
+{
+	template<> int priority(const Computation::Shutdown&)
+	{
+		return 10;
+	}
 }
 
 class Display : public active::object, public active::sink<Result>

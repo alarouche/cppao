@@ -1,4 +1,4 @@
-#include <active_object.hpp>
+#include <active/object.hpp>
 #include <iostream>
 
 class HelloActive : public active::object

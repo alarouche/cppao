@@ -1,5 +1,5 @@
 
-#include <active_object.hpp>
+#include <active/object.hpp>
 #include <chrono>
 #include <iostream>
 
@@ -94,7 +94,7 @@ int main(int argc, char**argv)
 
 		std::cout << "!!: ";
 		bench_object( active::schedule::thread_pool(active::default_scheduler), active::queueing::advanced<>(), active::sharing::disabled(), N );
-		
+
 		std::cout << "11: ";
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 		bench_object( active::schedule::own_thread(active::default_scheduler), active::queueing::separate<>(), active::sharing::disabled(), N );

@@ -1,3 +1,4 @@
+#include <active/object.hpp>
 
 const int num_rows=20;
 const int num_cols=60;

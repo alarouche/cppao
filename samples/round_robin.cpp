@@ -1,4 +1,4 @@
-#include <active_object.hpp>
+#include <active/object.hpp>
 #include <cstdio>
 
 /* A slightly more sophisticated example.

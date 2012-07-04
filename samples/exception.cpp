@@ -1,4 +1,4 @@
-#include <active_object.hpp>
+#include <active/object.hpp>
 #include <iostream>
 
 struct ex_object : public active::object

@@ -1,8 +1,7 @@
-#include <active_object.hpp>
-
 #include <iostream>
 #include <vector>
 #include <random>
+#include <active/scheduler.hpp>
 #include "life.hpp"
 
 /* This demo implements Conway's Game of Life.
@@ -148,9 +147,9 @@ void Display::ACTIVE_IMPL( redraw )
 
 int main(int argc, char**argv)
 {
-    int seed = argc>1 ? atoi(argv[1]) : 130;	// 130 is an interesting start position
-    active::scheduler tp;
-    Controller controller(tp, seed);
-    controller( Controller::compute() );
+	int seed = argc>1 ? atoi(argv[1]) : 130;	// 130 is an interesting start position
+	active::scheduler tp;
+	Controller controller(tp, seed);
+	controller( Controller::compute() );
 	active::run(4,tp);
 }
