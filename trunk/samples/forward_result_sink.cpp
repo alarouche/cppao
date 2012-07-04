@@ -33,6 +33,6 @@ int main()
 {
 	ComputationHandler handler;
 	ComplexComputation cc;
-	cc(ComplexComputation::computation{1,2,handler});
+	cc(ComplexComputation::computation({1,2,handler}));
 	active::run();
 }

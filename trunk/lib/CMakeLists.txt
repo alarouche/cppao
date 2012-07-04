@@ -1,5 +1,12 @@
 
-add_library( active_object active_object.hpp active_object.cpp
+add_library( active_object active_object.cpp
+	../include/active/advanced.hpp
+	../include/active/direct.hpp
+	../include/active/fast.hpp
 	../include/active/object.hpp
 	../include/active/scheduler.hpp
-	../include/active/promise.hpp )
+	../include/active/shared.hpp
+	../include/active/promise.hpp
+	../include/active/separate.hpp
+	../include/active/synchronous.hpp
+	../include/active/thread.hpp )

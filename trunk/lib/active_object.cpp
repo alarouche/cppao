@@ -1,5 +1,8 @@
 #include <active/object.hpp>
 #include <active/scheduler.hpp>
+#include <active/thread.hpp>
+#include <active/direct.hpp>
+#include <active/synchronous.hpp>
 
 #include <iostream>
 

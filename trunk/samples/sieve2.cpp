@@ -4,7 +4,7 @@
 	Written by Calum Grant
 */
 
-#include <active/object.hpp>
+#include <active/shared.hpp>
 #include <iostream>
 
 

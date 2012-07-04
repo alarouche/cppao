@@ -5,6 +5,11 @@
  */
 
 #include <active/object.hpp>
+#include <active/thread.hpp>
+#include <active/shared.hpp>
+#include <active/direct.hpp>
+#include <active/synchronous.hpp>
+#include <active/fast.hpp>
 #include <iostream>
 
 typedef const char * greeting;

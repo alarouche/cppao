@@ -1,4 +1,4 @@
-#include <active/object.hpp>
+#include <active/shared.hpp>
 #include <vector>
 
 namespace mb
