@@ -1,22 +1,20 @@
 /* Cppao: C++ Active Objects library
- * Written by Calum Grant 2012
+ * Copyright (C) Calum Grant 2012
  *
  * It uses C++11. In g++, compile with "-std=c++0x -pthread"
- *
- * This library demonstrates a very simple approach to implementing active objects.
  */
 
 #ifndef ACTIVE_OBJECT_INCLUDED
 #define ACTIVE_OBJECT_INCLUDED
 
 #include <mutex>
-#include <deque>
-#include <condition_variable>
+#include <vector>
 #include <memory>
 #include <thread>
-#include <queue>
 
-#define ACTIVE_IFACE(MSG) virtual void operator()( MSG & )=0; virtual void operator()( MSG && )=0;
+#define ACTIVE_IFACE(MSG) \
+	virtual void operator()( MSG & )=0; \
+	virtual void operator()( MSG && )=0;
 
 namespace active
 {
@@ -32,8 +30,6 @@ namespace active
 
 	class scheduler;
 
-
-
 	// As a convenience, provide a global variable to run all active objects.
 	extern scheduler default_scheduler;
 
@@ -46,18 +42,6 @@ namespace active
 			pointer_type pointer(any_object * obj) { return obj; }
 			void activate(base *) { }
 			void deactivate(pointer_type) { }
-		};
-
-		template<typename Obj=any_object>
-		struct enabled
-		{
-			typedef std::enable_shared_from_this<Obj> base;
-			typedef std::shared_ptr<any_object> pointer_type;
-			pointer_type pointer(base * obj) { return obj->shared_from_this(); }
-			void activate(base * obj) { m_activated = pointer(obj); }
-			void deactivate(pointer_type & p) { m_activated.swap(p); }
-		private:
-			pointer_type m_activated;   // Prevent object being destroyed whilst active
 		};
 	}
 
@@ -86,117 +70,11 @@ namespace active
 		private:
 			type * m_pool;
 		};
-
-		// The object is scheduled by the OS in its own thread.
-		struct own_thread
-		{
-			typedef active::scheduler type;
-
-			own_thread(const own_thread&);
-			own_thread(type&);
-
-			void set_scheduler(type&p);
-			void activate(any_object * obj);
-			void activate(const std::shared_ptr<any_object> & sp);
-
-			own_thread();
-			~own_thread();
-		private:
-			void thread_fn();
-			type * m_pool;  // Let pool track when all threads are idle => finished.
-			bool m_shutdown;
-			any_object * m_object;
-			std::shared_ptr<any_object> m_shared;   // !! Remove this
-			std::mutex m_mutex;
-			std::condition_variable m_ready;
-			std::thread m_thread;
-		};
 	}
 
-	template<typename T> int priority(const T&) { return 0; }
-
-	struct prioritize
-	{
-		template<typename T>
-		int operator()(const T&v) const { return priority(v); }
-	};
 
 	namespace queueing	// The queuing policy classes
 	{
-		// No queueing; run in calling thread without protection.
-		struct direct_call
-		{
-			typedef std::allocator<void> allocator_type;
-
-			direct_call(const allocator_type& =allocator_type());
-
-			allocator_type get_allocator() const { return allocator_type(); }
-
-			template<typename Message, typename Accessor>
-			bool enqueue(any_object * object, Message && msg, const Accessor&)
-			{
-				try
-				{
-					Accessor::active_run(object, std::forward<Message&&>(msg));
-				}
-				catch(...)
-				{
-					object->exception_handler();
-				}
-				return false;
-			}
-
-			bool run_some(any_object * o, int n=100) throw();
-
-			template<typename T>
-			struct queue_data
-			{
-				struct type { };
-			};
-
-			bool empty() const;
-		};
-
-		// Safe but runs in the calling thread and can deadlock.
-		struct mutexed_call
-		{
-			typedef std::allocator<void> allocator_type;
-
-			mutexed_call(const allocator_type & alloc = allocator_type());
-			mutexed_call(const mutexed_call&);
-
-			allocator_type get_allocator() const { return allocator_type(); }
-
-			template<typename Message, typename Accessor>
-			bool enqueue(any_object * object, Message && msg, const Accessor&)
-			{
-				std::lock_guard<std::recursive_mutex> lock(m_mutex);
-				try
-				{
-					Accessor::active_run(object, std::forward<Message&&>(msg));
-				}
-				catch(...)
-				{
-					object->exception_handler();
-				}
-				return false;
-			}
-
-			bool run_some(any_object * o, int n=100) throw();
-
-			template<typename T>
-			struct queue_data
-			{
-				struct type { };
-			};
-
-			bool empty() const;
-
-		private:
-			std::recursive_mutex m_mutex;
-		};
-
-
 		// Default message queue shared between all message types.
 		template<typename Allocator=std::allocator<void>>
 		class shared
@@ -299,7 +177,6 @@ namespace active
 				 }
 			}
 
-		private:
 			template<typename Message, typename Accessor>
 			struct message_impl : public message
 			{
@@ -320,310 +197,8 @@ namespace active
 			allocator_type m_allocator;
 		protected:
 			std::mutex m_mutex;
-
-		};
-
-		// Message queue offering cancellation, prioritization and size
-		template<typename Allocator=std::allocator<void>, typename Priority=prioritize>
-		class advanced
-		{
-		public:
-			typedef Allocator allocator_type;
-			typedef Priority priority_type;
-
-		private:
-			struct message
-			{
-				message(int p, std::size_t s) : m_priority(p), m_sequence(s) { }
-				virtual void run(any_object * obj)=0;
-				virtual void destroy(allocator_type&)=0;
-				const int m_priority;
-				const std::size_t m_sequence;
-			};
-			struct msg_cmp;
-			typedef std::vector<message*, typename allocator_type::template rebind<message*>::other> vector_type;
-			typedef std::priority_queue<message*, vector_type, msg_cmp> queue_type;
-
-		public:
-
-			advanced(const allocator_type & alloc = allocator_type(), std::size_t capacity=1000, const priority_type p = priority_type()) :
-				  m_priority(p), m_allocator(alloc), m_messages(msg_cmp(), vector_type(alloc)),
-				  m_capacity(capacity), m_busy(false), m_sequence(0)
-			{
-			}
-
-			advanced(const advanced&o) :
-				m_priority(o.m_priority), m_allocator(o.m_allocator),
-				m_messages(msg_cmp(), vector_type(o.m_allocator)),
-				m_capacity(o.m_capacity), m_busy(false), m_sequence(0)
-			{
-			}
-
-			allocator_type get_allocator() const { return m_allocator; }
-
-			template<typename T>
-			struct queue_data
-			{
-				struct type { };
-			};
-
-			template<typename Message, typename Accessor>
-			bool enqueue( any_object *, Message && msg, const Accessor&)
-			{
-				std::lock_guard<std::mutex> lock(m_mutex);
-				if( m_messages.size() >= m_capacity ) throw std::bad_alloc();
-
-				typename allocator_type::template rebind<message_impl<Message, Accessor>>::other realloc(m_allocator);
-
-				message_impl<Message, Accessor> * impl = realloc.allocate(1);
-				int priority = m_priority(msg);
-
-				try
-				{
-					realloc.construct(impl, message_impl<Message, Accessor>(std::forward<Message&&>(msg), priority, m_sequence++)  );
-				}
-				catch(...)
-				{
-					realloc.deallocate(impl,1);
-					throw;
-				}
-
-				try
-				{
-					return enqueue( impl );
-				}
-				catch(...)
-				{
-					impl->destroy(m_allocator);
-					throw;
-				}
-			}
-
-			bool empty() const
-			{
-				return !m_busy && m_messages.empty();
-			}
-
-			bool mutexed_empty() const
-			{
-				std::lock_guard<std::mutex> lock(m_mutex);
-				return m_messages.empty(); // Note: different from empty();
-			}
-
-			void set_capacity(std::size_t new_capacity)
-			{
-				std::lock_guard<std::mutex> lock(m_mutex);
-				m_capacity = new_capacity;
-			}
-
-			bool run_some(any_object * o, int n=100) throw()
-			{
-				std::lock_guard<std::mutex> lock(m_mutex);
-				while( !m_messages.empty() && n-->0)
-				{
-					message * m = m_messages.top();
-					m_messages.pop();
-					m_busy = true;
-
-					m_mutex.unlock();
-					try
-					{
-						m->run(o);
-					}
-					catch (...)
-					{
-						o->exception_handler();
-					}
-					m_mutex.lock();
-					m_busy = false;
-					m->destroy(m_allocator);
-				}
-				return !m_messages.empty();
-			}
-
-			void clear()
-			{
-				std::lock_guard<std::mutex> lock(m_mutex);
-				while( !m_messages.empty() )
-				{
-					m_messages.top()->destroy(m_allocator);
-					m_messages.pop();
-				}
-			}
-
-			std::size_t size() const
-			{
-				std::lock_guard<std::mutex> lock(m_mutex);
-				return m_messages.size();
-			}
-
-		private:
-			priority_type m_priority;
-			allocator_type m_allocator;
-
-			struct msg_cmp { bool operator()(message *m1, message *m2) const
-			{
-				return m1->m_priority < m2->m_priority || (m1->m_priority == m2->m_priority && m1->m_sequence > m2->m_sequence);
-			} };
-
-			queue_type m_messages;
-
-			bool enqueue(message*impl)
-			{
-				bool first_one = m_messages.empty() && !m_busy;
-				m_messages.push(impl);
-				return first_one;
-			}
-
-			template<typename Message, typename Accessor>
-			struct message_impl : public message
-			{
-				message_impl(Message && m, int priority, std::size_t seq) : message(priority, seq), m_message(std::forward<Message&&>(m)) { }
-				Message m_message;
-				void run(any_object * o)
-				{
-					Accessor::active_run(o, std::move(m_message));
-				}
-				void destroy(allocator_type&a)
-				{
-					typename allocator_type::template rebind<message_impl<Message, Accessor>>::other realloc(a);
-					realloc.destroy(this);
-					realloc.deallocate(this,1);
-				}
-			};
-			std::size_t m_capacity;
-			bool m_busy;
-			std::size_t m_sequence;
-
-		protected:
-			mutable std::mutex m_mutex;
-
-		};
-
-
-		template<typename Allocator=std::allocator<void>>
-		struct separate
-		{
-			typedef Allocator allocator_type;
-
-			separate(const allocator_type & alloc=allocator_type()) :
-			   m_message_queue(alloc)
-			{
-			}
-
-			allocator_type get_allocator() const { return m_message_queue.get_allocator(); }
-
-			separate(const separate&o) :
-				m_message_queue(o.m_message_queue.get_allocator())
-			{
-			}
-
-			template<typename T>
-			struct queue_data
-			{
-				typedef std::deque<T, typename allocator_type::template rebind<T>::other> type;
-			};
-
-			template<typename Message, typename Accessor>
-			bool enqueue( any_object * object, Message && msg, const Accessor&)
-			{
-				std::lock_guard<std::mutex> lock(m_mutex);
-				m_message_queue.push_back( &run<Message, Accessor> );
-				try
-				{
-					Accessor::active_data(object).push_back(std::forward<Message&&>(msg));
-				}
-				catch(...)
-				{
-					m_message_queue.pop_back();
-					throw;
-				}
-				return m_message_queue.size()==1;
-			}
-
-			bool empty() const
-			{
-				return m_message_queue.empty();
-			}
-
-			bool run_some(any_object * o, int n=100) throw()
-			{
-			   std::lock_guard<std::mutex> lock(m_mutex);
-
-			   while( !m_message_queue.empty() && n-->0 )
-			   {
-				   m_mutex.unlock();
-				   try
-				   {
-					   ActiveRun run = m_message_queue.front();
-					   (*run)(o);
-				   }
-				   catch (...)
-				   {
-					   o->exception_handler();
-				   }
-				   m_mutex.lock();
-				   m_message_queue.pop_front();
-			   }
-			   return !m_message_queue.empty();
-			}
-
-		protected:
-			std::mutex m_mutex;
-
-		private:
-			typedef void (*ActiveRun)(any_object*);
-			std::deque<ActiveRun, typename allocator_type::template rebind<ActiveRun>::other> m_message_queue;
-
-			template<typename Message, typename Accessor>
-			static void run(any_object*obj)
-			{
-				Message m = std::move(Accessor::active_data(obj).front());
-				Accessor::active_data(obj).pop_front();
-				Accessor::active_run(obj, std::move(m));
-			}
-		};
-
-		template<typename Queue>
-		struct steal  : public Queue
-		{
-			typedef typename Queue::allocator_type allocator_type;
-			steal(const allocator_type & alloc = allocator_type()) : Queue(alloc), m_running(false) { }
-
-			template<typename Message, typename Accessor>
-			bool enqueue( any_object * object, Message && msg, const Accessor& accessor)
-			{
-				this->m_mutex.lock();
-				if( m_running || !this->empty())
-				{
-					this->m_mutex.unlock();	// ?? Better use of locks; also exception safety.
-					Queue::enqueue( object, std::forward<Message&&>(msg), accessor );
-					return false;
-				}
-				else
-				{
-					m_running = true;
-					this->m_mutex.unlock();
-					try
-					{
-						Accessor::active_run(object, std::forward<Message&&>(msg));
-					}
-					catch(...)
-					{
-						object->exception_handler();
-					}
-					this->m_mutex.lock();
-					m_running = false;
-					bool activate = !this->empty();
-					this->m_mutex.unlock();
-					return activate;
-				}
-			}
-		private:
-			bool m_running;
 		};
 	}
-
 
 
 	template<
@@ -638,7 +213,8 @@ namespace active
 		typedef Queue queue_type;
 		typedef typename schedule_type::type scheduler_type;
 		typedef typename queue_type::allocator_type allocator_type;
-
+		typedef std::size_t size_type;
+		
 		object_impl(scheduler_type & tp = default_scheduler,
 					const allocator_type & alloc = allocator_type())
 					: m_schedule(tp), m_queue(alloc) { }
@@ -701,8 +277,6 @@ namespace active
 			m_queue.set_capacity(c);
 		}
 
-		typedef std::size_t size_type;
-
 		size_type size() const
 		{
 			return m_queue.size();
@@ -726,7 +300,6 @@ namespace active
 			m_queue.clear();
 		}
 
-	protected:
 		template<typename T, typename M>
 		void enqueue( T && msg, const M & accessor)
 		{
@@ -745,7 +318,6 @@ namespace active
 
 #define ACTIVE_IMPL( MSG ) impl_##MSG(MSG && MSG)
 
-
 #define ACTIVE_METHOD2( MSG, TYPENAME, TEMPLATE, CAST ) \
 	TYPENAME queue_type::TEMPLATE queue_data<MSG>::type queue_data_##MSG; \
 	template<typename C> struct run_##MSG { \
@@ -761,42 +333,7 @@ namespace active
 
 	// The default object type.
 	typedef object_impl<schedule::thread_pool, queueing::shared<>, sharing::disabled> object;
-	typedef object_impl<schedule::own_thread, queueing::shared<>, sharing::disabled> thread;
 
-	typedef object_impl<schedule::thread_pool, queueing::steal<queueing::shared<>>, sharing::disabled> fast;
-	typedef object_impl<schedule::none, queueing::direct_call, sharing::disabled> direct;
-	typedef object_impl<schedule::none, queueing::mutexed_call, sharing::disabled> synchronous;
-	typedef object_impl<schedule::thread_pool, queueing::advanced<>, sharing::disabled> advanced;
-
-	// An active object which could be stored in a std::shared_ptr.
-	// If this is the case, then a safer message queueing scheme is implemented
-	// which for example guarantees to deliver all messages before destroying the object.
-	template<typename T=any_object, typename Schedule=schedule::thread_pool, typename Queueing = queueing::shared<>>
-	class shared : public object_impl<Schedule, Queueing, sharing::enabled<T> >
-	{
-	public:
-		typedef typename Queueing::allocator_type allocator_type;
-		typedef typename Schedule::type scheduler_type;
-		shared(scheduler_type & sch=default_scheduler, const allocator_type & alloc = allocator_type()) :
-			object_impl<Schedule, Queueing, sharing::enabled<T> >(sch, alloc)
-		{
-		}                                                                                                           // !!shared_thread(shceduler, allocator)
-		typedef std::shared_ptr<T> ptr;
-	};
-
-	template<typename T=any_object, typename Queueing = queueing::shared<>>
-	class shared_thread : public object_impl<schedule::own_thread, Queueing, sharing::enabled<T> >
-	{
-	public:
-		typedef typename Queueing::allocator_type allocator_type;
-		typedef schedule::own_thread::type scheduler_type;
-		shared_thread(scheduler_type & sch=default_scheduler, const allocator_type & alloc = allocator_type()) :
-			object_impl<schedule::own_thread, Queueing, sharing::enabled<T> >(sch, alloc)
-		{
-		}
-
-		typedef std::shared_ptr<T> ptr;
-	};
 
 	// Runs the scheduler for a given duration.
 	class run
@@ -808,7 +345,7 @@ namespace active
 		run(const run&);
 		run & operator=(const run&);
 		scheduler & m_scheduler;
-		std::deque<std::thread> m_threads;
+		std::vector<std::thread> m_threads;
 	};
 
 	template<typename T>

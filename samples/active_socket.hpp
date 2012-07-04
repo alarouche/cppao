@@ -2,7 +2,7 @@
 #ifndef ACTIVE_SOCKET_INCLUDED
 #define ACTIVE_SOCKET_INCLUDED
 
-#include <active/object.hpp>
+#include <active/shared.hpp>
 
 #include <list>
 

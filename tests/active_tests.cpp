@@ -2,6 +2,14 @@
 #include <active/object.hpp>
 #include <active/scheduler.hpp>
 #include <active/promise.hpp>
+#include <active/separate.hpp>
+#include <active/thread.hpp>
+#include <active/advanced.hpp>
+#include <active/shared.hpp>
+#include <active/direct.hpp>
+#include <active/synchronous.hpp>
+#include <active/fast.hpp>
+
 #include <iostream>
 #include <cassert>
 #include <vector>

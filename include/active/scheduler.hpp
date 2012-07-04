@@ -2,6 +2,7 @@
 #define ACTIVE_SCHEDULER_INCLUDED
 
 #include "object.hpp"
+#include <condition_variable>
 
 namespace active
 {
@@ -12,11 +13,6 @@ namespace active
 		typedef any_object * ObjectPtr;
 
 		scheduler();
-
-		// Adds an active object to the pool.
-		// There is no need to "un-add", but deleting an active object with active messages
-		// is undefined (i.e. the application will crash).
-		// void add(ObjectPtr p);
 
 		// Used by an active object to signal that there are messages to process.
 		void activate(ObjectPtr) throw();
