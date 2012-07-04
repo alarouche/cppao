@@ -19,6 +19,7 @@ add_executable( exception exception.cpp )
 add_executable( object_types object_types.cpp )
 add_executable( sieve sieve.cpp )
 add_executable( sieve2 sieve2.cpp )
+add_executable( queue_control queue_control.cpp )
 add_library( active_socket active_socket.cpp active_socket.hpp )
 
 IF( OPENGL_FOUND AND GLUT_FOUND )

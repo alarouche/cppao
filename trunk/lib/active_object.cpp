@@ -31,6 +31,28 @@ void active::scheduler::activate(ObjectPtr p) throw()
 }
 
 
+bool active::scheduler::run_one()
+{
+	std::unique_lock<std::mutex> lock(m_mutex);
+	if( m_head )
+	{
+		ObjectPtr p = m_head;
+		m_head = m_head->m_next;
+		lock.unlock();
+		p->run_some();
+		lock.lock();
+		--m_busy_count;
+	}
+	
+	if( m_head == nullptr ) 
+	{
+		m_tail=nullptr;
+	}
+
+	return m_busy_count!=0;
+}
+
+
 // Runs until there are no more messages in the entire pool.
 // Returns false if no more items.
 bool active::scheduler::run_managed() throw()
