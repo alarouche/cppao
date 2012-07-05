@@ -194,7 +194,6 @@ int main()
         ComplexComputation::computation comp = { 1,2,handler };
         cc(comp);
         active::run();
-        return 0;
 }
 }}}
 The recipient of the result is implemented in class `ComputationHandler`, which implements the `ACTIVE_METHOD` to handle the result. In this way, the computation and the handler are completely decoupled.
