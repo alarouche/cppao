@@ -39,6 +39,7 @@ int main()
 {
 	ComputationHandler handler;
 	ComplexComputation cc;
-	cc(ComplexComputation::computation({ 1,2,handler }));
+	ComplexComputation::computation msg = { 1,2,handler };
+	cc(msg);
 	active::run();
 }
