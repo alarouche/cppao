@@ -3,8 +3,7 @@
 Find_Package(GLUT)
 Find_Package(OpenGL)
 
-link_libraries( active_object )
-include_directories( ../lib )
+link_libraries( cppao )
 
 add_executable( hello_active hello_active.cpp )
 add_executable( ping_pong ping_pong.cpp )
@@ -24,7 +23,7 @@ add_library( active_socket active_socket.cpp active_socket.hpp )
 
 IF( OPENGL_FOUND AND GLUT_FOUND )
 	add_executable( mandelbrot mandelbrot.cpp mandelbrot.hpp )
-	target_link_libraries( mandelbrot ${gl_library} ${glut_library} )
+        target_link_libraries( mandelbrot ${gl_libraries} ${GLUT_LIBRARIES} )
 ELSE()
 	message( "Skipping Mandelbrot sample because you don't appear to have OpenGL and GLUT installed" )
 ENDIF()
@@ -34,4 +33,3 @@ add_executable( echo_server echo_server.cpp )
 add_executable( echo_client echo_client.cpp )
 add_executable( echo echo.cpp )
 
-target_link_libraries( mandelbrot glut )

@@ -1,4 +1,3 @@
-include_directories( ../lib )
 add_executable( active_tests active_tests.cpp )
 add_test( active_tests active_tests )
-target_link_libraries( active_tests active_object )
+target_link_libraries( active_tests cppao )
