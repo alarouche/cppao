@@ -1,5 +1,5 @@
 
-add_library( active_object active_object.cpp
+add_library( cppao active_object.cpp
 	../include/active/advanced.hpp
 	../include/active/direct.hpp
 	../include/active/fast.hpp
@@ -10,3 +10,5 @@ add_library( active_object active_object.cpp
 	../include/active/separate.hpp
 	../include/active/synchronous.hpp
 	../include/active/thread.hpp )
+
+install(TARGETS cppao LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)

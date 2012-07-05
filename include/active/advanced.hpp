@@ -135,7 +135,7 @@ namespace active
 					m_busy = false;
 					m->destroy(m_allocator);
 				}
-				return !m_messages.empty();
+                return !m_messages.empty();
 			}
 			
 			void clear()
