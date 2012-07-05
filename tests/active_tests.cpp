@@ -345,7 +345,7 @@ void test_exceptions()
 	assert( eo.caught );
 }
 
-struct my_shared : public active::shared<my_shared>
+struct my_shared : public active::shared<>
 {
 	typedef int msg;
 	ACTIVE_METHOD(msg)
@@ -490,7 +490,7 @@ void test_own_thread()
 	assert( obj2.total == 13 );
 }
 
-struct shared_thread_obj : public active::shared_thread<shared_thread_obj>
+struct shared_thread_obj : public active::shared<shared_thread_obj,active::thread>
 {
 	int total;
 	typedef int add;
@@ -556,8 +556,8 @@ struct mix_object : public active::object_impl<Schedule,Queueing,Sharing>, publi
 
 	ACTIVE_TEMPLATE( mix_message )
 	{
-        auto sink = m_sink.lock(), result=m_result.lock();
-        if( mix_message>0 && sink ) (*sink)(mix_message-1);
+		auto sink = m_sink.lock(), result=m_result.lock();
+		if( mix_message>0 && sink ) (*sink)(mix_message-1);
 		else if( mix_message<=0 && result) (*result)(m_id);
 	}
 
@@ -571,17 +571,17 @@ struct mix_object : public active::object_impl<Schedule,Queueing,Sharing>, publi
 
 namespace active
 {
-    // Prevent later priority(const int&) interfering with this test.
-    template<>
-    int priority(const int & config)
-    {
-        return 0;
-    }
+	// Prevent later priority(const int&) interfering with this test.
+	template<>
+	int priority(const int & config)
+	{
+		return 0;
+	}
 }
 
 std::shared_ptr<mix_interface> mix_factory(int n)
 {
-    switch( n%22 )
+	switch( n%22 )
 	{
 	default:
 	case 0: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared<>, active::sharing::disabled> >();
@@ -820,12 +820,12 @@ void test_promise()
 
 namespace active
 {
-    template<> int priority(const long & i) { return i; }
+	template<> int priority(const long & i) { return i; }
 }
 
 struct my_advanced : public active::advanced
 {
-    typedef long msg;
+	typedef long msg;
 	int previous;
 	my_advanced() : previous(4) { }
 	my_advanced(int limit) : previous(4)
