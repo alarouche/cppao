@@ -3,6 +3,7 @@
 #define ACTIVE_THREAD_INCLUDED
 
 #include "object.hpp"
+#include <condition_variable>
 
 namespace active
 {
