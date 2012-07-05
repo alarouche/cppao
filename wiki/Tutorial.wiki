@@ -8,13 +8,13 @@ C++ Active Objects (cppao) is a small library to make it simple to implement act
 
 = Getting started =
 
-You need to check out the source code, and add the files [http://code.google.com/p/cppao/source/browse/trunk/lib/active_object.cpp active_object.cpp] and [http://code.google.com/p/cppao/source/browse/trunk/lib/active_object.hpp active_object.hpp] to a new project. There is a CMake file and a Visual Studio solution file to get you started. You may need to enable C++11 in your toolchain.
+See the [BuildInstructions build instructions] on how to download and install the cppao library.
 
 = Hello active! =
 The first example is
 [http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active.cpp hello_active.cpp]
 {{{
-#include <active_object.hpp>
+#include <active/object.hpp>
 #include <iostream>
 
 class HelloActive : public active::object
@@ -40,7 +40,7 @@ int main()
 Since this is the first example, let's go through it line by line:
 
 {{{
-#include <active_object.hpp>
+#include <active/object.hpp>
 }}}
 
 This includes the header file, you need to do this.
@@ -112,7 +112,7 @@ This just shows how active objects can implement several different messages.
 This example [http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin.cpp round_robin.cpp] shows how multiple objects can interact. Here we have 1000 instances of the same class. We don't run the `RoundRobin::run()` method in 1000 different threads (though I guess we could), but instead we call the function `active::run()` which runs all of our objects in a thread pool. This is generally more efficient than creating one OS thread per active object.
 
 {{{
-#include <active_object.hpp>
+#include <active/object.hpp>
 #include <iostream>
 
 struct RoundRobin : public active::object
@@ -156,7 +156,7 @@ The basic method of interconnection is shown in [http://code.google.com/p/cppao/
 
 In this example, we implement a computation in the class `ComplexComputation`, which then forward its result to an object of type `active::sink<>`. The recipient is specified in the `ComplexComputation::computation` message itself.
 {{{
-#include <active_object.hpp>
+#include <active/object.hpp>
 #include <iostream>
 
 class ComplexComputation : public active::object
@@ -222,6 +222,8 @@ To solve this, the class `active::shared<>` can be used as a base class for your
 The sample [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp object_types.cpp] demonstrates this.
 
 {{{
+#include <active/shared.hpp>
+
 struct shared_object : public active::shared<shared_object>
 {
         ACTIVE_METHOD(greeting) { std::cout << "Shared object says " << greeting << std::endl; }
@@ -232,11 +234,14 @@ struct shared_object : public active::shared<shared_object>
 
 There are actually a number of base classes you could choose for your active objects, each with different characteristics.
 
- * `active::object` - The basic, non-blocking AO.
- * `active::shared<>` - Use smart pointers, `std::shared_ptr<>`.
- * `active::fast` - Processes the message in the calling thread if the object is idle. This is often faster but can fail to exploit the hardware fully.
- * `active::thread` - Dedicates an OS thread to this AO.
- * `active::synchronous` - Always processes message in the calling thread, but guarded by a mutex. Not a true AO.
+|| Base class || Header file || Description ||
+|| `active::object` || `active/object.hpp` || The basic, non-blocking AO. ||
+|| `active::shared<>` || `active/shared.hpp` || Prevents premature object destruction using smart pointers, `std::shared_ptr<>`. ||
+|| `active::fast` || `active/fast.hpp` || Processes the message in the calling thread if the object is idle. This is often faster but can fail to exploit the hardware fully. ||
+|| `active::thread` || `active/thread.hpp` || Dedicates an OS thread to this AO. ||
+|| `active::advanced` || `active/advanced.hpp` || A more feature-rich AO which supports message prioritization, query queue size, clear queue and limit queue size. ||
+|| `active::synchronous` || `active/synchronous.hpp` || Always processes message in the calling thread, but guarded by a mutex. Not a true AO. ||
+|| `active::direct` || `active/direct.hpp` || An unguarded AO which is not thread-safe but can be used if the class is entirely thread-safe or has no mutable state. ||
 
 See FineTuning for further details, and the sample [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp object_types.cpp] shows off the different implementations.
 
