@@ -18,25 +18,18 @@ namespace active
 			void deactivate(pointer_type & p) { m_activated.swap(p); }
 		private:
 			pointer_type m_activated;   // Prevent object being destroyed whilst active
-		};		
+		};
 	}
-	
-	// An active object which could be stored in a std::shared_ptr.
-	// If this is the case, then a safer message queueing scheme is implemented
-	// which for example guarantees to deliver all messages before destroying the object.
-	template<typename T=any_object, typename Schedule=schedule::thread_pool, typename Queueing = queueing::shared<>>
-	class shared : public object_impl<Schedule, Queueing, sharing::enabled<T> >
+
+	template<typename T=any_object, typename Object=object> struct shared;
+
+	template<typename T, typename Schedule, typename Queue, typename Share>
+	struct shared<T, object_impl<Schedule, Queue, Share>> :
+		public object_impl<Schedule, Queue, sharing::enabled<T>>
 	{
-	public:
-		typedef typename Queueing::allocator_type allocator_type;
-		typedef typename Schedule::type scheduler_type;
-		shared(scheduler_type & sch=default_scheduler, const allocator_type & alloc = allocator_type()) :
-		object_impl<Schedule, Queueing, sharing::enabled<T> >(sch, alloc)
-		{
-		}                                                                                                           // !!shared_thread(shceduler, allocator)
 		typedef std::shared_ptr<T> ptr;
+		typedef object_impl<Schedule, Queue, sharing::enabled<T>> type;
 	};
-	
 }
 
 #endif

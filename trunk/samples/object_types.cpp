@@ -34,7 +34,7 @@ struct thread_object : public active::thread
 	ACTIVE_METHOD(greeting) { std::cout << "Thread object says " << greeting << std::endl; }
 };
 
-struct shared_thread : public active::shared_thread<shared_thread>
+struct shared_thread : public active::shared<shared_thread,active::thread>
 {
 	ACTIVE_METHOD(greeting) { std::cout << "Shared thread object says " << greeting << std::endl; }
 };

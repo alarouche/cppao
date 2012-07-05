@@ -200,7 +200,6 @@ namespace active
 		};
 	}
 
-
 	template<
 		typename Schedule,
 		typename Queue,
@@ -214,7 +213,7 @@ namespace active
 		typedef typename schedule_type::type scheduler_type;
 		typedef typename queue_type::allocator_type allocator_type;
 		typedef std::size_t size_type;
-		
+
 		object_impl(scheduler_type & tp = default_scheduler,
 					const allocator_type & alloc = allocator_type())
 					: m_schedule(tp), m_queue(alloc) { }

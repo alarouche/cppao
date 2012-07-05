@@ -70,8 +70,7 @@ namespace active
 	/* This is a fairly complete socket implementation.
 	 * It wraps POSIX/Winsock sockets and file descriptors in general.
 	 */
-	struct socket :
-		public shared<socket>
+	struct socket : public shared<socket>
 	{
 		// Tell the socket to shut down
 		struct shutdown { int mode; };

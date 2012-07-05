@@ -23,7 +23,7 @@ add_library( active_socket active_socket.cpp active_socket.hpp )
 
 IF( OPENGL_FOUND AND GLUT_FOUND )
 	add_executable( mandelbrot mandelbrot.cpp mandelbrot.hpp )
-        target_link_libraries( mandelbrot ${gl_libraries} ${GLUT_LIBRARIES} )
+        target_link_libraries( mandelbrot ${GL_LIBRARIES} ${GLUT_LIBRARIES} )
 ELSE()
 	message( "Skipping Mandelbrot sample because you don't appear to have OpenGL and GLUT installed" )
 ENDIF()
