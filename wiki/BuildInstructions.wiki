@@ -1,10 +1,8 @@
 #summary How to build cppao
 
-= General build instructions =
+= Downloading =
 
-C++ Active Objects (cppao) is a very small library consisting of one header file [http://code.google.com/p/cppao/source/browse/trunk/lib/active_object.hpp active_object.hpp] and one source file [http://code.google.com/p/cppao/source/browse/trunk/lib/active_object.cpp active_object.cpp]. You can just copy them into your project.
-
-Cppao uses C++11 (C++0x). This means that you may need to change your compiler settings.
+C++ Active Objects (cppao) is a small library, which is distributed in source code form from the [http://code.google.com/p/cppao/downloads/list download page].
 
 = Supported platforms =
 
@@ -21,18 +19,25 @@ Non-validated platforms:
 = Platform-specific instructions =
 
 == Visual Studio 11 ==
-A solution file has been provided for Visual Studio 11. Just open this to compile and run the samples.
+A solution file has been provided for Visual Studio 11. Just open this to compile the library, tests and the samples. You can hack in this solution if you just want to experiment.
+
+Copy the generated lib file and the include directory to a more permanent location, and link your project to the library in the usual way.
 
 == GNU/Linux ==
-CMakeLists.txt has been provided for CMake. Don't forget to set the compiler flags for C++11, e.g.
+CMakeLists.txt has been provided for CMake. e.g.
 {{{
-$ cmake -DCMAKE_CXX_FLAGS="-std=c++0x -pthread" .
+$ mkdir build
+$ cd build
+$ cmake .. -DCMAKE_BUILD_TYPE=Release
 $ make all test
 ...
+$ sudo make install
 $ samples/hello_active
 Hello, world!
 $ 
 }}}
+
+Note that in order to run the Mandelbrot sample, you need various OpenGL packages: freeglut3-dev libxmu-dev libxi-dev libgl1-mesa-swx11
 
 == Xcode ==
 Use cmake to create an xproj file, then open that file in Xcode.
@@ -41,7 +46,6 @@ $ mkdir build
 $ cd build
 $ cmake -GXcode ..
 }}}
-Then, change compiler settings and library options to C++0x.
 
 == Macports ==
 The following works for me; you may need to hack this around a bit to get the Mandelbrot sample to work.
