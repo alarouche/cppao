@@ -200,7 +200,7 @@ The recipient of the result is implemented in class `ComputationHandler`, which 
 
 Also observe that we can implement active methods outside of the class (thankfully), using the `ACTIVE_IMPL` macro, and we can even make active methods const.
 
-Finally, because the literature says we must, we can also put results into _promise_, as shown in [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp future.cpp]. The `active::promise<>` class is an active object which can also be accessed from synchronous code. Personally I would design the entire application using active objects so as to not mix paradigms.
+Finally, and because the literature says we must, we can also put results into _promise_, as shown in [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp future.cpp]. The `active::promise<>` class is an active object which can also be accessed from synchronous code. Personally I would design the entire application using active objects so as to not mix paradigms.
 
 = Exception handling =
 
@@ -255,7 +255,7 @@ Active objects guarantee that your program will be thread-safe, if you follow th
     * Use move semantics (`std::move()` etc.) when passing large arrays between objects.
     * Avoid (shared) pointers to anything else, unless they are `unique()`.
     * Avoid weak pointers in messages, as they aren't needed.
-  * Avoid dangling pointers; cppao can't help you here, but try shared pointers.
+  * Ensure all pointers and references are valid: use smart pointers.
   * Avoid blocking calls (e.g. network, `std::future<>::get()`), unless using `active::thread`.
 
 Deadlock cannot occur; what happens is that your program runs out of messages and exits. 
