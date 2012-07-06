@@ -39,6 +39,8 @@ $
 
 Note that in order to run the Mandelbrot sample, you need various OpenGL packages: freeglut3-dev libxmu-dev libxi-dev libgl1-mesa-swx11
 
+If you `make install`, then you can link against the library in future projects using `-lcppao`.
+
 == Xcode ==
 Use cmake to create an xproj file, then open that file in Xcode.
 {{{
