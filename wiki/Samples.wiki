@@ -37,29 +37,6 @@ Demonstrates:
   * Compares the performance of different AO implementations.
   * Use of _active::object_impl<>_ to tune the underlying implementation.
 
-=Return result=
-[http://code.google.com/p/cppao/source/browse/trunk/samples/return_result.cpp]
-
-An AO performs a computation, and writes the result to a location pointed to in the message.
-
-However this approach is not a good one because you are mixing paradigms, there is no synchronization, and shared state is generally against what AO are all about.
-
-Demonstrates:
-
-  * Returning results using some kind of shared state,
-  * Separating declaration and definition using `ACTIVE_IMPL`,
-  * `const` active methods.
-
-=Promises promises=
-[http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp]
-
-A message is passed to an AO, containing parameters for a computation, and a pointer to a promise where the result should be stored. When the computation is complete, the promise is fulfilled.
-
-This is much better because there is now synchronization, and is also the "traditional" solution to how AOs return results.
-
-Demonstrates:
-
-  * Returning results in a promise.
 
 =Forward results=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result.cpp]
@@ -71,6 +48,8 @@ This is much better because the solution is much more consistent and pure (using
 Demonstrates: 
 
   * Passing the result of a computation to another AO.
+  * Separating declaration and definition using `ACTIVE_IMPL`,
+  * `const` active methods.
 
 =Interfaces=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface.cpp]
@@ -91,6 +70,17 @@ Demonstrates:
 
   * `active::sink<>`,
   * How to pass messages between objects in a more abstract way.
+
+=Promises promises=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp]
+
+A message is passed to an AO, containing parameters for a computation, and a pointer to a promise where the result should be stored. When the computation is complete, the promise is fulfilled.
+
+This is much better because there is now synchronization, and is also the "traditional" solution to how AOs return results.
+
+Demonstrates:
+
+  * Returning results in a promise.
 
 =Exceptions=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/exception.cpp]
@@ -136,6 +126,18 @@ Creates and runs eight different AO implementations. Demonstrates:
   * How to use different object types,
   * Different characteristics of different objects,
   * How to use shared objects for additional safety.
+
+= Fibonacci =
+[http://code.google.com/p/cppao/source/browse/trunk/samples/fib.cpp]
+Implements a deliberately naive recursive Fibonacci number calculator (F(n)=F(n-1)+F(n-2)), where each number spawns two active objects - resulting in an exponential increase in the number of AOs.
+
+Demonstrates:
+
+  * Dynamic creation of AOs.
+  * A benchmark.
+  * Fire-and-forget AOs, which are destroyed automatically.
+  * `active::shared`
+  * The fact that for trivial calculations, the `direct` object type can be best.
 
 =Active sockets=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.hpp]
