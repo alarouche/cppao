@@ -43,8 +43,6 @@ Demonstrates:
 
 A message is passed to an AO containing the parameters for a computation, and a pointer to an AO which will receive the result of the computation.
 
-This is much better because the solution is much more consistent and pure (using just one technology), however the computation is now coupled to the result recipient which is not good.
-
 Demonstrates: 
 
   * Passing the result of a computation to another AO.
@@ -64,7 +62,7 @@ Demonstrates:
 =Message sinks=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp]
 
-An interface to an AO is defined using the _active::sink<>_ class. The result of a computation is passed to an AO of type _active::sink<>_. Seems to be the most elegant way to connect objects.
+An interface to an AO is defined using the `active::sink<>` class. The result of a computation is passed to an AO of type `active::sink<>`. Seems to be the most elegant way to connect objects.
 
 Demonstrates:
 
@@ -76,7 +74,7 @@ Demonstrates:
 
 A message is passed to an AO, containing parameters for a computation, and a pointer to a promise where the result should be stored. When the computation is complete, the promise is fulfilled.
 
-This is much better because there is now synchronization, and is also the "traditional" solution to how AOs return results.
+This is close to the "traditional" solution to how AOs return results.
 
 Demonstrates:
 
@@ -90,7 +88,7 @@ An active method throws an exception which calls an exception handler.
 Demonstrates:
 
   * How to catch exceptions,
-  * _exception_handler()_
+  * `exception_handler()`
 
 = Prime number sieve =
 [http://code.google.com/p/cppao/source/browse/trunk/samples/sieve.cpp]
@@ -115,7 +113,7 @@ Demonstrates:
 
   * Multiple classes with multiple message types.
   * A more complex example.
-  * Using _ACTIVE_IMPL_ to separate method declarations from definitions.
+  * Using `ACTIVE_IMPL` to separate method declarations from definitions.
   * `active::scheduler`
 
 = Object types =
@@ -129,6 +127,7 @@ Creates and runs eight different AO implementations. Demonstrates:
 
 = Fibonacci =
 [http://code.google.com/p/cppao/source/browse/trunk/samples/fib.cpp]
+
 Implements a deliberately naive recursive Fibonacci number calculator (F(n)=F(n-1)+F(n-2)), where each number spawns two active objects - resulting in an exponential increase in the number of AOs.
 
 Demonstrates:
