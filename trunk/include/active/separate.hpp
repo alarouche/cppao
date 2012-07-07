@@ -93,6 +93,8 @@ namespace active
 			}
 		};
 	}
+	
+	typedef object_impl<schedule::thread_pool, queueing::separate<>, sharing::disabled> separate;
 }
 
 #endif

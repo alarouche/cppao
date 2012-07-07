@@ -949,6 +949,98 @@ void test_advanced_queue_control()
 	active::run();
 }
 
+template<typename Base>
+struct fib : 
+	public active::object_impl<typename Base::schedule_type, typename Base::queue_type, active::sharing::enabled<fib<Base>>>, 
+	public active::sink<int>
+{
+	typedef typename Base::queue_type queue_type;
+	
+	struct calculate
+	{
+		int value;
+		active::sink<int>::sp result;
+	};
+	
+	ACTIVE_TEMPLATE( calculate )
+	{
+		if( calculate.value > 2 )
+		{
+			m_total=0;
+			m_result = calculate.result;
+			fib::calculate 
+			lhs = { calculate.value-1, this->shared_from_this() }, 
+			rhs = { calculate.value-2, this->shared_from_this() };
+			
+			// Note: AO destroyed after its last message.
+			(*std::make_shared<fib>())(lhs);
+			(*std::make_shared<fib>())(rhs);
+		}
+		else 
+		{
+			(*calculate.result)(1);
+		}
+	}
+	
+	typedef int sub_result;
+	
+	ACTIVE_TEMPLATE( sub_result )
+	{
+		if( m_total ) (*m_result)(m_total+sub_result); //, m_result.reset();
+		else m_total = sub_result;
+	}
+	
+private:
+	int m_total;
+	sp m_result;
+};
+
+
+struct fib_test
+{
+	template<typename T>
+	void operator()(T)
+	{
+		auto result = std::make_shared<active::promise<int>>();
+		typename fib<T>::calculate calc = { 20, result };
+		(*std::make_shared<fib<T>>())(calc);
+		active::run();
+		assert( result->get() == 6765 );
+	}
+};
+
+template<typename Visitor>
+void test_containers(Visitor&v)
+{
+	v(active::object());
+	v(active::shared<active::any_object>());
+	
+	v(active::fast());
+	v(active::shared<active::any_object,active::fast>());
+	
+	v(active::direct());
+	v(active::shared<active::any_object, active::direct>());
+
+	v(active::synchronous());
+	v(active::shared<active::any_object, active::synchronous>());
+	
+	v(active::advanced());
+	v(active::shared<active::any_object,active::advanced>());
+	
+	v(active::separate());
+	v(active::shared<active::any_object,active::separate>());
+	
+	//v(active::thread());
+	//v(active::shared<active::any_object,active::thread>());
+	
+}
+
+void test_fib_soak()
+{
+	fib_test t;
+	test_containers(t);
+}
+
 int main()
 {
 	// Single-object tests
@@ -985,6 +1077,9 @@ int main()
 	test_advanced_noreorder();
 	test_advanced_queue_control();
 	test_promise();
+	
+	// Mini-soak tests
+	test_fib_soak();
 
 	std::cout << "All tests passed!\n";
 	return 0;
