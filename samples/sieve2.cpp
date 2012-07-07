@@ -5,6 +5,7 @@
 */
 
 #include <active/shared.hpp>
+#include <active/fast.hpp>
 #include <iostream>
 
 

@@ -13,24 +13,25 @@ namespace active
 		{
 			typedef typename Queue::allocator_type allocator_type;
 			steal(const allocator_type & alloc = allocator_type()) : 
-				Queue(alloc), m_running(false) 
+				Queue(alloc), m_running(false)
 			{ 
 			}
+			
+			steal(const steal&) : m_running(false) { }
 			
 			template<typename Message, typename Accessor>
 			bool enqueue( any_object * object, Message && msg, const Accessor& accessor)
 			{
-				this->m_mutex.lock();
-				if( m_running || !this->empty())
+				std::unique_lock<std::mutex> lock(m_mutex);
+				
+				if( m_running )
 				{
-					this->m_mutex.unlock();	// ?? Better use of locks; also exception safety.
-					Queue::enqueue( object, std::forward<Message&&>(msg), accessor );
-					return false;
+					return Queue::enqueue( object, std::forward<Message&&>(msg), accessor );
 				}
 				else
 				{
 					m_running = true;
-					this->m_mutex.unlock();
+					lock.unlock();
 					try
 					{
 						Accessor::active_run(object, std::forward<Message&&>(msg));
@@ -39,14 +40,31 @@ namespace active
 					{
 						object->exception_handler();
 					}
-					this->m_mutex.lock();
+					lock.lock();
 					m_running = false;
-					bool activate = !this->empty();
-					this->m_mutex.unlock();
-					return activate;
+					return false;
 				}
 			}
+			
+			bool empty() const
+			{
+				return !m_running && Queue::empty();
+			}
+			
+			bool run_some(any_object * o, int n=100) throw()
+			{
+				std::unique_lock<std::mutex> lock(m_mutex);
+				if( m_running ) return true;	// Cannot run at this time
+				m_running = true;
+				lock.unlock();
+				bool activate = Queue::run_some(o,n);
+				lock.lock();
+				m_running = false;
+				return activate;
+			}
+			
 		private:
+			std::mutex m_mutex;
 			bool m_running;
 		};
 		
