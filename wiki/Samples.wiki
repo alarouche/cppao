@@ -80,6 +80,16 @@ Demonstrates:
 
   * Returning results in a promise.
 
+=Queue control=
+[http://code.google.com/p/cppao/source/browse/trunk/samples/queue_control.cpp]
+
+Sends a high priority shutdown message to an AO to clear its pending message queue.
+
+Demonstrates:
+  * The `active::advanced` object type.
+  * Prioritising messages.
+  * Clearing the message queue.
+
 =Exceptions=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/exception.cpp]
 
