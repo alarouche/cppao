@@ -23,8 +23,12 @@ namespace active
 		T get()
 		{
 			auto fut = m_value.get_future();
-			while( !fut.valid() )	// gcc/clang calls it valid()
-				steal();	// Avoid blocking the thread.
+			while( !fut.valid() && steal() )	// gcc/clang calls it valid()
+			{
+				// Do some work whilst waiting for the promise to be fulfilled.
+				// However if steal() returns false, it means that there
+				// is no more work (for now).
+			}
 			return fut.get();
 		}
 	private:

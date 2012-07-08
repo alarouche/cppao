@@ -2,12 +2,9 @@
 
 #include <active/shared.hpp>
 #include <active/promise.hpp>
-
 #include <iostream>
 
-#include <active/advanced.hpp>
-#include <active/fast.hpp>
-typedef active::fast ao_type;
+typedef active::direct ao_type;
 
 struct fib : public active::shared<fib, ao_type>, public active::sink<int>
 {
@@ -27,7 +24,7 @@ struct fib : public active::shared<fib, ao_type>, public active::sink<int>
 				lhs = { calculate.value-1, shared_from_this() }, 
 				rhs = { calculate.value-2, shared_from_this() };
 			
-			// Note: AO destroyed after its last message.
+			// Note: temporary AO destroyed only after its last message.
 			(*std::make_shared<fib>())(lhs);
 			(*std::make_shared<fib>())(rhs);
 		}
@@ -41,7 +38,7 @@ struct fib : public active::shared<fib, ao_type>, public active::sink<int>
 	
 	ACTIVE_METHOD( sub_result )
 	{
-		if( m_total ) (*m_result)(m_total+sub_result); //, m_result.reset();
+		if( m_total ) (*m_result)(m_total+sub_result);
 		else m_total = sub_result;
 	}
 	
@@ -52,7 +49,7 @@ private:
 
 int main(int argc, char**argv)
 {
-	if( argc<2 ) {std::cout << "Usage: fib N\n"; return 1; }
+	if( argc<2 ) { std::cout << "Usage: fib N\n"; return 1; }
 	auto result = std::make_shared<active::promise<int>>();
 	fib::calculate calc = { atoi(argv[1]), result };
 	(*std::make_shared<fib>())(calc);
