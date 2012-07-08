@@ -5,7 +5,7 @@
 || `active/advanced.hpp` || Implements a more sophisticated AO type || `advanced` ||
 || `active/direct.hpp` || Non-mutexed objects. || `direct` ||
 || `active/fast.hpp` || || `fast` ||
-|| `active/object.hpp` || The main include file, which includes all of the basics. || `ACTIVE_METHOD`, `ACTIVE_IMPL`, `ACTIVE_IFACE`, `ACTIVE_TEMPLATE`, `any_object`, `default_scheduler`, `object`, [#active::object_impl object_impl], `run`, `sink` ||
+|| `active/object.hpp` || The main include file, which includes all of the basics. || `ACTIVE_METHOD`, `ACTIVE_IMPL`, `ACTIVE_IFACE`, `ACTIVE_TEMPLATE`, `any_object`, `default_scheduler`, [#active::object object], [#active::object_impl object_impl], `run`, `sink` ||
 || `active/promise.hpp` || || `promise` ||
 || `active/scheduler.hpp` || || `scheduler` ||
 || `active/separate.hpp` || || `separate` ||
@@ -18,10 +18,11 @@ All declarations are in the namespace `active`.
 
 = Classes =
 == active::object_impl ==
-
+control various aspects of the implementation.
 {{{
 template<typename Schedule, typename Queueing, typename Sharing> class object_impl;
 }}}
+This class is the generic implementation type for all active objects. Template parameters are used to 
 
 Types:
 
@@ -30,6 +31,7 @@ Types:
 || `sharing_type` || `Sharing` ||
 || `scheduler_type` || Usually `active::scheduler` ||
 || `allocator_type` || `Queueing::allocator_type` ||
+|| `size_type` || ||
 
 Methods:
 
@@ -55,6 +57,7 @@ Options for `Queueing`:
 || `template<typename Allocator=std::allocator<void>> struct active::queueing::shared` || Messages are queued as per normal AO semantics. ||
 || `template<typename Allocator=std::allocator<void>> struct active::queueing::separate` || Alternative implementation. ||
 || `template<typename Q> struct active::queueing::steal` || Directly executes the message handler if the object is idle. ||
+|| `template<typename Allocator=std::allocator<void>> struct active::queueing::advanced` || A more sophisticated queueing implementation. ||
 
 Options for `Sharing`:
 
@@ -68,48 +71,67 @@ This class is completely thread-safe, except during construction and destruction
 == active::object ==
 
 {{{
-typedef object_impl<schedule::thread_pool, queueing::shared, sharing::disabled> object;
+typedef object_impl<...> object;
 }}}
 
 This implements the default AO type.
 
 == active::shared == 
 {{{
-template<typename T>
-struct shared : public object_impl<schedule::thread_pool, queueing::shared, sharing::enabled<T>>
+template<typename T, typename Base=object>
+struct shared : public object_impl<Base>
 {
     ...
+    typedef object_impl<...> type;
+    typedef std::shared_ptr<T> ptr;
 };
 }}}
 This implements the default AO type for shared pointers.
+
 == active::fast ==
 {{{
-typedef object_impl<schedule::thread_pool, queuing::steal<queueing::shared>, sharing::disabled> thread;
+typedef object_impl<...> fast;
 }}}
 
 == active::thread ==
 {{{
-typedef object_impl<schedule::own_thread, queueing::shared, sharing::disabled> thread;
-}}}
-
-== active::shared_thread ==
-{{{
-template<typename T>
-struct shared : public object_impl<schedule::own_thread, queueing::shared, sharing::enabled<T>>
-{
-   ...
-};
+typedef object_impl<...> thread;
 }}}
 
 == active::synchronous ==
 {{{
-typedef object_impl<schedule::none, queueing::mutexed_call, sharing::disabled> synchronous;
+typedef object_impl<...> synchronous;
 }}}
 
 == active::direct ==
 {{{
-typedef object_impl<schedule::none, queueing::direct_call, sharing::disabled> direct;
+typedef object_impl<...> direct;
 }}}
+
+== active::advanced ==
+{{{
+typedef object_impl<...> advanced;
+}}}
+
+Additional methods of this class:
+
+|| size_type size() const || Returns the number of messages waiting.||
+|| void clear () || Removes all pending messages. Protected method only callable from active methods. ||
+|| void set_capacity(size_type) || Sets the new capacity (maximum number of queued messages. Attempts to exceed the capacity result in the exception `std::bad_alloc` || 
+
+In addition there is the function
+
+{{{
+namespace active
+{
+    template<typename T> int priority(const T&)
+    {
+        return 0;
+    }
+}
+}}}
+
+which can be used to assign a priority to any message type (which may or may not depend on the contents as well as the type of the message). Note that the default priority is 0.
 
 == active::scheduler ==
 Schedules the message processing on a collection of active objects.
@@ -125,6 +147,7 @@ Methods:
 || `~scheduler()` || Must not be called during `run()`. ||
 || `void run()` || Runs the scheduler in a single thread. Can be called concurrently from multiple threads. ||
 || `void run(int threads)` || Runs the scheduler using the specified number of threads. Must not be called concurrently from multiple threads. ||
+|| bool run_one() || Runs one AO, returns true if there is more work to do. ||
 
 == active::run ==
 Runs a scheduler in a thread pool. Note that this class is often used as a function.
@@ -146,6 +169,7 @@ struct sink
 };
 }}}
 Provides a pure virtual base class for accepting messages.
+
 == active::promise ==
 Provides a promise/future mechanism for returning results from AOs.
 {{{
@@ -160,7 +184,7 @@ Typenames:
 
 Methods:
 || `promise()` || Default constructor. ||
-|| `std::future<T> get_future()` || Returns a future for the promise. ||  
+|| `T get()` || Blocking call to retrieve the value. ||  
 
 = Global variables =
 == active::default_scheduler ==
@@ -182,6 +206,12 @@ Defines a message handler as a virtual method. `MSG` must name a type.
 #define ACTIVE_METHOD( MSG ) ...
 }}}
 Declares or defines an active method (message handler) in a class. `MSG` must name a type.
+
+== ACTIVE_TEMPLATE ==
+{{{
+#define ACTIVE_TEMPLATE( MSG ) ...
+}}}
+This class behaves like `ACTIVE_METHOD` but can be used in a templates class. Note that the type name `queue_type` must be defined prior to using this macro.
 
 == ACTIVE_IMPL ==
 
