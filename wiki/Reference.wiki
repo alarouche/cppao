@@ -5,7 +5,7 @@
 || `active/advanced.hpp` || Implements a more sophisticated AO type || `advanced` ||
 || `active/direct.hpp` || Non-mutexed objects. || `direct` ||
 || `active/fast.hpp` || || `fast` ||
-|| `active/object.hpp` || The main include file, which includes all of the basics. || `ACTIVE_METHOD`, `ACTIVE_IMPL`, `ACTIVE_IFACE`, `ACTIVE_TEMPLATE`, `any_object`, `default_scheduler`, `object`, `object_impl`, `run`, `sink` ||
+|| `active/object.hpp` || The main include file, which includes all of the basics. || `ACTIVE_METHOD`, `ACTIVE_IMPL`, `ACTIVE_IFACE`, `ACTIVE_TEMPLATE`, `any_object`, `default_scheduler`, `object`, [#active__object_impl `object_impl`], `run`, `sink` ||
 || `active/promise.hpp` || || `promise` ||
 || `active/scheduler.hpp` || || `scheduler` ||
 || `active/separate.hpp` || || `separate` ||
