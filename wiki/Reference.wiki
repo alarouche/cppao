@@ -172,6 +172,7 @@ template<typename T>
 struct sink
 {
     ACTIVE_IFACE(T);
+    typedef std::shared_ptr<T> sp;
 };
 }}}
 Provides a pure virtual base class for accepting messages.
