@@ -2,16 +2,16 @@
 
 = Header files=
 || Header file || Description || Definitions ||
-|| `active/advanced.hpp` || Implements a more sophisticated AO type || `advanced` ||
-|| `active/direct.hpp` || Non-mutexed objects. || `direct` ||
+|| `active/advanced.hpp` || Implements a more sophisticated AO type || [#active::advanced advanced] ||
+|| `active/direct.hpp` || Non-mutexed objects. || [#active::direct direct] ||
 || `active/fast.hpp` || || `fast` ||
-|| `active/object.hpp` || The main include file, which includes all of the basics. || `ACTIVE_METHOD`, `ACTIVE_IMPL`, `ACTIVE_IFACE`, `ACTIVE_TEMPLATE`, `any_object`, `default_scheduler`, [#active::object object], [#active::object_impl object_impl], `run`, `sink` ||
-|| `active/promise.hpp` || || `promise` ||
-|| `active/scheduler.hpp` || || `scheduler` ||
-|| `active/separate.hpp` || || `separate` ||
-|| `active/shared.hpp` || Additional support for shared pointers. || `shared` ||
-|| `active/synchronous.hpp` || || `synchronous` ||
-|| `active/thread.hpp` || Running AOs in a dedicated OS thread. || `thread` ||
+|| `active/object.hpp` || The main include file, which includes all of the basics. || [#ACTIVE_METHOD ACTIVE_METHOD], [#ACTIVE_IMPL ACTIVE_IMPL], [#ACTIVE_IFACE ACTIVE_IFACE], [#ACTIVE_TEMPLATE ACTIVE_TEMPLATE], `any_object`, [#active::default_scheduler default_scheduler], [#active::object object], [#active::object_impl object_impl], [#active::run run], [#active::sink sink] ||
+|| `active/promise.hpp` || || [#active::promise promise] ||
+|| `active/scheduler.hpp` || || [#active::scheduler scheduler] ||
+|| `active/separate.hpp` || || [#active::separate separate] ||
+|| `active/shared.hpp` || Additional support for shared pointers. || [#active::shared shared] ||
+|| `active/synchronous.hpp` || || [#active::synchronous synchronous] ||
+|| `active/thread.hpp` || Running AOs in a dedicated OS thread. || [#active::thread thread] ||
 
 = Namespace =
 All declarations are in the namespace `active`.
