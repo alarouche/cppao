@@ -30,7 +30,7 @@ struct Thread : public Object
 
 // template<typename Schedule, typename Queue,typename Shared>
 template<typename Object>
-void bench_object(Object, int N, bool output=true)
+void bench_object(Object, int N, bool output)
 {
 	typedef Thread<Object> type;
 	std::shared_ptr<type> thread[503];
@@ -60,62 +60,57 @@ void bench_object(Object, int N, bool output=true)
 	}
 }
 
+template<typename Object>
+void bench_object(Object obj, int N)
+{
+	bench_object(obj,N,false);
+	bench_object(obj,N,true);
+}
 
 int main(int argc, char**argv)
 {
 	int N = argc>1 ? atoi(argv[1]) : 100000;
 
-	// Churn up memory a little
-	bench_object( active::direct(), 10000, false );
-	bench_object( active::shared<active::any_object,active::direct>(), 10000, false );
-	bench_object( active::shared<active::any_object,active::direct>(), 10000, false );
-
-	// Now run tests
 	std::cout << "1:  direct              ";
-	bench_object( active::direct(), 10000 );
+	bench_object( active::direct(), 20000 );
 	
-	bench_object( active::shared<active::any_object,active::direct>(), 10000, false );
+	std::cout << "2:  shared<direct>      ";
+	bench_object( active::direct(), 20000 );
 
-	std::cout << "2:  synchronous         ";
-	bench_object( active::synchronous(), 10000 );
+	std::cout << "3:  synchronous         ";
+	bench_object( active::synchronous(), 20000 );
 
-	std::cout << "3:  shared<synchronous> ";
-	bench_object( active::shared<active::any_object,active::synchronous>(), 10000 );
+	std::cout << "4:  shared<synchronous> ";
+	bench_object( active::shared<active::any_object,active::synchronous>(), 20000 );
 
-	std::cout << "4:  fast                ";
+	std::cout << "5:  fast                ";
 	bench_object( active::fast(), N );
 
-	std::cout << "5:  shared<fast>        ";
+	std::cout << "6:  shared<fast>        ";
 	bench_object( active::shared<active::any_object, active::fast>(), N );
 
-	std::cout << "6:  object              ";
+	std::cout << "7:  object              ";
 	bench_object( active::object(), N );
-	std::cout << "7:  shared<object>      ";
+
+	std::cout << "8:  shared<object>      ";
 	bench_object( active::shared<active::any_object>(), N );
 
-	std::cout << "8:  separate            ";
+	std::cout << "9:  separate            ";
 	bench_object( active::separate(), N );
 
-	std::cout << "9:  shared<separate>    ";
+	std::cout << "10: shared<separate>    ";
 	bench_object( active::shared<active::any_object,active::separate>(), N );
 
-	std::cout << "10: advanced            ";
+	std::cout << "11: advanced            ";
 	bench_object( active::advanced(), N );
-	std::cout << "11: shared<advanced>    ";
+
+	std::cout << "12: shared<advanced>    ";
 	bench_object( active::shared<active::any_object,active::advanced>(), N );
 
-	std::cout << "12: thread              ";
-	std::this_thread::sleep_for(std::chrono::seconds(1));
-	bench_object( active::thread(), N );
-	std::this_thread::sleep_for(std::chrono::seconds(1));
-	std::cout << "12: thread              ";
+	std::cout << "13: thread              ";
 	bench_object( active::thread(), N );
 
-	std::this_thread::sleep_for(std::chrono::seconds(1));
-	std::cout << "13: shared<thread>      ";
-	bench_object( active::shared<active::any_object,active::thread>(), N );
-
-	std::this_thread::sleep_for(std::chrono::seconds(1));
-	std::cout << "13: shared<thread>      ";
+	std::cout << "14: shared<thread>      ";
 	bench_object( active::shared<active::any_object,active::thread>(), N );
 }
+
