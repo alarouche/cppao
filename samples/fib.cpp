@@ -1,4 +1,4 @@
-// Naive fibonacci calculation
+// Naive Fibonacci calculation
 
 #include <active/shared.hpp>
 #include <active/promise.hpp>
