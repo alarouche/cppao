@@ -3,17 +3,16 @@
 
 class HelloActive : public active::object
 {
-public:
-	typedef const char * msg;
-	ACTIVE_METHOD(msg)
+public:	
+	void greet(const char * msg)
 	{
-		std::cout << msg << std::endl;
+		active_method([=]{ std::cout << msg << std::endl; });
 	}
 };
 
 int main()
 {
 	HelloActive hello;
-	hello("Hello, world!");
+	hello.greet("Hello, world!");
 	active::run();
 }

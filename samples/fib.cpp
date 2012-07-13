@@ -4,7 +4,7 @@
 #include <active/promise.hpp>
 #include <iostream>
 
-typedef active::direct ao_type;
+typedef active::object ao_type;
 
 struct fib : public active::shared<fib, ao_type>, public active::sink<int>
 {
@@ -20,28 +20,28 @@ struct fib : public active::shared<fib, ao_type>, public active::sink<int>
 		{
 			m_total=0;
 			m_result = calculate.result;
-			fib::calculate 
-				lhs = { calculate.value-1, shared_from_this() }, 
+			fib::calculate
+				lhs = { calculate.value-1, shared_from_this() },
 				rhs = { calculate.value-2, shared_from_this() };
-			
+
 			// Note: temporary AO destroyed only after its last message.
 			(*std::make_shared<fib>())(lhs);
 			(*std::make_shared<fib>())(rhs);
 		}
-		else 
+		else
 		{
 			(*calculate.result)(1);
 		}
 	}
-	
+
 	typedef int sub_result;
-	
+
 	ACTIVE_METHOD( sub_result )
 	{
 		if( m_total ) (*m_result)(m_total+sub_result);
 		else m_total = sub_result;
 	}
-	
+
 private:
 	int m_total;
 	sp m_result;
