@@ -37,7 +37,7 @@ namespace active
 			bool enqueue( any_object * object, Message && msg, const Accessor&)
 			{
 				std::lock_guard<std::mutex> lock(m_mutex);
-				m_message_queue.push_back( &run<Message, Accessor> );
+				m_message_queue.push_back( [object](){ run<Message, Accessor>(object);} );
 				try
 				{
 					Accessor::active_data(object).push_back(std::forward<Message&&>(msg));
@@ -47,6 +47,14 @@ namespace active
 					m_message_queue.pop_back();
 					throw;
 				}
+				return m_message_queue.size()==1;
+			}
+			
+			template<typename Fn>
+			bool enqueue_fn(any_object * object, Fn&&fn, int)
+			{
+				std::lock_guard<std::mutex> lock(m_mutex);
+				m_message_queue.push_back(fn);
 				return m_message_queue.size()==1;
 			}
 			
@@ -64,8 +72,8 @@ namespace active
 					m_mutex.unlock();
 					try
 					{
-						ActiveRun run = m_message_queue.front();
-						(*run)(o);
+						std::function<void()> run = std::move(m_message_queue.front());
+						run();
 					}
 					catch (...)
 					{
@@ -82,7 +90,8 @@ namespace active
 			
 		private:
 			typedef void (*ActiveRun)(any_object*);
-			std::deque<ActiveRun, typename allocator_type::template rebind<ActiveRun>::other> m_message_queue;
+			// std::deque<ActiveRun, typename allocator_type::template rebind<ActiveRun>::other> m_message_queue;
+			std::deque<std::function<void()>, typename allocator_type::template rebind<std::function<void()>>::other> m_message_queue;
 			
 			template<typename Message, typename Accessor>
 			static void run(any_object*obj)

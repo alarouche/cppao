@@ -13,7 +13,7 @@
 #include <thread>
 
 #define ACTIVE_IFACE(MSG) \
-	virtual void operator()( MSG & )=0; \
+	virtual void operator()( const MSG & )=0; \
 	virtual void operator()( MSG && )=0;
 
 namespace active
@@ -128,6 +128,24 @@ namespace active
 
 				return enqueue( impl );
 			}
+			
+			template<typename Fn>
+			bool enqueue_fn( any_object * obj, Fn &&fn, int )
+			{
+				typename allocator_type::template rebind<run_impl<Fn>>::other realloc(m_allocator);
+				
+				run_impl<Fn> * impl = realloc.allocate(1);
+				try 
+				{
+					realloc.construct(impl, std::forward<Fn&&>(fn));
+				} 
+				catch (...) 
+				{
+					realloc.deallocate(impl,1);
+					throw;
+				}
+				return enqueue(impl);
+			}
 
 			bool empty() const
 			{
@@ -189,6 +207,23 @@ namespace active
 				void destroy(allocator_type&a)
 				{
 					typename allocator_type::template rebind<message_impl<Message, Accessor>>::other realloc(a);
+					realloc.destroy(this);
+					realloc.deallocate(this,1);
+				}
+			};
+			
+			template<typename Fn>
+			struct run_impl : public message
+			{
+				run_impl(Fn&&fn) : m_fn(std::forward<Fn&&>(fn)) { }
+				Fn m_fn;
+				void run(any_object*)
+				{
+					m_fn();
+				}
+				void destroy(allocator_type&a)
+				{
+					typename allocator_type::template rebind<run_impl<Fn>>::other realloc(a);
 					realloc.destroy(this);
 					realloc.deallocate(this,1);
 				}
@@ -291,6 +326,25 @@ namespace active
 		{
 			return m_queue.get_priority();
 		}
+		
+		typedef std::function<void()> run_type;
+		
+		typename queue_type::template queue_data<run_type>::type m_qd;
+		struct run_fn
+		{
+			static void active_run(any_object*, const run_type && fn) { fn(); }
+			static typename queue_type::template queue_data<run_type>::type & active_data(any_object*o) { return static_cast<object_impl*>(o)->m_qd; }
+		};
+		
+		template<typename T>
+		void active_method(T && fn, int priority=0)
+		{
+			if( m_queue.enqueue_fn(this, std::forward<T&&>(fn), priority))
+			{
+				m_share.activate(this);
+				m_schedule.activate(m_share.pointer(this));
+			}
+		}
 
 	protected:
 		// Clear all pending messages. Only callable from active methods.
@@ -322,9 +376,11 @@ namespace active
 	template<typename C> struct run_##MSG { \
 		static void active_run(::active::any_object*o, MSG&&m) { CAST<C>(o)->impl_##MSG(std::forward<MSG&&>(m)); } \
 		static TYPENAME queue_type::TEMPLATE queue_data<MSG>::type& active_data(::active::any_object*o) {return CAST<C>(o)->queue_data_##MSG; } }; \
-	void operator()(MSG && m) { this->enqueue(std::forward<MSG&&>(m), run_##MSG<decltype(this)>() ); } \
-	void operator()(MSG & m) { this->enqueue(std::move(m), run_##MSG<decltype(this)>() ); } \
+	void operator()(MSG && m) { MSG m2(m); this->active_method( [=]() mutable { this->impl_##MSG(std::move(m2)); } ); } \
+	void operator()(const MSG & m) { MSG m2(m); this->active_method( [=]() mutable { this->impl_##MSG(std::move(m2)); } ); } \
 	void ACTIVE_IMPL(MSG)
+//	void operator()(MSG && m) { this->enqueue(std::forward<MSG&&>(m), run_##MSG<decltype(this)>() ); } \
+//	void operator()(MSG & m) { this->enqueue(std::move(m), run_##MSG<decltype(this)>() ); } \
 
 
 #define ACTIVE_METHOD( MSG ) ACTIVE_METHOD2(MSG,,,static_cast)
