@@ -832,19 +832,22 @@ struct my_advanced : public active::advanced
 	{
 		set_capacity(limit);
 	}
-	ACTIVE_METHOD( msg )
+
+	void send(int msg)
 	{
-		assert( msg == previous-1 );
-		previous = msg;
+		active_method( [=] 
+		{ 
+			assert( msg==this->previous-1 ); this->previous = msg; 
+		}, msg );
 	}
 };
 
 void test_advanced_ordering()
 {
 	my_advanced obj;
-	obj(3);
-	obj(1);
-	obj(2);
+	obj.send(3);
+	obj.send(1);
+	obj.send(2);
 	active::run();
 	assert( obj.previous == 1 );
 }
@@ -852,13 +855,13 @@ void test_advanced_ordering()
 void test_advanced_queue_limit()
 {
 	my_advanced obj(3);
-	obj(1);
-	obj(2);
-	obj(3);
+	obj.send(1);
+	obj.send(2);
+	obj.send(3);
 
 	try
 	{
-		obj(6);
+		obj.send(6);
 		assert(0 && "Exception not thrown");
 	} catch (std::bad_alloc)
 	{
@@ -868,46 +871,44 @@ void test_advanced_queue_limit()
 
 struct my_advanced2 : public active::advanced
 {
-	struct msg { int i; };
-	struct msg2 { };
-	struct msg3 { };
 	int previous;
 	my_advanced2() : previous(0) { }
 
-	ACTIVE_METHOD( msg )
+	void msg(int i)
 	{
-		assert( msg.i == previous+1 );
-		previous = msg.i;
+		active_method([=]
+		{
+			assert(i==this->previous+1);
+			this->previous = i;
+		});
 	}
-
-	ACTIVE_METHOD( msg2 )
+	
+	void msg2()
 	{
-		assert( previous==0 );
+		active_method([=]
+		{
+			assert( previous==0 );
+		}, 2 );
 	}
-	ACTIVE_METHOD( msg3 )
+	
+	void msg3()
 	{
-		assert( previous==0 );
-	}
+		active_method([=]
+		{
+			assert( previous==0 );
+		}, 3 );
+	}	
 };
 
-namespace active
-{
-	template<> int priority(const my_advanced2::msg2&) { return 2; }
-	template<> int priority(const my_advanced2::msg3&) { return 3; }
-}
 
 void test_advanced_noreorder()
 {
 	my_advanced2 obj;
-	my_advanced2::msg m = {1};
-	obj( my_advanced2::msg2() );
-	obj(m);
-	m.i=2;
-	obj(m);
-	m.i=3;
-	obj(m);
-	obj( my_advanced2::msg3() );
-
+	obj.msg2();
+	obj.msg(1);
+	obj.msg(2);
+	obj.msg(3);
+	obj.msg3();
 	active::run();
 }
 

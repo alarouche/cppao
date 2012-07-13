@@ -96,6 +96,37 @@ namespace active
 				}
 			}
 			
+			template<typename Fn>
+			bool enqueue_fn(any_object *o, Fn &&fn, int priority)
+			{
+				std::lock_guard<std::mutex> lock(m_mutex);
+				if( m_messages.size() >= m_capacity ) throw std::bad_alloc();
+				
+				typename allocator_type::template rebind<fn_impl<Fn>>::other realloc(m_allocator);
+				
+				fn_impl<Fn> * impl = realloc.allocate(1);
+				
+				try
+				{
+					realloc.construct(impl, fn_impl<Fn>(std::forward<Fn&&>(fn), priority, m_sequence++)  );
+				}
+				catch(...)
+				{
+					realloc.deallocate(impl,1);
+					throw;
+				}
+				
+				try
+				{
+					return enqueue( impl );
+				}
+				catch(...)
+				{
+					impl->destroy(m_allocator);
+					throw;
+				}
+			}
+			
 			bool empty() const
 			{
 				return !m_busy && m_messages.empty();
@@ -183,6 +214,23 @@ namespace active
 				void destroy(allocator_type&a)
 				{
 					typename allocator_type::template rebind<message_impl<Message, Accessor>>::other realloc(a);
+					realloc.destroy(this);
+					realloc.deallocate(this,1);
+				}
+			};
+			
+			template<typename Fn>
+			struct fn_impl : public message
+			{
+				fn_impl(Fn&&fn, int priority, std::size_t seq) : message(priority, seq), m_fn(std::forward<Fn&&>(fn)) { }
+				Fn m_fn;
+				void run(any_object *)
+				{
+					m_fn();
+				}
+				void destroy(allocator_type&a)
+				{
+					typename allocator_type::template rebind<fn_impl<Fn>>::other realloc(a);
 					realloc.destroy(this);
 					realloc.deallocate(this,1);
 				}

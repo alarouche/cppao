@@ -32,6 +32,20 @@ namespace active
 				return false;
 			}
 			
+			template<typename Fn>
+			bool enqueue_fn( any_object * object, Fn &&fn, int )
+			{
+				std::lock_guard<std::recursive_mutex> lock(m_mutex);
+				try 
+				{
+					fn();
+				} 
+				catch (...) 
+				{
+					object->exception_handler();
+				}
+			}
+			
 			bool run_some(any_object * o, int n=100) throw();
 			
 			template<typename T>

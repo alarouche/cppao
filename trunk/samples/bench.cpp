@@ -26,6 +26,13 @@ struct Thread : public Object
 		if( token>0 )
 			(*next)(token-1);
 	}
+	
+	void send(int token)
+	{
+		this->active_method( [=]{
+			if( token>0 ) this->next->send(token-1);
+		} );
+	}
 };
 
 // template<typename Schedule, typename Queue,typename Shared>
@@ -49,6 +56,7 @@ void bench_object(Object, int N, bool output)
 
 	std::chrono::high_resolution_clock::time_point clk1=std::chrono::high_resolution_clock::now();
 	(*thread[0])(N);
+	// thread[0]->send(N);
 	active::run();
 
 	if( output )

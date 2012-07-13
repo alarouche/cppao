@@ -3,19 +3,16 @@
 
 class HelloActive : public active::object
 {
-public:
-	struct Greet { const char * message; };
-
-	ACTIVE_METHOD( Greet )
+public:	
+	void greet(const char * msg)
 	{
-		std::cout << Greet.message << std::endl;
+		active_method([=]{ std::cout << msg << std::endl; });
 	}
 };
 
 int main()
 {
 	HelloActive hello;
-	HelloActive::Greet msg = {"Hello, world!"};
-	hello(msg);
+	hello.greet("Hello, world!");
 	active::run();
 }
