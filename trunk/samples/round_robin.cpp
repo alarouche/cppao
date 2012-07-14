@@ -6,13 +6,11 @@
  * To make things interesting, we add lots of messages concurrently.
  */
 
-struct RoundRobin : public active::object
+struct RoundRobin : public active::object<RoundRobin>
 {
-   typedef int packet;
-
 	RoundRobin * next;
 
-	ACTIVE_METHOD( packet )
+	void active_method( int packet )
 	{
 		printf( "Received packed %d\n", packet );
 		if( packet>0 ) (*next)(packet-1);

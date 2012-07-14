@@ -13,15 +13,12 @@
 
 
 template<typename Object>
-struct Thread : public Object
+struct Thread : public active::object<Thread<Object>,Object>
 {
-	typedef typename Object::queue_type queue_type;
-	typedef int token;
-
 	int id;
 	Thread * next;
 
-	ACTIVE_TEMPLATE(token)
+	void active_method(int token)
 	{
 		if( token>0 )
 			(*next)(token-1);
@@ -81,36 +78,36 @@ int main(int argc, char**argv)
 	bench_object( active::synchronous(), 20000 );
 
 	std::cout << "4:  shared<synchronous> ";
-	bench_object( active::shared<active::any_object,active::synchronous>(), 20000 );
+	bench_object( active::shared<active::any_object,active::synchronous>::type(), 20000 );
 
 	std::cout << "5:  fast                ";
 	bench_object( active::fast(), N );
 
 	std::cout << "6:  shared<fast>        ";
-	bench_object( active::shared<active::any_object, active::fast>(), N );
+	bench_object( active::shared<active::any_object, active::fast>::type(), N );
 
 	std::cout << "7:  object              ";
-	bench_object( active::object(), N );
+	bench_object( active::basic(), N );
 
 	std::cout << "8:  shared<object>      ";
-	bench_object( active::shared<active::any_object>(), N );
+	bench_object( active::shared<active::any_object>::type(), N );
 
 	std::cout << "9:  separate            ";
 	bench_object( active::separate(), N );
 
 	std::cout << "10: shared<separate>    ";
-	bench_object( active::shared<active::any_object,active::separate>(), N );
+	bench_object( active::shared<active::any_object,active::separate>::type(), N );
 
 	std::cout << "11: advanced            ";
 	bench_object( active::advanced(), N );
 
 	std::cout << "12: shared<advanced>    ";
-	bench_object( active::shared<active::any_object,active::advanced>(), N );
+	bench_object( active::shared<active::any_object,active::advanced>::type(), N );
 
 	std::cout << "13: thread              ";
 	bench_object( active::thread(), N );
 
 	std::cout << "14: shared<thread>      ";
-	bench_object( active::shared<active::any_object,active::thread>(), N );
+	bench_object( active::shared<active::any_object,active::thread>::type(), N );
 }
 

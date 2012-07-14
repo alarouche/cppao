@@ -1,7 +1,7 @@
 #include "active/object.hpp"
 #include <iostream>
 
-class PingPong : public active::object
+class PingPong : public active::object<PingPong>
 {
 public:
 	struct ping
@@ -14,7 +14,7 @@ public:
 		int remaining;
 	};
 
-	ACTIVE_METHOD( ping )
+	void active_method( ping ping )
 	{
 		std::cout << "Ping\n";
 		if( ping.remaining>0 )
@@ -24,7 +24,7 @@ public:
 		}
 	}
 
-	ACTIVE_METHOD( pong )
+	void active_method( pong pong )
 	{
 		std::cout << "Pong\n";
 		if( pong.remaining>0 )

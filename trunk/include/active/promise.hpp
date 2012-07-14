@@ -10,20 +10,20 @@ namespace active
 {
 	template<typename T>
 	struct promise : 
-		public object_impl<schedule::thread_pool, queueing::direct_call, sharing::disabled>, 
+		public object<promise<T>, object_impl<schedule::thread_pool, queueing::direct_call, sharing::disabled>>, 
 		public active::sink<T>
 	{
 		typedef T value_type;
 		
-		ACTIVE_TEMPLATE(value_type) 
+		void active_method(value_type && v) 
 		{ 
-			m_value.set_value(value_type); 
+			m_value.set_value(v); 
 		}
 
 		T get()
 		{
 			auto fut = m_value.get_future();
-			while( !fut.valid() && steal() )	// gcc/clang calls it valid()
+			while( !fut.valid() && this->steal() )	// gcc/clang calls it valid()
 			{
 				// Do some work whilst waiting for the promise to be fulfilled.
 				// However if steal() returns false, it means that there

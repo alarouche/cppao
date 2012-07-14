@@ -5,7 +5,7 @@ const int num_cols=60;
 
 // Active object representing a display device.
 
-class Display : public active::object
+class Display : public active::object<Display>
 {
 public:
 	// List of messages:
@@ -21,8 +21,8 @@ public:
 	struct redraw { };
 
 	// Implementation:
-	ACTIVE_METHOD( cell_update );
-	ACTIVE_METHOD( redraw );
+	void active_method( cell_update&& );
+	void active_method( redraw&& );
 
 	Display();
 private:
@@ -33,7 +33,7 @@ private:
 class Controller;
 
 // Active object representing a cell in the grid.
-class Cell : public active::object
+class Cell : public active::object<Cell>
 {
 public:
 
@@ -41,19 +41,19 @@ public:
 
 	// Notify that a neighbour is connected
 	struct add_neighbour { Cell * neighbour; } ;
-	ACTIVE_METHOD( add_neighbour );
+	void active_method( add_neighbour&& );
 
 	// Notify all neighbours of our status
 	struct notify_neighbours { };
-	ACTIVE_METHOD( notify_neighbours );
+	void active_method( notify_neighbours&& );
 
 	// Notification from our neighbours
 	struct notification{ bool alive; };
-	ACTIVE_METHOD( notification );
+	void active_method( notification&& );
 
 	// Compute our own status
 	struct compute { };
-	ACTIVE_METHOD( compute );
+	void active_method( compute&& );
 
 	bool is_alive;
 	int x,y;	// Position of cell in the grid
@@ -66,22 +66,22 @@ private:
 };
 
 // Active object to control the entire game.
-class Controller : public active::object
+class Controller : public active::object<Controller>
 {
 public:
 	// Messages:
 
 	// Kick off computation
 	struct compute { };
-	ACTIVE_METHOD(compute);
+	void active_method(compute&&);
 
 	// Cells notify when they have notified all of their neighbours
 	struct notification_complete { };
-	ACTIVE_METHOD( notification_complete );
+	void active_method( notification_complete&& );
 
 	// Cells notify when they have completed their computation
 	struct compute_complete { };
-	ACTIVE_METHOD( compute_complete );
+	void active_method( compute_complete&& );
 
 	Controller( active::scheduler & tp, int seed );
 private:

@@ -21,11 +21,11 @@ namespace active
 		};
 	}
 
-	template<typename T=any_object, typename Object=object> struct shared;
+	template<typename T=any_object, typename Object=basic> struct shared;
 
 	template<typename T, typename Schedule, typename Queue, typename Share>
 	struct shared<T, object_impl<Schedule, Queue, Share>> :
-		public object_impl<Schedule, Queue, sharing::enabled<T>>
+		public object<T, object_impl<Schedule, Queue, sharing::enabled<T>>>
 	{
 		typedef std::shared_ptr<T> ptr;
 		typedef object_impl<Schedule, Queue, sharing::enabled<T>> type;

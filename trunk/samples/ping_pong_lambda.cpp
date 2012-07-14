@@ -1,7 +1,7 @@
 #include "active/object.hpp"
 #include <iostream>
 
-class PingPong : public active::object
+class PingPong : public active::object<PingPong>
 {
 public:
 	void ping(int remaining)

@@ -34,7 +34,7 @@ private:
 	const int prime;
 };
 
-class Source : public active::object
+class Source : public active::object<Source>
 {
 public:
 	typedef int number;

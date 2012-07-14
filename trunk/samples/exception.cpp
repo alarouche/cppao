@@ -1,7 +1,7 @@
 #include <active/object.hpp>
 #include <iostream>
 
-struct ex_object : public active::object
+struct ex_object : public active::object<ex_object>
 {
 	struct msg {};
 
@@ -10,7 +10,7 @@ struct ex_object : public active::object
 		the_unthinkable() : std::runtime_error("This could never happen") { }
 	};
 
-	ACTIVE_METHOD(msg)
+	void active_method(msg)
 	{
 		throw the_unthinkable();
 	}
@@ -28,7 +28,7 @@ struct ex_object : public active::object
 		catch(...)
 		{
 			// Invoke default handler
-			active::object::exception_handler();
+			active::basic::exception_handler();
 		}
 	}
 };

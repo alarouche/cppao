@@ -6,9 +6,7 @@
 #include <queue>
 
 namespace active
-{
-	template<typename T> int priority(const T&) { return 0; }
-	
+{	
 	struct prioritize
 	{
 		template<typename T>

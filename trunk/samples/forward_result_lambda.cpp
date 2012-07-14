@@ -1,7 +1,7 @@
 #include <active/object.hpp>
 #include <iostream>
 
-class ComputationHandler : public active::object
+class ComputationHandler : public active::object<ComputationHandler>
 {
 public:
 	int ready(int result)
@@ -10,7 +10,7 @@ public:
 	}
 };
 
-class ComplexComputation : public active::object
+class ComplexComputation : public active::object<ComplexComputation>
 {
 public:
 	void compute(int a, int b, ComputationHandler & result)

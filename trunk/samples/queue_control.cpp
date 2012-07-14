@@ -1,12 +1,23 @@
 #include <active/advanced.hpp>
 #include <iostream>
 
+struct Shutdown { };
+
+namespace active
+{
+	template<> int priority(const Shutdown&)
+	{
+		return 10;
+	}
+}
+
+
 struct Result
 {
 	int value;
 };
 
-class Computation : public active::advanced
+class Computation : public active::object<Computation,active::advanced>
 {
 public:
 	struct Compute
@@ -15,33 +26,24 @@ public:
 		active::sink<Result> & result;
 	};
 
-	ACTIVE_METHOD( Compute )
+	void active_method( Compute&&Compute )
 	{
 		Result r = { Compute.a + Compute.b };
-		Compute.result(r);
+		Compute.result.send(r);
 	}
 
-	struct Shutdown { };
-
-	ACTIVE_METHOD( Shutdown )
+	void active_method( Shutdown )
 	{
 		std::cout << "Shutting down now...\n";
 		clear();
 	}
 };
 
-namespace active
-{
-	template<> int priority(const Computation::Shutdown&)
-	{
-		return 10;
-	}
-}
 
-class Display : public active::object, public active::sink<Result>
+class Display : public active::object<Display>, public active::sink<Result>
 {
 public:
-	ACTIVE_METHOD( Result )
+	void active_method( Result && Result )
 	{
 		std::cout << "Result of computation = " << Result.value << std::endl;
 	}
@@ -53,6 +55,6 @@ int main()
 	Display display;
 	comp( Computation::Compute({1,2,display}) );
 	comp( Computation::Compute({4,5,display}) );
-	comp( Computation::Shutdown() );
+	comp( Shutdown() );
 	active::run();
 }

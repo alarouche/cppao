@@ -39,7 +39,7 @@ active::socket::socket(int domain, int type, int protocol) :
 	if( m_fd == -1 ) throw std::runtime_error("Could not create socket");
 }
 
-void active::socket::ACTIVE_IMPL( connect_in )
+void active::socket::active_method( connect_in && connect_in )
 {
 	connect_response response;
 	int result = ::connect( m_fd, (sockaddr*)&connect_in.sa, sizeof(connect_in.sa) );
@@ -47,11 +47,11 @@ void active::socket::ACTIVE_IMPL( connect_in )
 
 	if( connect_in.response )
 	{
-		(*connect_in.response)(response);
+		connect_in.response->send(response);
 	}
 };
 
-void active::socket::ACTIVE_IMPL( bind_in )
+void active::socket::active_method( bind_in && bind_in )
 {
 	sockaddr_in response = bind_in.sa;
 	int result = ::bind( m_fd, (sockaddr*)&response, sizeof( bind_in.sa ) );
@@ -59,22 +59,22 @@ void active::socket::ACTIVE_IMPL( bind_in )
 	if( bind_in.response )
 	{
 		bind_response br = { result, errno };
-		(*bind_in.response)(br);
+		bind_in.response->send(br);
 	}
 }
 
-void active::socket::ACTIVE_IMPL( listen )
+void active::socket::active_method( listen && listen )
 {
 	int result = ::listen( m_fd, listen.backlog );
 
 	if( listen.response )
 	{
 		listen_result result_msg = { result == -1 ? 0 : errno };
-		(*listen.response)(result_msg);
+		listen.response->send(result_msg);
 	}
 }
 
-void active::socket::ACTIVE_IMPL( accept )
+void active::socket::active_method( accept&&accept )
 {
 	accept_response response;
 	response.fd = ::accept( m_fd, 0, 0 );
@@ -82,16 +82,16 @@ void active::socket::ACTIVE_IMPL( accept )
 
 	if( accept.response )
 	{
-		(*accept.response)(response);
+		accept.response->send(response);
 	}
 }
 
-void active::socket::ACTIVE_IMPL( write )
+void active::socket::active_method( write&&write )
 {
 	m_writer(write);
 }
 
-void active::socket::writer::ACTIVE_IMPL( write )
+void active::socket::writer::active_method( write&&write )
 {
 	active::socket::write_response response;
 
@@ -112,15 +112,15 @@ void active::socket::writer::ACTIVE_IMPL( write )
 		response.error = 0;
 	}
 	if( write.response )
-		(*write.response)(response);
+		write.response->send(response);
 }
 
-void active::socket::ACTIVE_IMPL( read )
+void active::socket::active_method( read&&read )
 {
 	m_reader(read);
 }
 
-void active::socket::reader::ACTIVE_IMPL( read )
+void active::socket::reader::active_method( read&&read )
 {
 	active::socket::read_response response = { 0 };
 
@@ -138,10 +138,10 @@ void active::socket::reader::ACTIVE_IMPL( read )
 		response.error = errno;
 
 	if( read.response )
-		(*read.response)(response);
+		read.response->send(response);
 }
 
-void active::socket::ACTIVE_IMPL( shutdown )
+void active::socket::active_method( shutdown&&shutdown )
 {
 	::shutdown( m_fd, shutdown.mode );
 }
@@ -166,7 +166,7 @@ active::select::select() :
 {
 }
 
-void active::select::ACTIVE_IMPL( read )
+void active::select::active_method( read&&read )
 {
 #if ENABLE_SELECT
 	// Note: We must queue the write BEFORE we interrupt the select
@@ -177,7 +177,7 @@ void active::select::ACTIVE_IMPL( read )
 #endif
 }
 
-void active::select::ACTIVE_IMPL( write )
+void active::select::active_method( write&&write )
 {
 #if ENABLE_SELECT
 	m_loop(write);
@@ -199,7 +199,7 @@ active::select::select_loop::select_loop(int fd) : m_interrupt_fd(fd)
 {
 }
 
-void active::select::select_loop::ACTIVE_IMPL( do_select )
+void active::select::select_loop::active_method( do_select&&do_select )
 {
 	if( m_readers.empty() && m_writers.empty()) return;
 
@@ -242,7 +242,7 @@ void active::select::select_loop::ACTIVE_IMPL( do_select )
 	{
 		if( FD_ISSET( r->fd, &rfds ) )
 		{
-			(*r->response)(read_ready());
+			r->response->send(read_ready());
 			r = m_readers.erase(r);
 		}
 		else
@@ -255,7 +255,7 @@ void active::select::select_loop::ACTIVE_IMPL( do_select )
 	{
 		if( FD_ISSET( w->fd, &wfds ) )
 		{
-			(*w->response)(write_ready());
+			w->response->send(write_ready());
 			w = m_writers.erase(w);
 		}
 		else
@@ -275,20 +275,21 @@ void active::select::select_loop::ACTIVE_IMPL( do_select )
 }
 
 
-void active::select::select_loop::ACTIVE_IMPL( read )
+void active::select::select_loop::active_method( read&&read )
 {
 	if( m_readers.empty() && m_writers.empty() )
 		(*this)(do_select());
 	m_readers.push_back(read);
 }
 
-void active::select::select_loop::ACTIVE_IMPL( write )
+void active::select::select_loop::active_method( write&&write )
 {
 	//std::cout << "select_loop::write\n";
 	if( m_readers.empty() && m_writers.empty() )
 		(*this)(do_select());
 	m_writers.push_back(write);
 }
+
 
 ////////////////////////////////////////////////////////////////////////
 // Pipe
@@ -301,19 +302,19 @@ active::pipe::pipe(socket::ptr input,
 {
 }
 
-void active::pipe::ACTIVE_IMPL( start )
+void active::pipe::active_method( start&&start )
 {
 	select::read read = { m_input->m_fd, shared_from_this() };
 	(*m_select)(read);
 }
 
-void active::pipe::ACTIVE_IMPL( read_ready )
+void active::pipe::active_method( read_ready&&read_ready )
 {
 	socket::read read = { m_buffer, sizeof(m_buffer), shared_from_this() };
 	(*m_input)(read);
 }
 
-void active::pipe::ACTIVE_IMPL( read_response )
+void active::pipe::active_method( read_response&&read_response )
 {
 	if( read_response.error )
 	{
@@ -323,7 +324,7 @@ void active::pipe::ACTIVE_IMPL( read_response )
 		(*m_output)(sw);
 
 		if( m_closed_response )
-			(*m_closed_response)(closed());
+			m_closed_response->send(closed());
 	}
 	else
 	{
@@ -334,18 +335,18 @@ void active::pipe::ACTIVE_IMPL( read_response )
 	}
 }
 
-void active::pipe::ACTIVE_IMPL( write_ready )
+void active::pipe::active_method( write_ready&&write_ready )
 {
 	socket::write write = { m_write_buffer, m_write_remaining, shared_from_this() };
 	(*m_output)(write);
 }
 
-void active::pipe::ACTIVE_IMPL( write_response )
+void active::pipe::active_method( write_response&&write_response )
 {
 	if( write_response.error )
 	{
 		if( m_closed_response )
-			(*m_closed_response)(closed());
+			m_closed_response->send(closed());
 	}
 	else
 	{

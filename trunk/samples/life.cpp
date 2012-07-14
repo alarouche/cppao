@@ -54,7 +54,7 @@ Controller::Controller( active::scheduler & tp, int seed )
 		}
 }
 
-void Controller::ACTIVE_IMPL(compute)
+void Controller::active_method(compute&&compute)
 {
 	progress = total_cells;
 	for(int x=0; x<num_cols; ++x)
@@ -63,7 +63,7 @@ void Controller::ACTIVE_IMPL(compute)
 }
 
 
-void Controller::ACTIVE_IMPL( compute_complete )
+void Controller::active_method( compute_complete&& )
 {
 	if( --progress == 0 )
 	{
@@ -74,7 +74,7 @@ void Controller::ACTIVE_IMPL( compute_complete )
 	}
 }
 
-void Controller::ACTIVE_IMPL( notification_complete )
+void Controller::active_method( notification_complete&& )
 {
 	if( --progress == 0 )
 	{
@@ -89,17 +89,17 @@ Cell::Cell() : alive_neighbours(0)
 {
 }
 
-void Cell::ACTIVE_IMPL( add_neighbour )
+void Cell::active_method( add_neighbour&&add_neighbour )
 {
 	neighbours.push_back( add_neighbour.neighbour );
 }
 
-void Cell::ACTIVE_IMPL( notification )
+void Cell::active_method( notification&&notification )
 {
 	alive_neighbours += notification.alive;
 }
 
-void Cell::ACTIVE_IMPL( notify_neighbours )
+void Cell::active_method( notify_neighbours&& )
 {
 	notification n = {is_alive};
 
@@ -109,7 +109,7 @@ void Cell::ACTIVE_IMPL( notify_neighbours )
 	(*controller)(Controller::notification_complete());
 }
 
-void Cell::ACTIVE_IMPL( compute )
+void Cell::active_method( compute&& )
 {
 	if( is_alive && alive_neighbours<2 ) is_alive=false;
 	else if( is_alive && alive_neighbours<=3 ) is_alive=true;
@@ -128,12 +128,12 @@ Display::Display() : generation(1)
 {
 }
 
-void Display::ACTIVE_IMPL( cell_update )
+void Display::active_method( cell_update&&cell_update )
 {
 	grid[cell_update.x][cell_update.y]=cell_update.alive;
 }
 
-void Display::ACTIVE_IMPL( redraw )
+void Display::active_method( redraw&& )
 {
 	std::cout << "\n";
 	for(int y=0; y<num_rows; ++y)
