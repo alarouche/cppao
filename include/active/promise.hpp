@@ -34,6 +34,16 @@ namespace active
 	private:
 		std::promise<value_type> m_value;
 	};
+	
+	template<typename T>
+	T wait(std::promise<T> & promise, scheduler & sched = default_scheduler)
+	{
+		auto fut = promise.get_future();
+		while( !fut.valid() && sched.run_one() )
+		{
+		}
+		return fut.get();
+	}	
 }
 
 #endif

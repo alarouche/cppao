@@ -15,7 +15,7 @@ class ComplexComputation : public active::object
 public:
 	void compute(int a, int b, ComputationHandler & result)
 	{
-		active_method([a,b,&result]{result.ready(a+b);});
+		active_fn([a,b,&result]{result.ready(a+b);});
 	}
 };
 

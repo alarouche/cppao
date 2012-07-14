@@ -1,19 +1,18 @@
 #include <active/object.hpp>
 #include <iostream>
 
-class HelloActive : public active::object
+class HelloActive : public active::handle_object<HelloActive>
 {
 public:
-	typedef const char * msg;
-	ACTIVE_METHOD(msg)
+	void active_method(const char * msg1, const char * msg2)
 	{
-		std::cout << msg << std::endl;
+		std::cout << msg1 << ", " << msg2 << "!\n";
 	}
 };
 
 int main()
 {
 	HelloActive hello;
-	hello("Hello, world!");
+	hello("Hello", "world");
 	active::run();
 }

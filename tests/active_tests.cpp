@@ -835,7 +835,7 @@ struct my_advanced : public active::advanced
 
 	void send(int msg)
 	{
-		active_method( [=] 
+		active_fn( [=] 
 		{ 
 			assert( msg==this->previous-1 ); this->previous = msg; 
 		}, msg );
@@ -876,7 +876,7 @@ struct my_advanced2 : public active::advanced
 
 	void msg(int i)
 	{
-		active_method([=]
+		active_fn([=]
 		{
 			assert(i==this->previous+1);
 			this->previous = i;
@@ -885,7 +885,7 @@ struct my_advanced2 : public active::advanced
 	
 	void msg2()
 	{
-		active_method([=]
+		active_fn([=]
 		{
 			assert( previous==0 );
 		}, 2 );
@@ -893,7 +893,7 @@ struct my_advanced2 : public active::advanced
 	
 	void msg3()
 	{
-		active_method([=]
+		active_fn([=]
 		{
 			assert( previous==0 );
 		}, 3 );

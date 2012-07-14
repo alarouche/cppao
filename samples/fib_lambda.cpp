@@ -15,7 +15,7 @@ struct fib : public active::shared<fib, ao_type>, public fib_result
 {
 	void calculate(int value, std::shared_ptr<fib_result> result)
 	{
-		active_method([=]
+		active_fn([=]
 		{
 			if( value > 2 )
 			{
@@ -33,7 +33,7 @@ struct fib : public active::shared<fib, ao_type>, public fib_result
 
 	void sub_result(int value)
 	{
-		active_method([=]
+		active_fn([=]
 		{
 			if(this->m_total)
 				this->m_result->sub_result(m_total+value);

@@ -12,19 +12,18 @@ class Prime : public active::shared<Prime>
 public:
 	Prime(int p) : prime(p) { std::cout << p << "\n"; }
 
-	typedef int filter;
-
-	ACTIVE_METHOD(filter)
+	void filter(int i)
 	{
-		if(filter % prime)
+		active_fn( [=]
 		{
-			if(next)
-				(*next)(filter);
-			else
-				next = std::make_shared<Prime>(filter);
-		}
+			if( i % prime )
+			{
+				if(next) next->filter(i);
+				else next = std::make_shared<Prime>(i);
+			}
+		} );
 	}
-
+	
 private:
 	ptr next;
 	const int prime;
@@ -37,16 +36,16 @@ public:
 
 	Source(int m) : max(m) { }
 
-	ACTIVE_METHOD(number)
+	void source(int number )
 	{
-		if(head)
-			(*head)(number);
-		else
-			head = std::make_shared<Prime>(number);
-
-		if( number < max )
-			(*this)(number+1);
+		active_fn( [=]
+		{
+			if( head) head->filter(number);
+			else head = std::make_shared<Prime>(number);
+			if(number<max) source(number+1);
+		} );
 	}
+	
 private:
 	Prime::ptr head;
 	const int max;
@@ -56,6 +55,6 @@ int main(int argc, char**argv)
 {
 	int max = argc<2 ? 100000 : atoi(argv[1]);
 	Source source(max);
-	source(2);
+	source.source(2);
 	active::run();
 }

@@ -15,21 +15,13 @@
 template<typename Object>
 struct Thread : public Object
 {
-	typedef typename Object::queue_type queue_type;
-	typedef int token;
-
 	int id;
 	Thread * next;
-
-	ACTIVE_TEMPLATE(token)
-	{
-		if( token>0 )
-			(*next)(token-1);
-	}
 	
 	void send(int token)
 	{
-		this->active_method( [=]{
+		this->active_fn( [=]
+		{
 			if( token>0 ) this->next->send(token-1);
 		} );
 	}
@@ -55,8 +47,7 @@ void bench_object(Object, int N, bool output)
 	thread[502]->next = thread[0].get();
 
 	std::chrono::high_resolution_clock::time_point clk1=std::chrono::high_resolution_clock::now();
-	(*thread[0])(N);
-	// thread[0]->send(N);
+	thread[0]->send(N);
 	active::run();
 
 	if( output )
