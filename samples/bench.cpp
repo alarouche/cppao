@@ -1,7 +1,6 @@
 
 #include <active/object.hpp>
 #include <active/thread.hpp>
-#include <active/separate.hpp>
 #include <active/advanced.hpp>
 #include <active/shared.hpp>
 #include <active/direct.hpp>
@@ -92,22 +91,16 @@ int main(int argc, char**argv)
 	std::cout << "8:  shared<object>      ";
 	bench_object( active::shared<active::any_object>::type(), N );
 
-	std::cout << "9:  separate            ";
-	bench_object( active::separate(), N );
-
-	std::cout << "10: shared<separate>    ";
-	bench_object( active::shared<active::any_object,active::separate>::type(), N );
-
-	std::cout << "11: advanced            ";
+	std::cout << "9: advanced            ";
 	bench_object( active::advanced(), N );
 
-	std::cout << "12: shared<advanced>    ";
+	std::cout << "10: shared<advanced>    ";
 	bench_object( active::shared<active::any_object,active::advanced>::type(), N );
 
-	std::cout << "13: thread              ";
+	std::cout << "11: thread              ";
 	bench_object( active::thread(), N );
 
-	std::cout << "14: shared<thread>      ";
+	std::cout << "12: shared<thread>      ";
 	bench_object( active::shared<active::any_object,active::thread>::type(), N );
 }
 
