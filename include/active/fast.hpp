@@ -19,14 +19,14 @@ namespace active
 			
 			steal(const steal&) : m_running(false) { }
 			
-			template<typename Message, typename Accessor>
-			bool enqueue( any_object * object, Message && msg, const Accessor& accessor)
+			template<typename Fn>
+			bool enqueue_fn( any_object * object, Fn && fn, int priority)
 			{
 				std::unique_lock<std::mutex> lock(m_mutex);
 				
 				if( m_running )
 				{
-					return Queue::enqueue( object, std::forward<Message&&>(msg), accessor );
+					return Queue::enqueue_fn( object, std::forward<Fn&&>(fn), priority );
 				}
 				else
 				{
@@ -34,7 +34,7 @@ namespace active
 					lock.unlock();
 					try
 					{
-						Accessor::active_run(object, std::forward<Message&&>(msg));
+						fn();
 					}
 					catch(...)
 					{
