@@ -4,7 +4,7 @@
 #include <active/promise.hpp>
 #include <iostream>
 
-typedef active::object ao_type;
+typedef active::basic ao_type;
 
 struct fib : public active::shared<fib, ao_type>, public active::sink<int>
 {
@@ -14,7 +14,7 @@ struct fib : public active::shared<fib, ao_type>, public active::sink<int>
 		active::sink<int>::sp result;
 	};
 
-	ACTIVE_METHOD( calculate )
+	void active_method( calculate&&calculate )
 	{
 		if( calculate.value > 2 )
 		{
@@ -30,15 +30,15 @@ struct fib : public active::shared<fib, ao_type>, public active::sink<int>
 		}
 		else
 		{
-			(*calculate.result)(1);
+			calculate.result->send(1);
 		}
 	}
 
 	typedef int sub_result;
 
-	ACTIVE_METHOD( sub_result )
+	void active_method( sub_result&&sub_result )
 	{
-		if( m_total ) (*m_result)(m_total+sub_result);
+		if( m_total ) m_result->send(m_total+sub_result);
 		else m_total = sub_result;
 	}
 

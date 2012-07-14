@@ -6,7 +6,7 @@
  * To make things interesting, we add lots of messages concurrently.
  */
 
-struct RoundRobin : public active::object
+struct RoundRobin : public active::object<RoundRobin>
 {
    typedef int packet;
 

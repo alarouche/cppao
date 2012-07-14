@@ -12,41 +12,39 @@
 #include <active/fast.hpp>
 #include <iostream>
 
-typedef const char * greeting;
-
-struct standard_object : public active::object
+struct standard_object : public active::object<standard_object>
 {
-	ACTIVE_METHOD(greeting) { std::cout << "Standard object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { std::cout << "Standard object says " << greeting << std::endl; }
 };
 
 struct shared_object : public active::shared<shared_object>
 {
-	ACTIVE_METHOD(greeting) { std::cout << "Shared object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { std::cout << "Shared object says " << greeting << std::endl; }
 };
 
-struct fast_object : public active::fast
+struct fast_object : public active::object<fast_object, active::fast>
 {
-	ACTIVE_METHOD(greeting) { std::cout << "Fast object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { std::cout << "Fast object says " << greeting << std::endl; }
 };
 
-struct thread_object : public active::thread
+struct thread_object : public active::object<thread_object, active::thread>
 {
-	ACTIVE_METHOD(greeting) { std::cout << "Thread object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { std::cout << "Thread object says " << greeting << std::endl; }
 };
 
 struct shared_thread : public active::shared<shared_thread,active::thread>
 {
-	ACTIVE_METHOD(greeting) { std::cout << "Shared thread object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { std::cout << "Shared thread object says " << greeting << std::endl; }
 };
 
-struct direct : public active::direct
+struct direct : public active::object<direct,active::direct>
 {
-	ACTIVE_METHOD(greeting) { std::cout << "Direct object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { std::cout << "Direct object says " << greeting << std::endl; }
 };
 
-struct mutexed: public active::synchronous
+struct mutexed: public active::object<mutexed,active::synchronous>
 {
-	ACTIVE_METHOD(greeting) { std::cout << "Synchronous object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { std::cout << "Synchronous object says " << greeting << std::endl; }
 };
 
 

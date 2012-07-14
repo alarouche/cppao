@@ -1,18 +1,16 @@
 #include <active/object.hpp>
 #include <iostream>
 
-class ComputationHandler : public active::object
+class ComputationHandler : public active::object<ComputationHandler>
 {
 public:
-	typedef int result;
-
-	ACTIVE_METHOD( result ) const
+	void active_method( int result ) const
 	{
 		std::cout << "Result of computation = " << result << std::endl;
 	}
 };
 
-class ComplexComputation : public active::object
+class ComplexComputation : public active::object<ComplexComputation>
 {
 public:
 	struct computation
@@ -21,13 +19,11 @@ public:
 		ComputationHandler & handler;
 	};
 
-	ACTIVE_METHOD( computation ) const;	 // Look we can even have const active methods
+	void active_method( computation&&computation ) const
+	{
+		computation.handler(computation.a + computation.b);
+	}
 };
-
-void ComplexComputation::ACTIVE_IMPL( computation ) const
-{
-	computation.handler(computation.a + computation.b);
-}
 
 int main()
 {

@@ -1,7 +1,7 @@
 #include <active/object.hpp>
 #include <iostream>
 
-class HelloActive : public active::object
+class HelloActive : public active::object<HelloActive>
 {
 public:	
 	void greet(const char * msg)

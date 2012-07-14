@@ -1,7 +1,7 @@
 #include <active/object.hpp>
 #include <iostream>
 
-class HelloActive : public active::handle_object<HelloActive>
+class HelloActive : public active::object<HelloActive>
 {
 public:
 	void active_method(const char * msg1, const char * msg2)

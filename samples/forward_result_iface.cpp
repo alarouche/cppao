@@ -1,45 +1,28 @@
 #include <active/object.hpp>
 #include <iostream>
 
-class ComplexComputation : public active::object
+class ComplexComputation : public active::object<ComplexComputation>
 {
 public:
-	struct result_handler
+	void active_method(int a, int b, std::function<void(int)> result)
 	{
-		typedef int result;
-		ACTIVE_IFACE( result );
-	};
-
-	struct computation
-	{
-		int a, b;
-		result_handler & handler;
-	};
-
-	ACTIVE_METHOD( computation ) const;
+		result(a+b);
+	}
 };
 
-class ComputationHandler : public active::object, public ComplexComputation::result_handler
+class ComputationHandler : public active::object<ComputationHandler>
 {
 public:
-	typedef int result;
-
-	ACTIVE_METHOD( result ) const
+	void active_method(int result)
 	{
 		std::cout << "Result of computation = " << result << std::endl;
 	}
 };
 
-void ComplexComputation::ACTIVE_IMPL( computation ) const
-{
-	computation.handler(computation.a + computation.b);
-}
-
 int main()
 {
 	ComputationHandler handler;
 	ComplexComputation cc;
-	ComplexComputation::computation msg = { 1,2,handler };
-	cc(msg);
+	cc(1,2,[&](int i){handler(i);});
 	active::run();
 }

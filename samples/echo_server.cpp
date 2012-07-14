@@ -17,7 +17,7 @@ struct my_server :
 {
 	typedef active::socket::bind_response bind_response;
 
-	ACTIVE_METHOD( bind_response )
+	void active_method( bind_response&&bind_response )
 	{
 		if( bind_response.result == -1 )
 		{
@@ -35,7 +35,7 @@ struct my_server :
 
 	typedef active::socket::listen_result listen_result;
 
-	ACTIVE_METHOD( listen_result )
+	void active_method( listen_result&&listen_result )
 	{
 		if( !listen_result.error )
 		{
@@ -50,7 +50,7 @@ struct my_server :
 
 	typedef active::select::read_ready read_ready;
 
-	ACTIVE_METHOD( read_ready )
+	void active_method( read_ready&&read_ready )
 	{
 		active::socket::accept accept = { shared_from_this() };
 		(*m_sock)(accept);
@@ -65,7 +65,7 @@ struct my_server :
 
 		struct start { };
 
-		ACTIVE_METHOD( start )
+		void active_method( start&&start )
 		{
 			m_pipe.reset( new active::pipe(m_sock, m_sock, m_select ) );
 			(*m_pipe)(active::pipe::start());
@@ -79,7 +79,7 @@ struct my_server :
 
 	typedef active::socket::accept_response accept_response;
 
-	ACTIVE_METHOD( accept_response )
+	void active_method( accept_response&&accept_response )
 	{
 		if( !accept_response.error )
 		{
@@ -100,7 +100,7 @@ struct my_server :
 	{
 	}
 
-	ACTIVE_METHOD(start)
+	void active_method(start&&start)
 	{
 		m_port = start.port;
 

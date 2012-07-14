@@ -89,7 +89,7 @@ int main(int argc, char**argv)
 	bench_object( active::shared<active::any_object, active::fast>(), N );
 
 	std::cout << "7:  object              ";
-	bench_object( active::object(), N );
+	bench_object( active::basic(), N );
 
 	std::cout << "8:  shared<object>      ";
 	bench_object( active::shared<active::any_object>(), N );

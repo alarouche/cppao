@@ -14,9 +14,7 @@ class Prime : public active::shared<Prime>
 public:
 	Prime(int p) : prime(p) { std::cout << p << "\n"; }
 
-	typedef int filter;
-
-	ACTIVE_METHOD(filter)
+	void active_method(int filter)
 	{
 		if(filter % prime)
 		{
@@ -31,11 +29,11 @@ public:
 	// causes a stack overflow with 1 million active objects!
 	struct destroy {};
 
-	ACTIVE_METHOD(destroy)
+	void active_method(destroy)
 	{
 		if(next)
 		{
-			(*next)(destroy);
+			(*next)(destroy());
 			next.reset();
 		}
 	}
@@ -45,14 +43,12 @@ private:
 	const int prime;
 };
 
-class Source : public active::object
+class Source : public active::object<Source>
 {
 public:
-	typedef int number;
-
 	Source(int m) : max(m) { }
 
-	ACTIVE_METHOD(number)
+	void active_method(int number)
 	{
 		if(head)
 			(*head)(number);

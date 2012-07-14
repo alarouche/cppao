@@ -12,12 +12,10 @@
 #include <memory>
 #include <thread>
 
-#define ACTIVE_IFACE(MSG) \
-	virtual void operator()( const MSG & )=0; \
-	virtual void operator()( MSG && )=0;
-
 namespace active
 {
+	template<typename T> int priority(const T&) { return 0; }
+	
 	// Interface of all active objects.
 	struct any_object
 	{
@@ -287,9 +285,7 @@ namespace active
 		}
 		
 		typedef std::function<void()> run_type;
-			
-		// virtual void enqueue std::function(void())
-		
+					
 		// ?? Public
 		template<typename T>
 		void enqueue_fn2(T && fn, int priority=0)
@@ -300,9 +296,7 @@ namespace active
 				m_schedule.activate(m_share.pointer(this));
 			}
 		}
-		
-		// !! Rename this to active_fn or something
-		
+				
 		template<typename T>
 		void active_fn(T && fn, int priority=0)
 		{
@@ -313,7 +307,6 @@ namespace active
 		{
 			enqueue_fn2( std::forward<std::function<void()>&&>(fn), priority );
 		}
-		
 		
 		template<typename T>
 		void active_msg(T && msg, int priority=0)
@@ -333,41 +326,27 @@ namespace active
 			m_queue.clear();
 		}
 
-#if 0
-		template<typename T, typename M>
-		void enqueue( T && msg, const M & accessor)
-		{
-			if( m_queue.enqueue(this, std::forward<T&&>(msg), accessor) )
-			{
-				m_share.activate(this);
-				m_schedule.activate(m_share.pointer(this));
-			}
-		}
-#endif
 	private:
 		schedule_type m_schedule;
 		queue_type m_queue;
 		share_type m_share;
 	};
 
-#define ACTIVE_IMPL( MSG ) active_method(MSG && MSG)
-
-#define ACTIVE_METHOD( MSG ) \
-	void operator()(MSG && m) { this->active_fn( [=]() mutable { this->active_method(std::move(m)); } ); } \
-	void operator()(const MSG &m) { MSG m2(m); this->active_fn( [=]() mutable { this->active_method(std::move(m2)); } ); } \
-	void ACTIVE_IMPL(MSG)
-
-	// !! Remove this
-#define ACTIVE_TEMPLATE(MSG) ACTIVE_METHOD(MSG)
-	
 	// The default object type.
-	typedef object_impl<schedule::thread_pool, queueing::shared<>, sharing::disabled> object;
+	typedef object_impl<schedule::thread_pool, queueing::shared<>, sharing::disabled> basic;
 
-	template<typename Derived, typename ObjectType=object>
-	struct handle_object : public ObjectType
+	template<typename Derived, typename ObjectType=basic>
+	struct object : public ObjectType
 	{
 		typedef ObjectType object_type;
 		typedef Derived derived_type;
+		using typename ObjectType::scheduler_type;
+		using typename ObjectType::allocator_type;
+		
+		object(scheduler_type & sched = default_scheduler, const allocator_type & alloc = allocator_type()) :
+			object_type(sched, alloc)
+		{
+		}
 		
 		template<typename T>
 		derived_type & operator()(T&&msg)
@@ -397,13 +376,22 @@ namespace active
 			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(a1),std::move(a2)); } );			
 			return *static_cast<derived_type*>(this);
 		}
+
+		template<typename T1, typename T2, typename T3>
+		derived_type & operator()(T1 a1, T2 a2, T3 a3)
+		{
+			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(a1),std::move(a2),std::move(a3)); } );			
+			return *static_cast<derived_type*>(this);
+		}
+		
+		// !! More parameters
+
 #if 0
-		// !! Get this working
+		// !! Not supported by compiler (yet)
 		template<typename... Args>
 		derived_type & operator()(Args... args)
 		{
-			// static_cast<derived_type*>(this)->active_method(args...);
-			// this->active_method( [args...]() mutable { static_cast<derived_type*>(this)->active_method(args...); } );						
+			this->active_method( [args...]() mutable { static_cast<derived_type*>(this)->active_method(args...); } );						
 			return *static_cast<derived_type*>(this);
 		}
 #endif
@@ -427,17 +415,16 @@ namespace active
 	{
 		typedef std::shared_ptr<sink<T>> sp;
 		typedef std::weak_ptr<sink<T>> wp;
-		// ACTIVE_IFACE( T );
 		
 		virtual void active_method(T&&)=0;
 		
-		sink<T> & operator()(T&&msg, int priority=0)
+		sink<T> & send(T&&msg, int priority=0)
 		{
 			this->active_fn( [=]() mutable { this->active_method(std::move(msg)); }, priority );
 			return *this;
 		}
 
-		sink<T> & operator()(const T& msg, int priority=0)
+		sink<T> & send(const T& msg, int priority=0)
 		{
 			T msg2(msg);
 			this->active_fn( [this,msg2]() mutable { this->active_method(std::move(msg2)); }, priority );

@@ -33,7 +33,7 @@ struct echo_client :
 	{
 	}
 
-	ACTIVE_METHOD(init)
+	void active_method(init&&init)
 	{
 		m_select = init.select;
 
@@ -54,7 +54,7 @@ struct echo_client :
 	typedef active::socket::connect_response connect_response;
 
 	// 2a) Connected
-	ACTIVE_METHOD( connect_response )
+	void active_method( connect_response&&connect_response )
 	{
 		if( connect_response.error )
 		{
@@ -64,7 +64,7 @@ struct echo_client :
 		{
 			m_connected = true;
 			connected c = { m_sock };
-			(*m_notify_connection)( c );
+			m_notify_connection->send( c );
 
 			if( m_pipe )
 			{
@@ -76,7 +76,7 @@ struct echo_client :
 
 	// 2b) Something else connected to us
 	// However we don't know which will happen first:
-	ACTIVE_METHOD( connected )
+	void active_method( connected&&connected )
 	{
 		m_pipe.reset( new active::pipe( m_sock, connected.sock, m_select ) );
 
@@ -96,14 +96,14 @@ private:
 };
 
 
-struct input : public active::object,
+struct input : public active::object<input>,
 	public active::sink<connected>
 {
 	input( active::select::ptr sel ) : m_socket(new active::socket(0)), m_select(sel)
 	{
 	}
 
-	ACTIVE_METHOD( connected )
+	void active_method( connected&&connected )
 	{
 		// !! Watch out exceptions ???
 		m_pipe.reset( new active::pipe(m_socket, connected.sock, m_select ) );
@@ -147,7 +147,7 @@ int main(int argc, char**argv)
 	if( num_clients>0 )
 		(*client_list[num_clients-1])(c);
 	else
-		(*in)(c);
+		in->send(c);
 
 	active::run r(num_threads); // {num_threads};
 }

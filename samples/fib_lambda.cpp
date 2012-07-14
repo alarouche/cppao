@@ -4,7 +4,7 @@
 #include <active/promise.hpp>
 #include <iostream>
 
-typedef active::object ao_type;
+typedef active::basic ao_type;
 
 struct fib_result
 {

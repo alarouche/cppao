@@ -4,7 +4,7 @@
 /* This example demonstrates using futures to return results.
  */
 
-class ComplexComputation : public active::object
+class ComplexComputation : public active::object<ComplexComputation>
 {
 public:
 	void compute( int a, int b, std::promise<int> & result )
