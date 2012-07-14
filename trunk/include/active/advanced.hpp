@@ -56,44 +56,6 @@ namespace active
 			
 			allocator_type get_allocator() const { return m_allocator; }
 			
-			template<typename T>
-			struct queue_data
-			{
-				struct type { };
-			};
-			
-			template<typename Message, typename Accessor>
-			bool enqueue( any_object *, Message && msg, const Accessor&)
-			{
-				std::lock_guard<std::mutex> lock(m_mutex);
-				if( m_messages.size() >= m_capacity ) throw std::bad_alloc();
-				
-				typename allocator_type::template rebind<message_impl<Message, Accessor>>::other realloc(m_allocator);
-				
-				message_impl<Message, Accessor> * impl = realloc.allocate(1);
-				int priority = m_priority(msg);
-				
-				try
-				{
-					realloc.construct(impl, message_impl<Message, Accessor>(std::forward<Message&&>(msg), priority, m_sequence++)  );
-				}
-				catch(...)
-				{
-					realloc.deallocate(impl,1);
-					throw;
-				}
-				
-				try
-				{
-					return enqueue( impl );
-				}
-				catch(...)
-				{
-					impl->destroy(m_allocator);
-					throw;
-				}
-			}
-			
 			template<typename Fn>
 			bool enqueue_fn(any_object *o, Fn &&fn, int priority)
 			{
@@ -199,23 +161,6 @@ namespace active
 				m_messages.push(impl);
 				return first_one;
 			}
-			
-			template<typename Message, typename Accessor>
-			struct message_impl : public message
-			{
-				message_impl(Message && m, int priority, std::size_t seq) : message(priority, seq), m_message(std::forward<Message&&>(m)) { }
-				Message m_message;
-				void run(any_object * o)
-				{
-					Accessor::active_run(o, std::move(m_message));
-				}
-				void destroy(allocator_type&a)
-				{
-					typename allocator_type::template rebind<message_impl<Message, Accessor>>::other realloc(a);
-					realloc.destroy(this);
-					realloc.deallocate(this,1);
-				}
-			};
 			
 			template<typename Fn>
 			struct fn_impl : public message

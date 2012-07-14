@@ -15,21 +15,7 @@ namespace active
 			direct_call(const allocator_type& =allocator_type());
 			
 			allocator_type get_allocator() const { return allocator_type(); }
-			
-			template<typename Message, typename Accessor>
-			bool enqueue(any_object * object, Message && msg, const Accessor&)
-			{
-				try
-				{
-					Accessor::active_run(object, std::forward<Message&&>(msg));
-				}
-				catch(...)
-				{
-					object->exception_handler();
-				}
-				return false;
-			}
-			
+						
 			template<typename Fn>
 			bool enqueue_fn(any_object * object, Fn&&fn, int)
 			{
@@ -45,13 +31,7 @@ namespace active
 			}
 			
 			bool run_some(any_object * o, int n=100) throw();
-			
-			template<typename T>
-			struct queue_data
-			{
-				struct type { };
-			};
-			
+						
 			bool empty() const;
 		};		
 	}
