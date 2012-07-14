@@ -4,41 +4,26 @@
 class PingPong : public active::object
 {
 public:
-	struct ping
+	void ping(int remaining)
 	{
-		int remaining;
-	};
-
-	struct pong
-	{
-		int remaining;
-	};
-
-	ACTIVE_METHOD( ping )
-	{
-		std::cout << "Ping\n";
-		if( ping.remaining>0 )
-		{
-			pong p = { ping.remaining-1 };
-			(*this)(p);
-		}
+		active_fn([=]{
+			std::cout << "Ping\n";
+			if( remaining>0 ) pong(remaining-1);
+		});
 	}
-
-	ACTIVE_METHOD( pong )
+	
+	void pong(int remaining)
 	{
-		std::cout << "Pong\n";
-		if( pong.remaining>0 )
-		{
-			ping p = { pong.remaining-1 };
-			(*this)(p);
-		}
-	}
+		active_fn([=]{
+			std::cout << "Pong\n";
+			if( remaining>0 ) ping(remaining-1);
+		});
+	}	
 };
 
 int main()
 {
 	PingPong pp;
-	PingPong::ping message = { 10 };
-	pp(message);
+	pp.ping(10);
 	active::run();
 }

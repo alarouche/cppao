@@ -11,12 +11,15 @@ struct RoundRobin : public active::object
    typedef int packet;
 
 	RoundRobin * next;
-
-	ACTIVE_METHOD( packet )
+	
+	void send(int packet)
 	{
-		printf( "Received packed %d\n", packet );
-		if( packet>0 ) (*next)(packet-1);
+		active_fn([=]{
+			printf("Received packet %d\n", packet);
+			if(packet>0) next->send(packet-1);
+		});
 	}
+
 };
 
 int main()
@@ -30,7 +33,7 @@ int main()
 	nodes[Count-1].next=nodes;
 
 	// Send each node a packet.
-	for(int i=0; i<Count; ++i) nodes[i](10);
+	for(int i=0; i<Count; ++i) nodes[i].send(10);
 
 	active::run();
 }

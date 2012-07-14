@@ -25,6 +25,7 @@ namespace active
 		virtual void run() throw()=0;
 		virtual bool run_some(int n=100) throw()=0;
 		virtual void exception_handler() throw();
+		virtual void active_fn(std::function<void()>&&fn, int priority)=0;
 		any_object * m_next;
 	};
 
@@ -103,31 +104,6 @@ namespace active
 			}
 
 			allocator_type get_allocator() const { return m_allocator; }
-
-			template<typename T>
-			struct queue_data
-			{
-				struct type { };
-			};
-
-			template<typename Message, typename Accessor>
-			bool enqueue( any_object *, Message && msg, const Accessor&)
-			{
-				typename allocator_type::template rebind<message_impl<Message, Accessor>>::other realloc(m_allocator);
-
-				message_impl<Message, Accessor> * impl = realloc.allocate(1);
-				try
-				{
-					realloc.construct(impl, std::forward<Message&&>(msg));
-				}
-				catch(...)
-				{
-					realloc.deallocate(impl,1);
-					throw;
-				}
-
-				return enqueue( impl );
-			}
 			
 			template<typename Fn>
 			bool enqueue_fn( any_object * obj, Fn &&fn, int )
@@ -194,23 +170,6 @@ namespace active
 					 return true;
 				 }
 			}
-
-			template<typename Message, typename Accessor>
-			struct message_impl : public message
-			{
-				message_impl(Message && m) : m_message(std::forward<Message&&>(m)) { }
-				Message m_message;
-				void run(any_object * o)
-				{
-					Accessor::active_run(o, std::move(m_message));
-				}
-				void destroy(allocator_type&a)
-				{
-					typename allocator_type::template rebind<message_impl<Message, Accessor>>::other realloc(a);
-					realloc.destroy(this);
-					realloc.deallocate(this,1);
-				}
-			};
 			
 			template<typename Fn>
 			struct run_impl : public message
@@ -239,7 +198,7 @@ namespace active
 		typename Schedule,
 		typename Queue,
 		typename Share>
-	class object_impl : public any_object, public Share::base
+	class object_impl : virtual public any_object, public Share::base
 	{
 	public:
 		typedef Schedule schedule_type;
@@ -328,16 +287,12 @@ namespace active
 		}
 		
 		typedef std::function<void()> run_type;
+			
+		// virtual void enqueue std::function(void())
 		
-		typename queue_type::template queue_data<run_type>::type m_qd;
-		struct run_fn
-		{
-			static void active_run(any_object*, const run_type && fn) { fn(); }
-			static typename queue_type::template queue_data<run_type>::type & active_data(any_object*o) { return static_cast<object_impl*>(o)->m_qd; }
-		};
-		
+		// ?? Public
 		template<typename T>
-		void active_method(T && fn, int priority=0)
+		void enqueue_fn2(T && fn, int priority=0)
 		{
 			if( m_queue.enqueue_fn(this, std::forward<T&&>(fn), priority))
 			{
@@ -345,6 +300,31 @@ namespace active
 				m_schedule.activate(m_share.pointer(this));
 			}
 		}
+		
+		// !! Rename this to active_fn or something
+		
+		template<typename T>
+		void active_fn(T && fn, int priority=0)
+		{
+			enqueue_fn2( std::forward<T&&>(fn), priority );
+		}
+
+		void active_fn(std::function<void()>&&fn, int priority)
+		{
+			enqueue_fn2( std::forward<std::function<void()>&&>(fn), priority );
+		}
+		
+		
+		template<typename T>
+		void active_msg(T && msg, int priority=0)
+		{
+		}
+		
+		template<typename T>
+		void active_msg(const T & msg, int priority=0)
+		{
+		}
+		
 
 	protected:
 		// Clear all pending messages. Only callable from active methods.
@@ -353,6 +333,7 @@ namespace active
 			m_queue.clear();
 		}
 
+#if 0
 		template<typename T, typename M>
 		void enqueue( T && msg, const M & accessor)
 		{
@@ -362,33 +343,71 @@ namespace active
 				m_schedule.activate(m_share.pointer(this));
 			}
 		}
-
+#endif
 	private:
 		schedule_type m_schedule;
 		queue_type m_queue;
 		share_type m_share;
 	};
 
-#define ACTIVE_IMPL( MSG ) impl_##MSG(MSG && MSG)
+#define ACTIVE_IMPL( MSG ) active_method(MSG && MSG)
 
-#define ACTIVE_METHOD2( MSG, TYPENAME, TEMPLATE, CAST ) \
-	TYPENAME queue_type::TEMPLATE queue_data<MSG>::type queue_data_##MSG; \
-	template<typename C> struct run_##MSG { \
-		static void active_run(::active::any_object*o, MSG&&m) { CAST<C>(o)->impl_##MSG(std::forward<MSG&&>(m)); } \
-		static TYPENAME queue_type::TEMPLATE queue_data<MSG>::type& active_data(::active::any_object*o) {return CAST<C>(o)->queue_data_##MSG; } }; \
-	void operator()(MSG && m) { MSG m2(m); this->active_method( [=]() mutable { this->impl_##MSG(std::move(m2)); } ); } \
-	void operator()(const MSG & m) { MSG m2(m); this->active_method( [=]() mutable { this->impl_##MSG(std::move(m2)); } ); } \
+#define ACTIVE_METHOD( MSG ) \
+	void operator()(MSG && m) { this->active_fn( [=]() mutable { this->active_method(std::move(m)); } ); } \
+	void operator()(const MSG &m) { MSG m2(m); this->active_fn( [=]() mutable { this->active_method(std::move(m2)); } ); } \
 	void ACTIVE_IMPL(MSG)
-//	void operator()(MSG && m) { this->enqueue(std::forward<MSG&&>(m), run_##MSG<decltype(this)>() ); } \
-//	void operator()(MSG & m) { this->enqueue(std::move(m), run_##MSG<decltype(this)>() ); } \
 
-
-#define ACTIVE_METHOD( MSG ) ACTIVE_METHOD2(MSG,,,static_cast)
-#define ACTIVE_TEMPLATE(MSG) ACTIVE_METHOD2(MSG,typename,template,reinterpret_cast)
-
+	// !! Remove this
+#define ACTIVE_TEMPLATE(MSG) ACTIVE_METHOD(MSG)
+	
 	// The default object type.
 	typedef object_impl<schedule::thread_pool, queueing::shared<>, sharing::disabled> object;
 
+	template<typename Derived, typename ObjectType=object>
+	struct handle_object : public ObjectType
+	{
+		typedef ObjectType object_type;
+		typedef Derived derived_type;
+		
+		template<typename T>
+		derived_type & operator()(T&&msg)
+		{
+			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(msg)); } );
+			return *static_cast<derived_type*>(this);
+		}
+		
+		template<typename T>
+		derived_type & operator()(const T & msg)
+		{
+			T msg2(msg);
+			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(msg2)); } );			
+			return *static_cast<derived_type*>(this);
+		}
+
+		template<typename T>
+		derived_type & operator()(T * msg)
+		{
+			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(msg)); } );			
+			return *static_cast<derived_type*>(this);
+		}
+		
+		template<typename T1, typename T2>
+		derived_type & operator()(T1 a1, T2 a2)
+		{
+			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(a1),std::move(a2)); } );			
+			return *static_cast<derived_type*>(this);
+		}
+#if 0
+		// !! Get this working
+		template<typename... Args>
+		derived_type & operator()(Args... args)
+		{
+			// static_cast<derived_type*>(this)->active_method(args...);
+			// this->active_method( [args...]() mutable { static_cast<derived_type*>(this)->active_method(args...); } );						
+			return *static_cast<derived_type*>(this);
+		}
+#endif
+	};
 
 	// Runs the scheduler for a given duration.
 	class run
@@ -404,13 +423,28 @@ namespace active
 	};
 
 	template<typename T>
-	struct sink
+	struct sink : virtual public any_object
 	{
 		typedef std::shared_ptr<sink<T>> sp;
 		typedef std::weak_ptr<sink<T>> wp;
-		ACTIVE_IFACE( T );
-	};
+		// ACTIVE_IFACE( T );
+		
+		virtual void active_method(T&&)=0;
+		
+		sink<T> & operator()(T&&msg, int priority=0)
+		{
+			this->active_fn( [=]() mutable { this->active_method(std::move(msg)); }, priority );
+			return *this;
+		}
 
+		sink<T> & operator()(const T& msg, int priority=0)
+		{
+			T msg2(msg);
+			this->active_fn( [this,msg2]() mutable { this->active_method(std::move(msg2)); }, priority );
+			return *this;
+		}
+	
+	};
 } // namespace active
 
 

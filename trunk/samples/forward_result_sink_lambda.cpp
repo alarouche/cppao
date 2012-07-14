@@ -18,7 +18,7 @@ class ComputationHandler : public active::object, public active::sink<int>
 public:
 	typedef int result;
 
-	ACTIVE_METHOD( result ) const
+	ACTIVE_METHOD( result )
 	{
 		std::cout << "Result of computation = " << result << std::endl;
 	}

@@ -6,7 +6,7 @@ class HelloActive : public active::object
 public:	
 	void greet(const char * msg)
 	{
-		active_method([=]{ std::cout << msg << std::endl; });
+		active_fn([=]{ std::cout << msg << std::endl; });
 	}
 };
 

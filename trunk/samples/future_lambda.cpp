@@ -9,7 +9,7 @@ class ComplexComputation : public active::object
 public:
 	void compute( int a, int b, std::promise<int> & result )
 	{
-		active_method([=,&result]{result.set_value(a+b);});
+		active_fn([=,&result]{result.set_value(a+b);});
 	}
 };
 
@@ -19,5 +19,5 @@ int main()
 	std::promise<int> result;
 	ComplexComputation cc;
 	cc.compute(1,2,result);
-	std::cout << "Result of computation = " << result.get_future().get() << "\n";
+	std::cout << "Result of computation = " << active::wait(result) << "\n";
 }
