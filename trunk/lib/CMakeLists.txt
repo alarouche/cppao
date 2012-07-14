@@ -7,7 +7,6 @@ add_library( cppao active_object.cpp
 	../include/active/scheduler.hpp
 	../include/active/shared.hpp
 	../include/active/promise.hpp
-	../include/active/separate.hpp
 	../include/active/synchronous.hpp
 	../include/active/thread.hpp )
 
