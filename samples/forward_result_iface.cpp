@@ -4,7 +4,7 @@
 class ComplexComputation : public active::object<ComplexComputation>
 {
 public:
-	void active_method(int a, int b, std::function<void(int)> result)
+	void active_method(int a, int b, active::platform::function<void(int)> result)
 	{
 		result(a+b);
 	}

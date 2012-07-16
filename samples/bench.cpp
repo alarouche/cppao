@@ -1,3 +1,4 @@
+#define BOOST_DISABLE_ASSERTS 1
 
 #include <active/object.hpp>
 #include <active/thread.hpp>
@@ -7,8 +8,8 @@
 #include <active/synchronous.hpp>
 #include <active/fast.hpp>
 
-#include <chrono>
 #include <iostream>
+#include <ctime>
 
 
 template<typename Object>
@@ -24,12 +25,12 @@ struct Thread : public active::object<Thread<Object>,Object>
 	}
 };
 
-// template<typename Schedule, typename Queue,typename Shared>
+
 template<typename Object>
 void bench_object(Object, int N, bool output)
 {
 	typedef Thread<Object> type;
-	std::shared_ptr<type> thread[503];
+	active::platform::shared_ptr<type> thread[503];
 
 	for( int t=0; t<503; ++t )
 	{
@@ -43,14 +44,14 @@ void bench_object(Object, int N, bool output)
 	}
 	thread[502]->next = thread[0].get();
 
-	std::chrono::high_resolution_clock::time_point clk1=std::chrono::high_resolution_clock::now();
+	clock_t clk1 = clock();
 	(*thread[0])(N);
 	active::run();
 
 	if( output )
 	{
-		std::chrono::high_resolution_clock::duration dur = std::chrono::high_resolution_clock::now()-clk1;
-		double mps = double(N) * double(std::chrono::high_resolution_clock::duration::period::den) / dur.count();
+		double duration = (clock()-clk1)/double(CLOCKS_PER_SEC);
+		double mps = double(N) / duration;
 		double mmps = mps/1000000.0;
 		std::cout << mmps << " million messages/second\n";
 	}
@@ -66,18 +67,18 @@ void bench_object(Object obj, int N)
 int main(int argc, char**argv)
 {
 	int N = argc>1 ? atoi(argv[1]) : 100000;
-
+	int RECURSIVE=10000;
 	std::cout << "1:  direct              ";
-	bench_object( active::direct(), 20000 );
-	
+	bench_object( active::direct(), RECURSIVE );
+
 	std::cout << "2:  shared<direct>      ";
-	bench_object( active::direct(), 20000 );
+	bench_object( active::direct(), RECURSIVE );
 
 	std::cout << "3:  synchronous         ";
-	bench_object( active::synchronous(), 20000 );
+	bench_object( active::synchronous(), RECURSIVE );
 
 	std::cout << "4:  shared<synchronous> ";
-	bench_object( active::shared<active::any_object,active::synchronous>::type(), 20000 );
+	bench_object( active::shared<active::any_object,active::synchronous>::type(), RECURSIVE );
 
 	std::cout << "5:  fast                ";
 	bench_object( active::fast(), N );
@@ -91,7 +92,7 @@ int main(int argc, char**argv)
 	std::cout << "8:  shared<object>      ";
 	bench_object( active::shared<active::any_object>::type(), N );
 
-	std::cout << "9: advanced            ";
+	std::cout << "9:  advanced            ";
 	bench_object( active::advanced(), N );
 
 	std::cout << "10: shared<advanced>    ";

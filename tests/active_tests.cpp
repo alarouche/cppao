@@ -1,3 +1,8 @@
+#if ACTIVE_USE_BOOST
+	#define BOOST_DISABLE_ASSERTS 1
+	#include <boost/make_shared.hpp>
+#endif
+
 #undef NDEBUG
 #include <active/object.hpp>
 #include <active/scheduler.hpp>
@@ -61,7 +66,7 @@ void test_run_some()
 struct const_obj : public active::object<const_obj>
 {
 	typedef struct foo{int x;} * foop;
-	void active_method(foop&&foop) const
+	void active_method(foop foop) const
 	{
 		foop->x=1;
 	}
@@ -82,18 +87,18 @@ struct ni : public active::object<ni>
 {
 	struct foo {};
 	typedef struct bar {int r;} *barp;
-	void active_method(foo&&);
-	void active_method(barp&&) const;
+	void active_method(foo);
+	void active_method(barp) const;
 	int foo_called; // =0;
 	ni() : foo_called(0) {}
 };
 
-void ni::active_method(foo&&foo)
+void ni::active_method(foo foo)
 {
 	++foo_called;
 }
 
-void ni::active_method(barp&&barp) const
+void ni::active_method(barp barp) const
 {
 	++barp->r;
 }
@@ -116,7 +121,7 @@ struct sink_obj : public active::object<sink_obj>, public active::sink<msg>
 {
 	int called; // =0;
 	sink_obj() : called(0) {}
-	void active_method(msg&&)
+	void active_method(msg)
 	{
 		++called;
 	}
@@ -135,11 +140,11 @@ struct mmobject : public active::object<mmobject>
 {
 	struct foo { int x; };
 	struct bar { int x; };
-	void active_method(foo&&foo)
+	void active_method(RVALUE_REF(foo) foo)
 	{
 		foo_value += foo.x;
 	}
-	void active_method(bar&&bar)
+	void active_method(RVALUE_REF(bar) bar)
 	{
 		bar_value += bar.x;
 	}
@@ -182,7 +187,7 @@ struct object2;
 struct object1 : public active::object<object1>
 {
 	struct foo { int x; };
-	void active_method( foo&& );
+	void active_method( foo );
 	int foo_value;
 	object1() : foo_value(0) { }
 	object2 * other;
@@ -191,7 +196,7 @@ struct object1 : public active::object<object1>
 struct object2 : public active::object<object2>
 {
 	struct foo { int x; };
-	void active_method( foo&&foo )
+	void active_method( foo foo )
 	{
 		foo_value += foo.x;
 		if( foo.x>0 )
@@ -205,7 +210,7 @@ struct object2 : public active::object<object2>
 	object1 * other;
 };
 
-void object1::active_method(foo&&foo)
+void object1::active_method(foo foo)
 {
 	foo_value += foo.x;
 	if( foo.x>0 )
@@ -329,15 +334,15 @@ struct my_shared : public active::shared<my_shared>
 void test_shared()
 {
 	// Messages keep the object alive
-	std::shared_ptr<my_shared> obj1(new my_shared), obj2(new my_shared);
+	active::platform::shared_ptr<my_shared> obj1(new my_shared), obj2(new my_shared);
 
 	(*obj1)(20); (*obj2)(40);
-	std::weak_ptr<my_shared> r1(obj1), r2(obj2);
+	active::platform::weak_ptr<my_shared> r1(obj1), r2(obj2);
 	obj1.reset();
 	obj2.reset();
 
-	assert( std::shared_ptr<my_shared>(r1) );
-	assert( std::shared_ptr<my_shared>(r2) );
+	assert( active::platform::shared_ptr<my_shared>(r1) );
+	assert( active::platform::shared_ptr<my_shared>(r2) );
 
 	// The objects are referenced by the message queue at this point
 	active::run();
@@ -363,7 +368,7 @@ struct active_object_test :
 		active::sink<test_message> * subject;
 	};
 
-	void active_method( test_object&&test_object )
+	void active_method( test_object test_object )
 	{
 		m_expected_value=1;
 		struct test_message m = { 1, this };
@@ -376,7 +381,7 @@ struct active_object_test :
 
 	typedef int result;
 
-	void active_method( int &&result )
+	void active_method( int result )
 	{
 		assert( result == m_expected_value );
 		++m_expected_value;
@@ -397,7 +402,7 @@ struct test_object :
 	public active::object_impl<Schedule, Queue, Shared>,
 	public active::sink<test_message>
 {
-	void active_method(test_message && msg)
+	void active_method(test_message msg)
 	{
 		msg.object->send(msg.value);
 	}
@@ -425,12 +430,12 @@ void test_object_types()
 	test_object2(obj3);
 	test_object2(obj4);
 
-	typedef active::queueing::steal<active::queueing::shared<>> steal1;
+	typedef active::queueing::steal<active::queueing::shared<> > steal1;
 
-	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, active::queueing::shared<>, active::sharing::enabled<> >>() );
-	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, active::queueing::direct_call, active::sharing::enabled<> >>() );
-	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, active::queueing::mutexed_call, active::sharing::enabled<> >>() );
-	test_object2( *std::make_shared<test_object< active::schedule::thread_pool, steal1, active::sharing::enabled<> >>() );
+	test_object2( *active::platform::make_shared<test_object< active::schedule::thread_pool, active::queueing::shared<>, active::sharing::enabled<> > >() );
+	test_object2( *active::platform::make_shared<test_object< active::schedule::thread_pool, active::queueing::direct_call, active::sharing::enabled<> > >() );
+	test_object2( *active::platform::make_shared<test_object< active::schedule::thread_pool, active::queueing::mutexed_call, active::sharing::enabled<> > >() );
+	test_object2( *active::platform::make_shared<test_object< active::schedule::thread_pool, steal1, active::sharing::enabled<> > >() );
 }
 
 struct thread_obj : public active::object<thread_obj,active::thread>
@@ -466,7 +471,11 @@ struct shared_thread_obj : public active::shared<shared_thread_obj,active::threa
 void test_shared_thread(bool reset, int sleep1, int sleep2, int threads)
 {
 	shared_thread_obj::ptr st(new shared_thread_obj());
-	std::this_thread::sleep_for(std::chrono::milliseconds(sleep1));
+#if ACTIVE_USE_BOOST
+	active::platform::this_thread::sleep(boost::posix_time::milliseconds(sleep1));
+#else
+	active::platform::this_thread::sleep_for(std::chrono::milliseconds(sleep1));
+#endif
 
 	int finished=0;
 	(*st)(12);
@@ -474,7 +483,11 @@ void test_shared_thread(bool reset, int sleep1, int sleep2, int threads)
 	(*st)(&finished);
 	if(reset) st.reset();
 
-	std::this_thread::sleep_for(std::chrono::milliseconds(sleep2));
+#if ACTIVE_USE_BOOST
+	active::platform::this_thread::sleep(boost::posix_time::milliseconds(sleep2));
+#else
+	active::platform::this_thread::sleep_for(std::chrono::milliseconds(sleep2));
+#endif
 	{ active::run r(threads); }	// Want: active::run{threads}; but thanks clang for not implementing this.
 	assert( finished==25 );
 }
@@ -496,7 +509,7 @@ void test_shared_thread()
 typedef int mix_message;
 struct mix_config
 {
-	std::shared_ptr<active::sink<mix_message>> sink,result;
+	active::platform::shared_ptr<active::sink<mix_message> > sink,result;
 	int id;
 };
 
@@ -507,7 +520,7 @@ struct mix_interface : public active::sink<mix_message>, public active::sink<mix
 int total_allocated=0;
 
 template<typename Schedule, typename Queueing, typename Sharing>
-struct mix_object : public active::object<mix_object<Schedule,Queueing,Sharing>, active::object_impl<Schedule,Queueing,Sharing>>, public mix_interface
+struct mix_object : public active::object<mix_object<Schedule,Queueing,Sharing>, active::object_impl<Schedule,Queueing,Sharing> >, public mix_interface
 {
 	typedef Queueing queue_type;
 	int m_id;
@@ -516,14 +529,14 @@ struct mix_object : public active::object<mix_object<Schedule,Queueing,Sharing>,
 	mix_object() { ++total_allocated; }
 	~mix_object() { --total_allocated; }
 
-	void active_method( mix_message && msg )
+	void active_method( mix_message msg )
 	{
-		auto sink = m_sink.lock(), result=m_result.lock();
+		typename active::sink<mix_message>::sp sink = m_sink.lock(), result=m_result.lock();
 		if( msg>0 && sink ) sink->send(msg-1);
 		else if( msg<=0 && result) result->send(m_id);
 	}
 
-	void active_method( mix_config && mc )
+	void active_method( mix_config mc )
 	{
 		m_id = mc.id;
 		m_sink = mc.sink;
@@ -532,50 +545,48 @@ struct mix_object : public active::object<mix_object<Schedule,Queueing,Sharing>,
 };
 
 
-std::shared_ptr<mix_interface> mix_factory(int n)
+active::platform::shared_ptr<mix_interface> mix_factory(int n)
 {
 	switch( n%22 )
 	{
 	default:
-	case 0: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared<>, active::sharing::disabled> >();
-	case 1: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared<>, active::sharing::enabled<>> >();
-	case 4: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::shared<>>, active::sharing::disabled> >();
-	case 5: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::shared<>>, active::sharing::enabled<>> >();
-	case 8: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::shared<>, active::sharing::disabled> >();
-	case 9: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::shared<>, active::sharing::enabled<>> >();
-	case 12: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::shared<>>, active::sharing::disabled> >();
-	case 13: return std::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::shared<>>, active::sharing::enabled<>> >();
-	case 16: return std::make_shared< mix_object<active::schedule::none, active::queueing::direct_call, active::sharing::disabled> >();
-	case 17: return std::make_shared< mix_object<active::schedule::none, active::queueing::direct_call, active::sharing::enabled<>> >();
-	case 18: return std::make_shared< mix_object<active::schedule::none, active::queueing::mutexed_call, active::sharing::disabled> >();
-	case 19: return std::make_shared< mix_object<active::schedule::none, active::queueing::mutexed_call, active::sharing::enabled<>> >();
-	case 20: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::advanced<>, active::sharing::disabled> >();
-	case 21: return std::make_shared< mix_object<active::schedule::thread_pool, active::queueing::advanced<>, active::sharing::enabled<>> >();
+	case 0: return active::platform::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared<>, active::sharing::disabled> >();
+	case 1: return active::platform::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared<>, active::sharing::enabled<> > >();
+	case 4: return active::platform::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::shared<> >, active::sharing::disabled> >();
+	case 5: return active::platform::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::shared<> >, active::sharing::enabled<> > >();
+	case 8: return active::platform::make_shared< mix_object<active::schedule::own_thread, active::queueing::shared<>, active::sharing::disabled> >();
+	case 9: return active::platform::make_shared< mix_object<active::schedule::own_thread, active::queueing::shared<>, active::sharing::enabled<> > >();
+	case 12: return active::platform::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::shared<> >, active::sharing::disabled> >();
+	case 13: return active::platform::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::shared<> >, active::sharing::enabled<> > >();
+	case 16: return active::platform::make_shared< mix_object<active::schedule::none, active::queueing::direct_call, active::sharing::disabled> >();
+	case 17: return active::platform::make_shared< mix_object<active::schedule::none, active::queueing::direct_call, active::sharing::enabled<> > >();
+	case 18: return active::platform::make_shared< mix_object<active::schedule::none, active::queueing::mutexed_call, active::sharing::disabled> >();
+	case 19: return active::platform::make_shared< mix_object<active::schedule::none, active::queueing::mutexed_call, active::sharing::enabled<> > >();
+	case 20: return active::platform::make_shared< mix_object<active::schedule::thread_pool, active::queueing::advanced<>, active::sharing::disabled> >();
+	case 21: return active::platform::make_shared< mix_object<active::schedule::thread_pool, active::queueing::advanced<>, active::sharing::enabled<> > >();
 	}
 }
 
 template<typename T>
-struct result_holder : public active::object<result_holder<T>>, public active::sink<T>
+struct result_holder : public active::object<result_holder<T> >, public active::sink<T>
 {
 	T result;
-	void active_method(T && msg) { result = msg; }
+	void active_method(T msg) { result = msg; }
 };
 
 void test_object_mix()
 {
 	const int N=313, M=1024;
-	auto result = std::make_shared<result_holder<int>>();
-	std::vector<std::shared_ptr<mix_interface>> vec(N);
+	active::platform::shared_ptr<result_holder<int> > result = active::platform::make_shared<result_holder<int> >();
+	std::vector<active::platform::shared_ptr<mix_interface> > vec;
 
-	int n=0;
-	for(auto &i : vec)
-		i = mix_factory(n++);
+	for(int i=0; i<N; ++i)
+		vec.push_back(mix_factory(i));
 
 	for(int n=0; n<N; ++n)
 	{
 		mix_config msg = { n<N-1 ? vec[n+1] : vec[0], result, n };
 		static_cast<active::sink<mix_config>&>((*vec[n])).send(msg);
-		// vec[n]->send(msg);
 	}
 
 	static_cast<active::sink<mix_message>&>(*vec[0]).send(int(M));
@@ -644,13 +655,13 @@ struct awkward_allocator : public my_allocator<T>
 	};
 };
 
-struct my_object : public 
-	active::object<my_object, 
-	active::object_impl<active::schedule::thread_pool, active::queueing::shared<awkward_allocator<int>>, active::sharing::disabled>>
+struct my_object : public
+	active::object<my_object,
+	active::object_impl<active::schedule::thread_pool, active::queueing::shared<awkward_allocator<int> >, active::sharing::disabled> >
 {
-	my_object(const allocator_type & a) : 
-		active::object<my_object, 
-		active::object_impl<active::schedule::thread_pool, active::queueing::shared<awkward_allocator<int>>, active::sharing::disabled>>
+	my_object(const allocator_type & a) :
+		active::object<my_object,
+		active::object_impl<active::schedule::thread_pool, active::queueing::shared<awkward_allocator<int> >, active::sharing::disabled> >
 		(active::default_scheduler, a), total(0)
 	{
 	}
@@ -662,8 +673,8 @@ struct my_object : public
 	}
 };
 
-struct my_object2 : public active::object<my_object2, 
-	active::object_impl<active::schedule::thread_pool, active::queueing::shared<my_allocator<int>>, active::sharing::disabled>>
+struct my_object2 : public active::object<my_object2,
+	active::object_impl<active::schedule::thread_pool, active::queueing::shared<my_allocator<int> >, active::sharing::disabled> >
 {
 	my_object2() : total(0)
 	{
@@ -684,8 +695,8 @@ struct foo
 void test_allocators()
 {
 	{
-		std::vector<foo,my_allocator<foo>> vec1(2,foo());
-		std::vector<foo,awkward_allocator<foo>> vec2(3,
+		std::vector<foo,my_allocator<foo> > vec1(2,foo());
+		std::vector<foo,awkward_allocator<foo> > vec2(3,
 													foo(),
 													awkward_allocator<foo>(12));
 
@@ -730,7 +741,9 @@ struct MoveObject : public active::object<MoveObject>
 		Counted() { ++instances; }
 		~Counted() { }
 		Counted(const Counted&) { ++instances; }
+#if ACTIVE_USE_CXX11
 		Counted(Counted&&) { ++instances; }
+#endif
 	private:
 	};
 
@@ -739,7 +752,7 @@ struct MoveObject : public active::object<MoveObject>
 		std::vector<Counted> vec;
 	};
 
-	void active_method( MoveMessage&& )
+	void active_method( MoveMessage )
 	{
 	}
 };
@@ -771,7 +784,7 @@ namespace active
 	template<> int priority(const long & i) { return i; }
 }
 
-struct my_advanced : public active::advanced
+struct my_advanced : public active::object<my_advanced,active::advanced>
 {
 	typedef long msg;
 	int previous;
@@ -781,21 +794,18 @@ struct my_advanced : public active::advanced
 		set_capacity(limit);
 	}
 
-	void send(int msg)
+	void active_method(long msg)
 	{
-		active_fn( [=] 
-		{ 
-			assert( msg==this->previous-1 ); this->previous = msg; 
-		}, msg );
+		assert( msg==this->previous-1 ); this->previous = msg;
 	}
 };
 
 void test_advanced_ordering()
 {
 	my_advanced obj;
-	obj.send(3);
-	obj.send(1);
-	obj.send(2);
+	obj(3L);
+	obj(1L);
+	obj(2L);
 	active::run();
 	assert( obj.previous == 1 );
 }
@@ -803,13 +813,13 @@ void test_advanced_ordering()
 void test_advanced_queue_limit()
 {
 	my_advanced obj(3);
-	obj.send(1);
-	obj.send(2);
-	obj.send(3);
+	obj(1L);
+	obj(2L);
+	obj(3L);
 
 	try
 	{
-		obj.send(6);
+		obj(6L);
 		assert(0 && "Exception not thrown");
 	} catch (std::bad_alloc)
 	{
@@ -817,46 +827,45 @@ void test_advanced_queue_limit()
 	active::run();
 }
 
-struct my_advanced2 : public active::advanced
+struct msg2{};
+struct msg3{};
+namespace active
+{
+	template<> int priority(const msg2&) { return 2; }
+	template<> int priority(const msg3&) {return 2; }
+}
+
+struct my_advanced2 : public active::object<my_advanced2,active::advanced>
 {
 	int previous;
 	my_advanced2() : previous(0) { }
 
-	void msg(int i)
+	void active_method(int i)
 	{
-		active_fn([=]
-		{
-			assert(i==this->previous+1);
-			this->previous = i;
-		});
+		assert(i==this->previous+1);
+		this->previous = i;
 	}
-	
-	void msg2()
+
+	void active_method(msg2)
 	{
-		active_fn([=]
-		{
-			assert( previous==0 );
-		}, 2 );
+		assert( previous==0 );
 	}
-	
-	void msg3()
+
+	void active_method(msg3)
 	{
-		active_fn([=]
-		{
-			assert( previous==0 );
-		}, 3 );
-	}	
+		assert( previous==0 );
+	}
 };
 
 
 void test_advanced_noreorder()
 {
 	my_advanced2 obj;
-	obj.msg2();
-	obj.msg(1);
-	obj.msg(2);
-	obj.msg(3);
-	obj.msg3();
+	obj(msg2());
+	obj(1);
+	obj(2);
+	obj(3);
+	obj(msg3());
 	active::run();
 }
 
@@ -899,46 +908,44 @@ void test_advanced_queue_control()
 }
 
 template<typename Base>
-struct fib : 
-	public active::object<fib<Base>, active::object_impl<typename Base::schedule_type, typename Base::queue_type, active::sharing::enabled<fib<Base>>>>, 
+struct fib :
+	public active::object<fib<Base>, active::object_impl<typename Base::schedule_type, typename Base::queue_type, active::sharing::enabled<fib<Base> > > >,
 	public active::sink<int>
 {
-	typedef typename Base::queue_type queue_type;
-	
 	struct calculate
 	{
 		int value;
 		active::sink<int>::sp result;
 	};
-	
-	void active_method( calculate&&calculate )
+
+	void active_method( calculate calculate )
 	{
 		if( calculate.value > 2 )
 		{
 			m_total=0;
 			m_result = calculate.result;
-			fib::calculate 
-			lhs = { calculate.value-1, this->shared_from_this() }, 
+			fib::calculate
+			lhs = { calculate.value-1, this->shared_from_this() },
 			rhs = { calculate.value-2, this->shared_from_this() };
-			
+
 			// Note: AO destroyed after its last message.
-			(*std::make_shared<fib>())(lhs);
-			(*std::make_shared<fib>())(rhs);
+			(*active::platform::make_shared<fib>())(lhs);
+			(*active::platform::make_shared<fib>())(rhs);
 		}
-		else 
+		else
 		{
 			calculate.result->send(1);
 		}
 	}
-	
+
 	typedef int sub_result;
-	
-	void active_method( sub_result && sub_result )
+
+	void active_method( sub_result sub_result )
 	{
 		if( m_total ) m_result->send(m_total+sub_result);
 		else m_total = sub_result;
 	}
-	
+
 private:
 	int m_total;
 	sp m_result;
@@ -950,9 +957,9 @@ struct fib_test
 	template<typename T>
 	void operator()(T)
 	{
-		auto result = std::make_shared<active::promise<int>>();
+		active::platform::shared_ptr<active::promise<int> > result = active::platform::make_shared<active::promise<int> >();
 		typename fib<T>::calculate calc = { 20, result };
-		(*std::make_shared<fib<T>>())(calc);
+		(*active::platform::make_shared<fib<T> >())(calc);
 		active::run();
 		assert( result->get() == 6765 );
 	}
@@ -963,22 +970,22 @@ void test_containers(Visitor&v)
 {
 	v(active::basic());
 	v(active::shared<active::any_object>());
-	
+
 	v(active::fast());
 	v(active::shared<active::any_object,active::fast>());
-	
+
 	v(active::direct());
 	v(active::shared<active::any_object, active::direct>());
 
 	v(active::synchronous());
 	v(active::shared<active::any_object, active::synchronous>());
-	
+
 	v(active::advanced());
 	v(active::shared<active::any_object,active::advanced>());
-		
+
 	//v(active::thread());
 	//v(active::shared<active::any_object,active::thread>());
-	
+
 }
 
 void test_fib_soak()
@@ -1014,7 +1021,9 @@ int main()
 	test_shared_thread();
 	test_object_mix();
 	test_allocators();
+#if ACTIVE_USE_CXX11
 	test_move_semantics();
+#endif
 
 	// Advanced queueing object
 	test_advanced_ordering();
@@ -1022,7 +1031,7 @@ int main()
 	test_advanced_noreorder();
 	test_advanced_queue_control();
 	test_promise();
-	
+
 	// Mini-soak tests
 	test_fib_soak();
 

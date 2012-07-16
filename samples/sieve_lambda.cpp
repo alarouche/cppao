@@ -23,7 +23,7 @@ public:
 			}
 		} );
 	}
-	
+
 private:
 	ptr next;
 	const int prime;
@@ -32,11 +32,9 @@ private:
 class Source : public active::object<Source>
 {
 public:
-	typedef int number;
-
 	Source(int m) : max(m) { }
 
-	void source(int number )
+	void source(int number)
 	{
 		active_fn( [=]
 		{
@@ -45,7 +43,7 @@ public:
 			if(number<max) source(number+1);
 		} );
 	}
-	
+
 private:
 	Prime::ptr head;
 	const int max;

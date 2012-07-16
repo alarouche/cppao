@@ -12,21 +12,21 @@ namespace active
 		struct steal  : public Queue
 		{
 			typedef typename Queue::allocator_type allocator_type;
-			steal(const allocator_type & alloc = allocator_type()) : 
+			steal(const allocator_type & alloc = allocator_type()) :
 				Queue(alloc), m_running(false)
-			{ 
-			}
-			
-			steal(const steal&) : m_running(false) { }
-			
-			template<typename Fn>
-			bool enqueue_fn( any_object * object, Fn && fn, int priority)
 			{
-				std::unique_lock<std::mutex> lock(m_mutex);
-				
+			}
+
+			steal(const steal&) : m_running(false) { }
+
+			template<typename Fn>
+			bool enqueue_fn( any_object * object, RVALUE_REF(Fn) fn, int priority)
+			{
+				platform::unique_lock<platform::mutex> lock(m_mutex);
+
 				if( m_running )
 				{
-					return Queue::enqueue_fn( object, std::forward<Fn&&>(fn), priority );
+					return Queue::enqueue_fn( object, platform::forward<RVALUE_REF(Fn)>(fn), priority );
 				}
 				else
 				{
@@ -45,15 +45,15 @@ namespace active
 					return false;
 				}
 			}
-			
+
 			bool empty() const
 			{
 				return !m_running && Queue::empty();
 			}
-			
+
 			bool run_some(any_object * o, int n=100) throw()
 			{
-				std::unique_lock<std::mutex> lock(m_mutex);
+				platform::unique_lock<platform::mutex> lock(m_mutex);
 				if( m_running ) return true;	// Cannot run at this time
 				m_running = true;
 				lock.unlock();
@@ -62,15 +62,15 @@ namespace active
 				m_running = false;
 				return activate;
 			}
-			
+
 		private:
-			std::mutex m_mutex;
+			platform::mutex m_mutex;
 			bool m_running;
 		};
-		
+
 	}
-	
-	typedef object_impl<schedule::thread_pool, queueing::steal<queueing::shared<>>, sharing::disabled> fast;
+
+	typedef object_impl<schedule::thread_pool, queueing::steal<queueing::shared<> >, sharing::disabled> fast;
 }
 
 

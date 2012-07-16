@@ -4,24 +4,18 @@
 class ComplexComputation : public active::object<ComplexComputation>
 {
 public:
-	struct computation
+	void active_method(int a, int b, active::sink<int> * handler)
 	{
-		int a, b;
-		active::sink<int> & handler;
-	};
-
-	void active_method(computation&&c)
-	{
-		c.handler.send(c.a + c.b);
+		handler->send(a+b);
 	}
 };
 
-class ComputationHandler : 
+class ComputationHandler :
 	public active::object<ComputationHandler>,
 	public active::sink<int>
 {
 public:
-	void active_method(int &&result)
+	void active_method(int result)
 	{
 		std::cout << "Result of computation = " << result << std::endl;
 	}
@@ -32,7 +26,6 @@ int main()
 {
 	ComputationHandler handler;
 	ComplexComputation cc;
-	ComplexComputation::computation msg = {1,2,handler};
-	cc(msg);
+	cc(1,2,&handler);
 	active::run();
 }

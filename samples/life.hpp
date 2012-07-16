@@ -21,8 +21,8 @@ public:
 	struct redraw { };
 
 	// Implementation:
-	void active_method( cell_update&& );
-	void active_method( redraw&& );
+	void active_method( cell_update );
+	void active_method( redraw );
 
 	Display();
 private:
@@ -41,19 +41,19 @@ public:
 
 	// Notify that a neighbour is connected
 	struct add_neighbour { Cell * neighbour; } ;
-	void active_method( add_neighbour&& );
+	void active_method( add_neighbour );
 
 	// Notify all neighbours of our status
 	struct notify_neighbours { };
-	void active_method( notify_neighbours&& );
+	void active_method( notify_neighbours );
 
 	// Notification from our neighbours
 	struct notification{ bool alive; };
-	void active_method( notification&& );
+	void active_method( notification );
 
 	// Compute our own status
 	struct compute { };
-	void active_method( compute&& );
+	void active_method( compute );
 
 	bool is_alive;
 	int x,y;	// Position of cell in the grid
@@ -73,15 +73,15 @@ public:
 
 	// Kick off computation
 	struct compute { };
-	void active_method(compute&&);
+	void active_method(compute);
 
 	// Cells notify when they have notified all of their neighbours
 	struct notification_complete { };
-	void active_method( notification_complete&& );
+	void active_method( notification_complete );
 
 	// Cells notify when they have completed their computation
 	struct compute_complete { };
-	void active_method( compute_complete&& );
+	void active_method( compute_complete );
 
 	Controller( active::scheduler & tp, int seed );
 private:

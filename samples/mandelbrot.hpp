@@ -39,7 +39,7 @@ namespace mb
 		struct Ready;
 
 		// 1) Construct the region
-		ACTIVE_METHOD( Region );
+		void active_method( Region );
 
 		// 2) Iterate a number of times
 		struct Iterate
@@ -47,7 +47,7 @@ namespace mb
 			int times;
 			active::sink<Ready>::sp finished;
 		};
-		ACTIVE_METHOD( Iterate );
+		void active_method( Iterate );
 
 		// 3) Message sent when iteration finished.
 		struct Ready
@@ -75,12 +75,12 @@ namespace mb
 		struct Ready;
 		typedef active::sink<Ready>::sp SetNotifier;
 
-		ACTIVE_METHOD( SetNotifier );
+		void active_method( SetNotifier );
 
 		// 2) Notify that computation is complete
 		typedef ComputeRegion::Ready ComputeReady;
 
-		ACTIVE_METHOD( ComputeReady );
+		void active_method( ComputeReady );
 
 		// 3) Send the Ready message to the recipient.
 		struct Ready
@@ -114,7 +114,7 @@ namespace mb
 			active::sink<Update>::sp updater;	// Whom to notify when contents have changed
 		};
 
-		ACTIVE_METHOD( Start );
+		void active_method( Start );
 
 		// 2) Construct, specifying an initial framebuffer.
 		struct StartFromOtherView
@@ -124,7 +124,7 @@ namespace mb
 			int minIterations, maxIterations;
 		};
 
-		ACTIVE_METHOD( StartFromOtherView );
+		void active_method( StartFromOtherView );
 
 		// 3) Notify someone that the framebuffer has changed.
 		struct Update
@@ -136,7 +136,7 @@ namespace mb
 
 		// 4) A Region has finished rendering.
 		typedef RenderRegion::Ready RenderReady;
-		ACTIVE_METHOD( RenderReady );
+		void active_method( RenderReady );
 
 		// 5) Destroy this view and start another view
 		struct ZoomTo
@@ -144,12 +144,12 @@ namespace mb
 			Start newSettings;
 			ptr newView;
 		};
-		ACTIVE_METHOD( ZoomTo );
+		void active_method( ZoomTo );
 
 		// 6) Stop all processing (to exit application)
 		struct Stop { };
 
-		ACTIVE_METHOD( Stop );
+		void active_method( Stop );
 
 	private:
 		Region m_region;
@@ -181,20 +181,19 @@ namespace mb
 		{
 			double x0, y0, x1, y1;
 		};
-		ACTIVE_METHOD( NavigateTo );
+		void active_method( NavigateTo );
 
 		struct Navigate {};
-		ACTIVE_METHOD(Navigate);
+		void active_method(Navigate);
 
 		// 2) Update the display buffer
-		typedef View::Update ViewUpdate;
-		ACTIVE_METHOD( ViewUpdate );
+		void active_method( View::Update );
 
 		void runMainLoop();
 
 	private:
 		struct exit_main_loop { };
-		std::shared_ptr<View> view;
+		View::ptr view;
 		Region m_region;
 
 		int m_window;
@@ -202,7 +201,7 @@ namespace mb
 
 		// Because GLUT itself is not threadsafe and insists on running
 		// in the main thread...
-		std::mutex m_mutex;
+		active::platform::mutex m_mutex;
 		std::vector<unsigned char> m_displayBuffer;
 
 		void OnIdle();

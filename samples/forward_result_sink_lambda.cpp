@@ -4,26 +4,20 @@
 class ComplexComputation : public active::object<ComplexComputation>
 {
 public:
-	struct computation
-	{
-		int a, b;
-		active::sink<int> & handler;
-	};
-
 	void compute( int a, int b, active::sink<int> & handler )
 	{
 		active_fn([=,&handler]{handler.send(a+b);});
 	}
 };
 
-class ComputationHandler : 
-	public active::object<ComputationHandler>, 
+class ComputationHandler :
+	public active::object<ComputationHandler>,
 	public active::sink<int>
 {
 public:
 	typedef int result;
 
-	void active_method(int &&result)
+	void active_method(int result)
 	{
 		std::cout << "Result of computation = " << result << std::endl;
 	}

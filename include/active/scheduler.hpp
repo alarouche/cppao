@@ -2,7 +2,26 @@
 #define ACTIVE_SCHEDULER_INCLUDED
 
 #include "object.hpp"
-#include <condition_variable>
+
+#if ACTIVE_USE_BOOST
+	#include <boost/thread/condition_variable.hpp>
+	namespace active
+	{
+		namespace platform
+		{
+			using boost::condition_variable;
+		}
+	}
+#else
+	#include <condition_variable>
+namespace active
+{
+	namespace platform
+	{
+		using std::condition_variable;
+	}
+}
+#endif
 
 namespace active
 {
@@ -34,9 +53,9 @@ namespace active
 		bool run_one();
 
 	private:
-		std::mutex m_mutex;
+		platform::mutex m_mutex;
 		any_object *m_head, *m_tail;   // List of activated objects.
-		std::condition_variable m_ready;
+		platform::condition_variable m_ready;
 		int m_busy_count;	// Used to work out when we have actually finished.
 		bool run_managed() throw();
 		void run_in_thread();

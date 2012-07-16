@@ -33,7 +33,7 @@ namespace active
 			sink<read_ready>::sp response;
 		};
 
-		void active_method( read&& );
+		void active_method( read );
 
 		// Enqueue socket for writing
 		// Note: must be re-queued after the write.
@@ -43,17 +43,17 @@ namespace active
 			sink<write_ready>::sp response;
 		};
 
-		void active_method( write&& );
+		void active_method( write );
 
 		struct do_select { };
-		void active_method( do_select&& );
+		void active_method( do_select );
 
 		struct select_loop : public object<select_loop>
 		{
 			select_loop(int interrupt);
-			void active_method( read&& );
-			void active_method( write&& );
-			void active_method( do_select&& );
+			void active_method( read );
+			void active_method( write );
+			void active_method( do_select );
 		private:
 			int m_interrupt_fd;
 			std::list<read> m_readers;
@@ -73,7 +73,7 @@ namespace active
 	{
 		// Tell the socket to shut down
 		struct shutdown { int mode; };
-		void active_method( shutdown&& );
+		void active_method( shutdown );
 
 		// Data read from socket
 		struct read_response
@@ -90,7 +90,7 @@ namespace active
 			sink<read_response>::sp response;
 		};
 
-		void active_method( read&& );
+		void active_method( read );
 
 		// Write data to socket
 		struct write_response
@@ -107,7 +107,7 @@ namespace active
 			sink<write_response>::sp response;
 		};
 
-		void active_method( write&& );
+		void active_method( write );
 
 		struct accept_response
 		{
@@ -120,7 +120,7 @@ namespace active
 			sink<accept_response>::sp response;
 		};
 
-		void active_method( accept&& );
+		void active_method( accept );
 
 		struct listen_result
 		{
@@ -133,7 +133,7 @@ namespace active
 			sink<listen_result>::sp response;
 		};
 
-		void active_method( listen&& );
+		void active_method( listen );
 
 		socket(int fd);
 		socket(int domain, int type, int protocol);
@@ -153,7 +153,7 @@ namespace active
 			sink<connect_response>::sp response;
 		};
 
-		void active_method(connect_in&&);
+		void active_method(connect_in);
 
 		struct bind_response
 		{
@@ -167,7 +167,7 @@ namespace active
 			sink<bind_response>::sp response;
 		};
 
-		void active_method(bind_in&&);
+		void active_method(bind_in);
 	private:
 		socket(const socket&); // = delete
 		socket & operator=(const socket&); // = delete
@@ -175,7 +175,7 @@ namespace active
 		// Perform a blocking read without blocking the whole socket
 		struct reader : public object<reader>
 		{
-			void active_method( read&& );
+			void active_method( read );
 			reader(int fd);
 			const int m_fd;
 		} m_reader;
@@ -183,7 +183,7 @@ namespace active
 		// Perform a blocking write without blocking the whole object.
 		struct writer : public object<writer>
 		{
-			void active_method( write&& );
+			void active_method( write );
 			writer(int fd);
 			const int m_fd;
 		} m_writer;
@@ -196,7 +196,6 @@ namespace active
 		sink<socket::read_response>,
 		sink<socket::write_response>
 	{
-		typedef std::shared_ptr<pipe> ptr;
 		struct closed { };
 
 		pipe(	socket::ptr input,
@@ -206,17 +205,17 @@ namespace active
 
 		struct start { };
 
-		void active_method(start&&);
-	
+		void active_method(start);
+
 		typedef select::read_ready read_ready;
 		typedef select::write_ready write_ready;
 		typedef socket::read_response read_response;
 		typedef socket::write_response write_response;
 
-		void active_method(read_ready&&);
-		void active_method(write_ready&&);
-		void active_method(read_response&&);
-		void active_method(write_response&&);
+		void active_method(read_ready);
+		void active_method(write_ready);
+		void active_method(read_response);
+		void active_method(write_response);
 
 		char m_buffer[4096];
 		const void * m_write_buffer;

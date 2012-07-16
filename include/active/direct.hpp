@@ -11,13 +11,13 @@ namespace active
 		struct direct_call
 		{
 			typedef std::allocator<void> allocator_type;
-			
+
 			direct_call(const allocator_type& =allocator_type());
-			
+
 			allocator_type get_allocator() const { return allocator_type(); }
-						
+
 			template<typename Fn>
-			bool enqueue_fn(any_object * object, Fn&&fn, int)
+			bool enqueue_fn(any_object * object, RVALUE_REF(Fn) fn, int)
 			{
 				try
 				{
@@ -29,14 +29,14 @@ namespace active
 				}
 				return false;
 			}
-			
+
 			bool run_some(any_object * o, int n=100) throw();
-						
+
 			bool empty() const;
-		};		
+		};
 	}
-	
-	typedef object_impl<schedule::none, queueing::direct_call, sharing::disabled> direct;	
+
+	typedef object_impl<schedule::none, queueing::direct_call, sharing::disabled> direct;
 }
 
 #endif

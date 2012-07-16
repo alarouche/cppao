@@ -22,7 +22,7 @@ active::any_object::~any_object()
 // Used by an active object to signal that there are messages to process.
 void active::scheduler::activate(ObjectPtr p) throw()
 {
-	std::lock_guard<std::mutex> lock(m_mutex);
+	platform::lock_guard<platform::mutex> lock(m_mutex);
 	p->m_next=nullptr;
 	if( !m_head )
 		m_head = m_tail = p;
@@ -36,7 +36,7 @@ void active::scheduler::activate(ObjectPtr p) throw()
 
 bool active::scheduler::run_one()
 {
-	std::unique_lock<std::mutex> lock(m_mutex);
+	platform::unique_lock<platform::mutex> lock(m_mutex);
 	if( m_head )
 	{
 		ObjectPtr p = m_head;
@@ -59,7 +59,7 @@ bool active::scheduler::run_one()
 // Returns false if no more items.
 bool active::scheduler::run_managed() throw()
 {
-	std::unique_lock<std::mutex> lock(m_mutex);
+	platform::unique_lock<platform::mutex> lock(m_mutex);
 
 	while( m_head )
 	{
@@ -77,34 +77,47 @@ bool active::scheduler::run_managed() throw()
 	return m_busy_count!=0;
 }
 
-active::run::run(int threads, scheduler & sched) :
-	m_scheduler(sched),
-	m_threads(threads<1 ? 4 : threads)
+active::run::run(int num_threads, scheduler & sched) :
+	m_scheduler(sched)
 {
+	if( num_threads<1 ) num_threads=4;
+	// m_threads.resize(num_threads);
 	m_scheduler.start_work();	// Prevent threads from exiting immediately
-	for( auto & t : m_threads )
-		t = std::thread( std::bind(&scheduler::run, &sched) );
+	for( int t=0; t<num_threads; ++t )
+#if ACTIVE_USE_BOOST
+		m_threads.add_thread(new platform::thread( platform::bind(&scheduler::run, &sched) ) );
+#else
+		m_threads.push_back(platform::thread( platform::bind(&scheduler::run, &sched) ) );
+#endif
 }
 
 active::run::~run()
 {
 	m_scheduler.stop_work();
-	for( auto & t : m_threads )
-		t.join();
+#if ACTIVE_USE_BOOST
+	m_threads.join_all();
+#else
+	for(threads::iterator t=m_threads.begin(); t!=m_threads.end(); ++t)
+		t->join();
+#endif
 }
 
 void active::scheduler::run()
 {
 	while( run_managed() )
 	{
-		std::unique_lock<std::mutex> lock(m_mutex);
+		platform::unique_lock<platform::mutex> lock(m_mutex);
 #if ACTIVE_OBJECT_CONDITION
 		m_ready.wait(lock);
 #else
+#if ACTIVE_USE_BOOST
+		m_ready.timed_wait(lock, boost::posix_time::milliseconds(50));
+#else
 		m_ready.wait_for(lock, std::chrono::milliseconds(50) );
 #endif
+#endif
 	}
-	std::unique_lock<std::mutex> lock(m_mutex);	// Needed on VS11
+	platform::unique_lock<platform::mutex> lock(m_mutex);	// Needed on VS11
 	m_ready.notify_all();
 }
 
@@ -115,6 +128,7 @@ void active::scheduler::run_in_thread()
 
 void active::any_object::exception_handler() throw()
 {
+	// !! Bug: std::cerr is not threadsafe
 	try
 	{
 		throw;
@@ -131,13 +145,13 @@ void active::any_object::exception_handler() throw()
 
 void active::scheduler::start_work() throw()
 {
-	std::lock_guard<std::mutex> lock(m_mutex);
+	platform::lock_guard<platform::mutex> lock(m_mutex);
 	++m_busy_count;
 }
 
 void active::scheduler::stop_work() throw()
 {
-	std::lock_guard<std::mutex> lock(m_mutex);
+	platform::lock_guard<platform::mutex> lock(m_mutex);
 	if( 0 == --m_busy_count )
 	{
 		m_ready.notify_one();
@@ -153,7 +167,7 @@ void active::schedule::thread_pool::set_scheduler(type&p)
 	m_pool = &p;
 }
 
-void active::schedule::thread_pool::activate(const std::shared_ptr<any_object> & sp)
+void active::schedule::thread_pool::activate(const platform::shared_ptr<any_object> & sp)
 {
 	if(m_pool) m_pool->activate(sp.get());
 }
@@ -165,15 +179,15 @@ void active::schedule::thread_pool::activate(any_object * obj)
 
 void active::schedule::own_thread::activate(any_object * obj)
 {
-	std::lock_guard<std::mutex> lock(m_mutex);
+	platform::lock_guard<platform::mutex> lock(m_mutex);
 	m_object = obj;
 	if( m_pool ) m_pool->start_work();
 	m_ready.notify_one();
 }
 
-void active::schedule::own_thread::activate(const std::shared_ptr<any_object> & sp)
+void active::schedule::own_thread::activate(const platform::shared_ptr<any_object> & sp)
 {
-	std::lock_guard<std::mutex> lock(m_mutex);
+	platform::lock_guard<platform::mutex> lock(m_mutex);
 	m_shared = sp;
 	m_object = sp.get();
 	if( m_pool ) m_pool->start_work();
@@ -182,7 +196,7 @@ void active::schedule::own_thread::activate(const std::shared_ptr<any_object> & 
 
 void active::schedule::own_thread::thread_fn()
 {
-	std::unique_lock<std::mutex> lock(m_mutex);
+	platform::unique_lock<platform::mutex> lock(m_mutex);
 	while( !m_shutdown )
 	{
 		if( m_object )
@@ -195,8 +209,8 @@ void active::schedule::own_thread::thread_fn()
 			if(m_pool) m_pool->stop_work();
 			if( m_shared )
 			{
-				std::weak_ptr<any_object> wp(m_shared);
-				std::shared_ptr<any_object> shared;
+				platform::weak_ptr<any_object> wp(m_shared);
+				platform::shared_ptr<any_object> shared;
 				shared.swap(m_shared);
 				lock.unlock();
 				shared.reset();
@@ -213,7 +227,7 @@ active::schedule::own_thread::own_thread(const own_thread&other) :
 	m_pool(other.m_pool),
 	m_shutdown(false),
 	m_object(nullptr),
-	m_thread( std::bind( &own_thread::thread_fn, this ) )
+	m_thread( platform::bind( &own_thread::thread_fn, this ) )
 {
 }
 
@@ -221,20 +235,20 @@ active::schedule::own_thread::own_thread(type & p) :
 	m_pool(&p),
 	m_shutdown(false),
 	m_object(nullptr),
-	m_thread( std::bind( &own_thread::thread_fn, this ) )
+	m_thread( platform::bind( &own_thread::thread_fn, this ) )
 {
 }
 
 active::schedule::own_thread::~own_thread()
 {
-	if( std::this_thread::get_id() == m_thread.get_id())
+	if( platform::this_thread::get_id() == m_thread.get_id())
 	{
 		m_thread.detach();	// Destroyed from within thread
 	}
 	else
 	{
 		{
-			std::lock_guard<std::mutex> lock(m_mutex);
+			platform::lock_guard<platform::mutex> lock(m_mutex);
 			m_shutdown = true;
 			m_ready.notify_one();
 		}

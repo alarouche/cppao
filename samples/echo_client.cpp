@@ -33,7 +33,7 @@ struct echo_client :
 	{
 	}
 
-	void active_method(init&&init)
+	void active_method(init init)
 	{
 		m_select = init.select;
 
@@ -54,7 +54,7 @@ struct echo_client :
 	typedef active::socket::connect_response connect_response;
 
 	// 2a) Connected
-	void active_method( connect_response&&connect_response )
+	void active_method( connect_response connect_response )
 	{
 		if( connect_response.error )
 		{
@@ -76,7 +76,7 @@ struct echo_client :
 
 	// 2b) Something else connected to us
 	// However we don't know which will happen first:
-	void active_method( connected&&connected )
+	void active_method( connected connected )
 	{
 		m_pipe.reset( new active::pipe( m_sock, connected.sock, m_select ) );
 
@@ -103,7 +103,7 @@ struct input : public active::object<input>,
 	{
 	}
 
-	void active_method( connected&&connected )
+	void active_method( connected connected )
 	{
 		// !! Watch out exceptions ???
 		m_pipe.reset( new active::pipe(m_socket, connected.sock, m_select ) );
@@ -132,7 +132,7 @@ int main(int argc, char**argv)
 	input::sp in(new input(select));
 	active::socket::ptr out(new active::socket(1));
 
-	std::vector<std::shared_ptr<echo_client>> client_list( num_clients );
+	std::vector<echo_client::ptr> client_list( num_clients );
 	for(int c=0; c<num_clients; ++c)
 	{
 		client_list[c].reset( new echo_client() );
