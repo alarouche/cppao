@@ -3,7 +3,12 @@
 #define ACTIVE_THREAD_INCLUDED
 
 #include "object.hpp"
-#include <condition_variable>
+
+#if ACTIVE_USE_BOOST
+	#include <boost/thread/condition_variable.hpp>
+#else
+	#include <condition_variable>
+#endif
 
 namespace active
 {
@@ -19,7 +24,7 @@ namespace active
 
 			void set_scheduler(type&p);
 			void activate(any_object * obj);
-			void activate(const std::shared_ptr<any_object> & sp);
+			void activate(const platform::shared_ptr<any_object> & sp);
 
 			own_thread();
 			~own_thread();
@@ -28,10 +33,10 @@ namespace active
 			type * m_pool;  // Let pool track when all threads are idle => finished.
 			bool m_shutdown;
 			any_object * m_object;
-			std::shared_ptr<any_object> m_shared;
-			std::mutex m_mutex;
-			std::condition_variable m_ready;
-			std::thread m_thread;
+			platform::shared_ptr<any_object> m_shared;
+			platform::mutex m_mutex;
+			platform::condition_variable m_ready;
+			platform::thread m_thread;
 		};
 	}
 

@@ -26,7 +26,7 @@ public:
 		active::sink<Result> & result;
 	};
 
-	void active_method( Compute&&Compute )
+	void active_method( Compute Compute )
 	{
 		Result r = { Compute.a + Compute.b };
 		Compute.result.send(r);
@@ -43,7 +43,7 @@ public:
 class Display : public active::object<Display>, public active::sink<Result>
 {
 public:
-	void active_method( Result && Result )
+	void active_method( Result Result )
 	{
 		std::cout << "Result of computation = " << Result.value << std::endl;
 	}
@@ -53,8 +53,10 @@ int main()
 {
 	Computation comp;
 	Display display;
-	comp( Computation::Compute({1,2,display}) );
-	comp( Computation::Compute({4,5,display}) );
+	Computation::Compute msg1 = {1,2,display};
+	comp( msg1 );
+	Computation::Compute msg2 = {4,5,display};
+	comp( msg2 );
 	comp( Shutdown() );
 	active::run();
 }

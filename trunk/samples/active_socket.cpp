@@ -39,7 +39,7 @@ active::socket::socket(int domain, int type, int protocol) :
 	if( m_fd == -1 ) throw std::runtime_error("Could not create socket");
 }
 
-void active::socket::active_method( connect_in && connect_in )
+void active::socket::active_method( connect_in connect_in )
 {
 	connect_response response;
 	int result = ::connect( m_fd, (sockaddr*)&connect_in.sa, sizeof(connect_in.sa) );
@@ -51,7 +51,7 @@ void active::socket::active_method( connect_in && connect_in )
 	}
 };
 
-void active::socket::active_method( bind_in && bind_in )
+void active::socket::active_method( bind_in bind_in )
 {
 	sockaddr_in response = bind_in.sa;
 	int result = ::bind( m_fd, (sockaddr*)&response, sizeof( bind_in.sa ) );
@@ -63,7 +63,7 @@ void active::socket::active_method( bind_in && bind_in )
 	}
 }
 
-void active::socket::active_method( listen && listen )
+void active::socket::active_method( listen listen )
 {
 	int result = ::listen( m_fd, listen.backlog );
 
@@ -74,7 +74,7 @@ void active::socket::active_method( listen && listen )
 	}
 }
 
-void active::socket::active_method( accept&&accept )
+void active::socket::active_method( accept accept )
 {
 	accept_response response;
 	response.fd = ::accept( m_fd, 0, 0 );
@@ -86,12 +86,12 @@ void active::socket::active_method( accept&&accept )
 	}
 }
 
-void active::socket::active_method( write&&write )
+void active::socket::active_method( write write )
 {
 	m_writer(write);
 }
 
-void active::socket::writer::active_method( write&&write )
+void active::socket::writer::active_method( write write )
 {
 	active::socket::write_response response;
 
@@ -115,12 +115,12 @@ void active::socket::writer::active_method( write&&write )
 		write.response->send(response);
 }
 
-void active::socket::active_method( read&&read )
+void active::socket::active_method( read read )
 {
 	m_reader(read);
 }
 
-void active::socket::reader::active_method( read&&read )
+void active::socket::reader::active_method( read read )
 {
 	active::socket::read_response response = { 0 };
 
@@ -141,7 +141,7 @@ void active::socket::reader::active_method( read&&read )
 		read.response->send(response);
 }
 
-void active::socket::active_method( shutdown&&shutdown )
+void active::socket::active_method( shutdown shutdown )
 {
 	::shutdown( m_fd, shutdown.mode );
 }
@@ -166,7 +166,7 @@ active::select::select() :
 {
 }
 
-void active::select::active_method( read&&read )
+void active::select::active_method( read read )
 {
 #if ENABLE_SELECT
 	// Note: We must queue the write BEFORE we interrupt the select
@@ -177,7 +177,7 @@ void active::select::active_method( read&&read )
 #endif
 }
 
-void active::select::active_method( write&&write )
+void active::select::active_method( write write )
 {
 #if ENABLE_SELECT
 	m_loop(write);
@@ -199,7 +199,7 @@ active::select::select_loop::select_loop(int fd) : m_interrupt_fd(fd)
 {
 }
 
-void active::select::select_loop::active_method( do_select&&do_select )
+void active::select::select_loop::active_method( do_select do_select )
 {
 	if( m_readers.empty() && m_writers.empty()) return;
 
@@ -212,20 +212,20 @@ void active::select::select_loop::active_method( do_select&&do_select )
 
 	FD_SET( m_interrupt_fd, &rfds );
 
-	for( const auto & r : m_readers )
+	for( std::list<read>::const_iterator r=m_readers.begin(); r!=m_readers.end(); ++r)
 	{
-		assert( r.fd>=0 );	// Could happen if we select a deleted/closed socket
-		assert( r.response );	// Semantic bug
-		FD_SET( r.fd, &rfds );
-		max_fd = std::max( max_fd, r.fd );
+		assert( r->fd>=0 );	// Could happen if we select a deleted/closed socket
+		assert( r->response );	// Semantic bug
+		FD_SET( r->fd, &rfds );
+		max_fd = std::max( max_fd, r->fd );
 	}
 
-	for( const auto & w : m_writers )
+	for( std::list<write>::const_iterator w=m_writers.begin(); w!=m_writers.end(); ++w )
 	{
-		assert( w.fd>=0 );
-		assert( w.response );
-		FD_SET( w.fd, &wfds );
-		max_fd = std::max( max_fd, w.fd );
+		assert( w->fd>=0 );
+		assert( w->response );
+		FD_SET( w->fd, &wfds );
+		max_fd = std::max( max_fd, w->fd );
 	}
 
 #if DEBUG_SELECT
@@ -238,7 +238,7 @@ void active::select::select_loop::active_method( do_select&&do_select )
 	if( result<0 ) std::cerr << "Select error code: " << errno << std::endl;
 #endif
 
-	for( auto r = m_readers.begin(); r!=m_readers.end(); )
+	for( std::list<read>::iterator r = m_readers.begin(); r!=m_readers.end(); )
 	{
 		if( FD_ISSET( r->fd, &rfds ) )
 		{
@@ -251,7 +251,7 @@ void active::select::select_loop::active_method( do_select&&do_select )
 		}
 	}
 
-	for( auto w =m_writers.begin(); w!=m_writers.end(); )
+	for( std::list<write>::iterator w=m_writers.begin(); w!=m_writers.end(); ++w )
 	{
 		if( FD_ISSET( w->fd, &wfds ) )
 		{
@@ -275,14 +275,14 @@ void active::select::select_loop::active_method( do_select&&do_select )
 }
 
 
-void active::select::select_loop::active_method( read&&read )
+void active::select::select_loop::active_method( read read )
 {
 	if( m_readers.empty() && m_writers.empty() )
 		(*this)(do_select());
 	m_readers.push_back(read);
 }
 
-void active::select::select_loop::active_method( write&&write )
+void active::select::select_loop::active_method( write write )
 {
 	//std::cout << "select_loop::write\n";
 	if( m_readers.empty() && m_writers.empty() )
@@ -302,19 +302,19 @@ active::pipe::pipe(socket::ptr input,
 {
 }
 
-void active::pipe::active_method( start&&start )
+void active::pipe::active_method( start start )
 {
 	select::read read = { m_input->m_fd, shared_from_this() };
 	(*m_select)(read);
 }
 
-void active::pipe::active_method( read_ready&&read_ready )
+void active::pipe::active_method( read_ready read_ready )
 {
 	socket::read read = { m_buffer, sizeof(m_buffer), shared_from_this() };
 	(*m_input)(read);
 }
 
-void active::pipe::active_method( read_response&&read_response )
+void active::pipe::active_method( read_response read_response )
 {
 	if( read_response.error )
 	{
@@ -335,13 +335,13 @@ void active::pipe::active_method( read_response&&read_response )
 	}
 }
 
-void active::pipe::active_method( write_ready&&write_ready )
+void active::pipe::active_method( write_ready write_ready )
 {
 	socket::write write = { m_write_buffer, m_write_remaining, shared_from_this() };
 	(*m_output)(write);
 }
 
-void active::pipe::active_method( write_response&&write_response )
+void active::pipe::active_method( write_response write_response )
 {
 	if( write_response.error )
 	{

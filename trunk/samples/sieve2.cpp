@@ -21,7 +21,7 @@ public:
 			if(next)
 				(*next)(filter);
 			else
-				next = std::make_shared<Prime>(filter);
+				next.reset( new Prime(filter) );
 		}
 	}
 
@@ -53,7 +53,7 @@ public:
 		if(head)
 			(*head)(number);
 		else
-			head = std::make_shared<Prime>(number);
+			head.reset( new Prime(number) );
 
 		if( number < max )
 			(*this)(number+1);

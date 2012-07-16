@@ -47,15 +47,15 @@ int mb::Region::framebuffer_offset(double x, double y, int bpp) const
 	return framebuffer_offset( int((x-x0)/dx), int((y-y0)/dy), bpp);
 }
 
-void mb::ComputeRegion::ACTIVE_IMPL( Region )
+void mb::ComputeRegion::active_method( Region Region )
 {
 	std::vector<Cell> cells(Region.width*Region.height);
-	m_cells = std::move(cells);
+	m_cells = active::platform::move(cells);
 	m_region = Region;
 	m_totalIterations=0;
 }
 
-void mb::ComputeRegion::ACTIVE_IMPL( Iterate )
+void mb::ComputeRegion::active_method( Iterate Iterate )
 {
 	Ready result;
 	result.region = m_region;
@@ -67,7 +67,7 @@ void mb::ComputeRegion::ACTIVE_IMPL( Iterate )
 
 	double x,y;
 	int i,j;
-	auto cell = m_cells.begin();
+	std::vector<Cell>::iterator cell = m_cells.begin();
 	for(j=0,y=m_region.y0; j<m_region.height; ++j,y+=m_region.dy)
 	{
 		for(i=0,x=m_region.x0; i<m_region.width; ++i,x+=m_region.dx,++cell)
@@ -91,13 +91,13 @@ void mb::ComputeRegion::ACTIVE_IMPL( Iterate )
 	if( result.escapedCount==0 ) result.min_iterations = m_totalIterations;	// !!!!!
 	result.totalIterations = m_totalIterations;
 
-	(*Iterate.finished)(std::move(result));
+	Iterate.finished->send(active::platform::move(result));
 }
 
 
-void mb::RenderRegion::ACTIVE_IMPL( ComputeReady )
+void mb::RenderRegion::active_method( ComputeReady ComputeReady )
 {
-	auto notifier(m_notifier.lock());
+	active::sink<Ready>::sp notifier(m_notifier.lock());
 	if( !notifier ) return;
 
 	Ready ready = { ComputeReady.region };
@@ -108,7 +108,7 @@ void mb::RenderRegion::ACTIVE_IMPL( ComputeReady )
 	ready.totalIterations = ComputeReady.totalIterations;
 
 	int i=0;
-	auto j = ComputeReady.iterations.cbegin();
+	std::vector<int>::const_iterator j = ComputeReady.iterations.begin();
 	for(int y=0; y<ComputeReady.region.height; ++y)
 	{
 		for(int x=0; x<ComputeReady.region.width; ++x)
@@ -132,11 +132,11 @@ void mb::RenderRegion::ACTIVE_IMPL( ComputeReady )
 		}
 	}
 
-	(*notifier)(std::move(ready));
+	notifier->send(active::platform::move(ready));
 }
 
 
-void mb::RenderRegion::ACTIVE_IMPL( SetNotifier )
+void mb::RenderRegion::active_method( SetNotifier SetNotifier )
 {
 	m_notifier = SetNotifier;
 }
@@ -145,7 +145,7 @@ mb::View::View() : m_dismissed(false)
 {
 }
 
-void mb::View::ACTIVE_IMPL( Start )
+void mb::View::active_method( Start Start )
 {
 	if( m_dismissed ) return;
 
@@ -165,11 +165,11 @@ void mb::View::ACTIVE_IMPL( Start )
 	int ystep = m_region.height / TILES;
 	for(int tx=0; tx<TILES; ++tx) for(int ty=0; ty<TILES; ++ty)
 	{
-		auto render = std::make_shared<RenderRegion>();
+		RenderRegion::ptr render(new RenderRegion);
 		m_tiles[tx][ty].render = render;
 		(*render)(shared_from_this());
 
-		Region subregion{
+		Region subregion = {
 			m_region.x0 + tx*xstep*m_region.dx,
 			m_region.y0 + ty*ystep*m_region.dy,
 			m_region.dx,
@@ -177,24 +177,25 @@ void mb::View::ACTIVE_IMPL( Start )
 			xstep, ystep, tx, ty
 			};
 
-		auto compute = std::make_shared<ComputeRegion>();
+		ComputeRegion::ptr compute(new ComputeRegion);
 		m_tiles[tx][ty].compute = compute;
 
 		(*compute)(subregion);
 
-		(*compute)(ComputeRegion::Iterate{STEP,render});
+		ComputeRegion::Iterate iterate={STEP,render};
+		(*compute)(iterate);
 	}
 	std::cout << "[" << std::flush;
 }
 
 
-void mb::View::ACTIVE_IMPL( StartFromOtherView )
+void mb::View::active_method( StartFromOtherView StartFromOtherView )
 {
 	if( m_dismissed ) return;
 	m_region = StartFromOtherView.newSettings.region;
 	m_update = StartFromOtherView.newSettings.updater;
 
-	m_displayBuffer = std::move(StartFromOtherView.newBuffer);
+	m_displayBuffer = active::platform::move(StartFromOtherView.newBuffer);
 	m_dismissed = false;
 	assert( !m_displayBuffer.empty() );
 	m_minIterations = MAX_ITERATIONS;
@@ -206,11 +207,11 @@ void mb::View::ACTIVE_IMPL( StartFromOtherView )
 	int ystep = m_region.height / TILES;
 	for(int tx=0; tx<TILES; ++tx) for(int ty=0; ty<TILES; ++ty)
 	{
-		auto render = std::make_shared<RenderRegion>();
+		RenderRegion::ptr render(new RenderRegion);
 		m_tiles[tx][ty].render = render;
 		(*render)(shared_from_this());
 
-		Region subregion{
+		Region subregion = {
 			m_region.x0 + tx*xstep*m_region.dx,
 			m_region.y0 + ty*ystep*m_region.dy,
 			m_region.dx,
@@ -218,20 +219,21 @@ void mb::View::ACTIVE_IMPL( StartFromOtherView )
 			xstep, ystep, tx, ty
 			};
 
-		auto compute = std::make_shared<ComputeRegion>();
+		ComputeRegion::ptr compute(new ComputeRegion);
 		m_tiles[tx][ty].compute = compute;
 
 		(*compute)(subregion);
 
-		(*compute)(ComputeRegion::Iterate{std::min(STEP+StartFromOtherView.minIterations,1000),render});
+		ComputeRegion::Iterate iterate = {std::min(STEP+StartFromOtherView.minIterations,1000),render};
+		(*compute)(iterate);
 	}
 	std::cout << "[" << std::flush;
 }
 
-void mb::View::ACTIVE_IMPL( RenderReady )
+void mb::View::active_method( RenderReady RenderReady )
 {
 	if( m_dismissed ) return;
-	auto update(m_update.lock());
+	active::sink<Update>::sp update(m_update.lock());
 	if( !update ) return;
 
 	assert( m_region.width>0 );
@@ -240,10 +242,10 @@ void mb::View::ACTIVE_IMPL( RenderReady )
 
 	// Copy RenderReady.buffer into m_displayBuffer
 
-	auto dest = m_displayBuffer.begin() + 3* (
+	std::vector<unsigned char>::iterator dest = m_displayBuffer.begin() + 3* (
 				RenderReady.reg.width * RenderReady.reg.offset_x +
 				m_region.width * RenderReady.reg.height * RenderReady.reg.offset_y);
-	auto src = RenderReady.buffer.begin();
+	std::vector<unsigned char>::iterator src = RenderReady.buffer.begin();
 
 	for(int row=0; row<RenderReady.reg.height; ++row, src+=3*RenderReady.reg.width, dest+=3*m_region.width)
 	{
@@ -253,14 +255,15 @@ void mb::View::ACTIVE_IMPL( RenderReady )
 
 	Update up = { m_region.width, m_region.height, m_displayBuffer };
 
-	(*update)(up);
+	update->send(up);
 
 	int tx = RenderReady.reg.offset_x;
 	int ty = RenderReady.reg.offset_y;
 	if( RenderReady.escapedCount < 10000-THRESHOLD  && RenderReady.totalIterations<20*m_minIterations /*MAX_ITERATIONS */ )
 	//if( RenderReady.completed>THRESHOLD || (RenderReady.escapedCount==0 && RenderReady.minIterations<MAX_ITERATIONS) )
 	{
-		(*m_tiles[tx][ty].compute)( ComputeRegion::Iterate{STEP,m_tiles[tx][ty].render} );
+		ComputeRegion::Iterate iterate = {STEP,m_tiles[tx][ty].render};
+		(*m_tiles[tx][ty].compute)( iterate );
 	}
 	else
 	{
@@ -278,7 +281,7 @@ void mb::View::ACTIVE_IMPL( RenderReady )
 	}
 }
 
-void mb::View::ACTIVE_IMPL( ZoomTo )
+void mb::View::active_method( ZoomTo ZoomTo )
 {
 	m_dismissed = true;
 
@@ -295,7 +298,7 @@ void mb::View::ACTIVE_IMPL( ZoomTo )
 		double x,y;
 		int i,j;
 
-		auto output=start.newBuffer.begin();
+		std::vector<unsigned char>::iterator output=start.newBuffer.begin();
 		for(j=0,y=ZoomTo.newSettings.region.y0; j<m_region.height; ++j,y+=ZoomTo.newSettings.region.dy)
 		{
 			for(i=0,x=ZoomTo.newSettings.region.x0; i<m_region.width; ++i,x+=ZoomTo.newSettings.region.dx)
@@ -317,12 +320,13 @@ void mb::View::ACTIVE_IMPL( ZoomTo )
 		start.minIterations = m_minIterations;
 		start.maxIterations = m_maxIterations;
 
-		(*ZoomTo.newSettings.updater)( Update{m_region.width, m_region.height, start.newBuffer} );
+		Update update = {m_region.width, m_region.height, start.newBuffer};
+		ZoomTo.newSettings.updater->send( update );
 		(*ZoomTo.newView)( start );
 	}
 }
 
-void mb::View::ACTIVE_IMPL( Stop )
+void mb::View::active_method( Stop Stop )
 {
 	m_dismissed = true;
 	for(int i=0; i<m_tilesRemaining; ++i) std::cout << "-";
@@ -347,7 +351,7 @@ mb::GlutWindow::GlutWindow(int argc, char**argv)
 	global = this;
 }
 
-void mb::GlutWindow::ACTIVE_IMPL( NavigateTo )
+void mb::GlutWindow::active_method( NavigateTo NavigateTo )
 {
 	m_region.x0 = NavigateTo.x0;
 	m_region.y0 = NavigateTo.y0;
@@ -365,32 +369,33 @@ void mb::GlutWindow::ACTIVE_IMPL( NavigateTo )
 	}
 
 	View::Start start = { m_region, shared_from_this() };
-	view = std::make_shared<View>();
+	view.reset( new View );
 	(*view)(start);
 }
 
-void mb::GlutWindow::ACTIVE_IMPL(Navigate)
+void mb::GlutWindow::active_method(Navigate Navigate)
 {
-
-	auto new_view = std::make_shared<View>();
+	View::ptr new_view(new View());
 	if( view )
 	{
 		(*view)(View::Stop());
-		(*view)(View::ZoomTo{m_region,shared_from_this(),new_view});
+		View::ZoomTo zoom = {m_region,shared_from_this(),new_view};
+		(*view)(zoom);
 		// Warning: This message could reach the view before it's even been properly initialized with Start/StartFromOther
 	}
 	else
 	{
-		(*new_view)(View::Start{m_region, shared_from_this()});
+		View::Start start = {m_region, shared_from_this()};
+		(*new_view)(start);
 	}
 	view = new_view;
 }
 
-void mb::GlutWindow::ACTIVE_IMPL( ViewUpdate )
+void mb::GlutWindow::active_method( View::Update ViewUpdate )
 {
 	{
-		std::lock_guard<std::mutex> lock(global->m_mutex);
-		m_displayBuffer = std::move(ViewUpdate.buffer);
+		active::platform::lock_guard<active::platform::mutex> lock(global->m_mutex);
+		m_displayBuffer = active::platform::move(ViewUpdate.buffer);
 	}
 	glutPostWindowRedisplay(m_window);
 }
@@ -409,7 +414,11 @@ void mb::GlutWindow::runMainLoop()
 void mb::GlutWindow::OnIdle()
 {
 	// Stop being a CPU hog:
+#if ACTIVE_USE_BOOST
+	active::platform::this_thread::sleep(boost::posix_time::milliseconds(10));
+#else
 	std::this_thread::sleep_for( std::chrono::milliseconds(10) );
+#endif
 }
 
 void mb::GlutWindow::Idle()
@@ -440,7 +449,10 @@ void mb::GlutWindow::OnKeyboard(unsigned char c, int x, int y )
 	switch( c )
 	{
 	case KEY_SPACE:
-		(*this)(GlutWindow::NavigateTo { -2.5, -2, 1.5, 2 });
+		{
+			GlutWindow::NavigateTo nav = { -2.5, -2, 1.5, 2 };
+			(*this)(nav);
+		}
 		break;
 	case 'q':
 	case KEY_ESCAPE:
@@ -458,7 +470,7 @@ void mb::GlutWindow::OnDraw()
 {
 	// glClear(GL_COLOR_BUFFER_BIT);
 	{
-		std::lock_guard<std::mutex> lock(m_mutex);
+		active::platform::lock_guard<active::platform::mutex> lock(m_mutex);
 		glDrawPixels( m_region.width, m_region.height,
 					 GL_RGB, GL_UNSIGNED_BYTE, &m_displayBuffer[0]);
 	}
@@ -511,8 +523,9 @@ mb::GlutWindow * mb::GlutWindow::global;
 
 int main(int argc, char**argv)
 {
-	auto win = std::make_shared<mb::GlutWindow>(argc, argv);
-	(*win)(	mb::GlutWindow::NavigateTo { -2.5, -2, 1.5, 2 } );
+	mb::GlutWindow::ptr win( new mb::GlutWindow(argc, argv) );
+	mb::GlutWindow::NavigateTo navigate = { -2.5, -2, 1.5, 2 };
+	(*win)(	navigate );
 	active::run run;
 	win->runMainLoop();	// Must be called from main thread - limitation of GLUT
 }

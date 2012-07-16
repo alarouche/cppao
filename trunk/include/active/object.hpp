@@ -1,21 +1,69 @@
 /* Cppao: C++ Active Objects library
  * Copyright (C) Calum Grant 2012
- *
- * It uses C++11. In g++, compile with "-std=c++0x -pthread"
  */
 
 #ifndef ACTIVE_OBJECT_INCLUDED
 #define ACTIVE_OBJECT_INCLUDED
 
-#include <mutex>
 #include <vector>
 #include <memory>
-#include <thread>
+
+#if ACTIVE_USE_CXX11
+	#define RVALUE_REF(T) T&&
+	namespace active
+	{
+		namespace platform
+		{
+			using std::forward;
+			using std::move;
+		}
+	}
+#else
+	#define RVALUE_REF(T) const T&
+	namespace active
+	{
+		namespace platform
+		{
+			template<typename T>
+			const T & forward(const T&v) { return v; }
+			template<typename T>
+			const T & move(const T&v) { return v; }
+		}
+		const int nullptr=0;
+	}
+#endif
+
+#if ACTIVE_USE_BOOST
+	#include <boost/thread.hpp>
+	#include <boost/thread/mutex.hpp>
+	#include <boost/shared_ptr.hpp>
+	#include <boost/bind.hpp>
+
+	namespace active
+	{
+		namespace platform
+		{
+			using namespace boost;
+		}
+	}
+#else
+	#include <mutex>
+	#include <thread>
+	namespace active
+	{
+		namespace platform
+		{
+			using namespace std;
+		}
+	}
+#endif
+
+
 
 namespace active
 {
 	template<typename T> int priority(const T&) { return 0; }
-	
+
 	// Interface of all active objects.
 	struct any_object
 	{
@@ -23,7 +71,7 @@ namespace active
 		virtual void run() throw()=0;
 		virtual bool run_some(int n=100) throw()=0;
 		virtual void exception_handler() throw();
-		virtual void active_fn(std::function<void()>&&fn, int priority)=0;
+		virtual void active_fn(RVALUE_REF(platform::function<void()>) fn, int priority)=0;
 		any_object * m_next;
 	};
 
@@ -52,7 +100,7 @@ namespace active
 			typedef active::scheduler type;
 			none(type&) { }
 			void set_scheduler(type&p) { }
-			void activate(const std::shared_ptr<any_object> & sp) { }
+			void activate(const platform::shared_ptr<any_object> & sp) { }
 			void activate(any_object * obj) { }
 		};
 
@@ -63,7 +111,7 @@ namespace active
 			thread_pool(type&);
 
 			void set_scheduler(type&p);
-			void activate(const std::shared_ptr<any_object> & sp);
+			void activate(const platform::shared_ptr<any_object> & sp);
 			void activate(any_object * obj);
 			type & get_scheduler() const { return *m_pool; }
 		private:
@@ -75,7 +123,7 @@ namespace active
 	namespace queueing	// The queuing policy classes
 	{
 		// Default message queue shared between all message types.
-		template<typename Allocator=std::allocator<void>>
+		template< typename Allocator=std::allocator<void> >
 		class shared
 		{
 		public:
@@ -102,18 +150,18 @@ namespace active
 			}
 
 			allocator_type get_allocator() const { return m_allocator; }
-			
+
 			template<typename Fn>
-			bool enqueue_fn( any_object * obj, Fn &&fn, int )
+			bool enqueue_fn( any_object * obj, RVALUE_REF(Fn) fn, int )
 			{
-				typename allocator_type::template rebind<run_impl<Fn>>::other realloc(m_allocator);
-				
+				typename allocator_type::template rebind<run_impl<Fn> >::other realloc(m_allocator);
+
 				run_impl<Fn> * impl = realloc.allocate(1);
-				try 
+				try
 				{
-					realloc.construct(impl, std::forward<Fn&&>(fn));
-				} 
-				catch (...) 
+					realloc.construct(impl, platform::forward<RVALUE_REF(Fn)>(fn));
+				}
+				catch (...)
 				{
 					realloc.deallocate(impl,1);
 					throw;
@@ -128,7 +176,7 @@ namespace active
 
 			bool run_some(any_object * o, int n=100) throw()
 			{
-				std::lock_guard<std::mutex> lock(m_mutex);
+				platform::lock_guard<platform::mutex> lock(m_mutex);
 				while( m_head && n-->0)
 				{
 					message * m = m_head;
@@ -155,7 +203,7 @@ namespace active
 			message *m_head, *m_tail;
 			bool enqueue(message*impl)
 			{
-				 std::lock_guard<std::mutex> lock(m_mutex);
+				 platform::lock_guard<platform::mutex> lock(m_mutex);
 				 if( m_tail )
 				 {
 					 m_tail->m_next = impl;
@@ -168,11 +216,11 @@ namespace active
 					 return true;
 				 }
 			}
-			
+
 			template<typename Fn>
 			struct run_impl : public message
 			{
-				run_impl(Fn&&fn) : m_fn(std::forward<Fn&&>(fn)) { }
+				run_impl(RVALUE_REF(Fn)fn) : m_fn(platform::forward<RVALUE_REF(Fn)>(fn)) { }
 				Fn m_fn;
 				void run(any_object*)
 				{
@@ -180,7 +228,7 @@ namespace active
 				}
 				void destroy(allocator_type&a)
 				{
-					typename allocator_type::template rebind<run_impl<Fn>>::other realloc(a);
+					typename allocator_type::template rebind<run_impl<Fn> >::other realloc(a);
 					realloc.destroy(this);
 					realloc.deallocate(this,1);
 				}
@@ -188,7 +236,7 @@ namespace active
 
 			allocator_type m_allocator;
 		protected:
-			std::mutex m_mutex;
+			platform::mutex m_mutex;
 		};
 	}
 
@@ -219,7 +267,7 @@ namespace active
 
 		void run() throw()
 		{
-			typename share_type::pointer_type p=0;
+			typename share_type::pointer_type p=typename share_type::pointer_type();
 			m_share.deactivate(p);
 
 			while( m_queue.run_some(this) )
@@ -229,7 +277,7 @@ namespace active
 		// Not threadsafe - do not call unless you know what you are doing.
 		bool run_some(int n) throw()
 		{
-			typename share_type::pointer_type p=0;
+			typename share_type::pointer_type p=typename share_type::pointer_type();	// !! Poor
 			m_share.deactivate(p);
 
 			// Run a few messages from the queue
@@ -283,41 +331,35 @@ namespace active
 		{
 			return m_queue.get_priority();
 		}
-		
-		typedef std::function<void()> run_type;
-					
+
 		// ?? Public
 		template<typename T>
-		void enqueue_fn2(T && fn, int priority=0)
+		void enqueue_fn2(RVALUE_REF(T) fn, int priority=0)
 		{
-			if( m_queue.enqueue_fn(this, std::forward<T&&>(fn), priority))
+			if( m_queue.enqueue_fn(this, platform::forward<RVALUE_REF(T)>(fn), priority))
 			{
 				m_share.activate(this);
 				m_schedule.activate(m_share.pointer(this));
 			}
 		}
-				
+
 		template<typename T>
-		void active_fn(T && fn, int priority=0)
+		void active_fn(RVALUE_REF(T) fn, int priority=0)
 		{
-			enqueue_fn2( std::forward<T&&>(fn), priority );
+			enqueue_fn2( platform::forward<RVALUE_REF(T)>(fn), priority );
 		}
 
-		void active_fn(std::function<void()>&&fn, int priority)
+		void active_fn(RVALUE_REF(platform::function<void()>) fn, int priority)
 		{
-			enqueue_fn2( std::forward<std::function<void()>&&>(fn), priority );
+			enqueue_fn2( platform::forward<RVALUE_REF(platform::function<void()>)>(fn), priority );
 		}
-		
+
+		// !! Not implemented
 		template<typename T>
-		void active_msg(T && msg, int priority=0)
+		void active_msg(RVALUE_REF(T) msg, int priority=0)
 		{
 		}
-		
-		template<typename T>
-		void active_msg(const T & msg, int priority=0)
-		{
-		}
-		
+
 
 	protected:
 		// Clear all pending messages. Only callable from active methods.
@@ -340,58 +382,101 @@ namespace active
 	{
 		typedef ObjectType object_type;
 		typedef Derived derived_type;
-		using typename ObjectType::scheduler_type;
-		using typename ObjectType::allocator_type;
-		
+		typedef typename ObjectType::scheduler_type scheduler_type;
+		typedef typename ObjectType::allocator_type allocator_type;
+
 		object(scheduler_type & sched = default_scheduler, const allocator_type & alloc = allocator_type()) :
 			object_type(sched, alloc)
 		{
 		}
-		
+
+#if ACTIVE_USE_CXX11
 		template<typename T>
-		derived_type & operator()(T&&msg)
+		derived_type & operator()(RVALUE_REF(T)msg)
 		{
-			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(msg)); } );
+			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(msg)); }, priority(msg) );
 			return *static_cast<derived_type*>(this);
 		}
-		
+
 		template<typename T>
 		derived_type & operator()(const T & msg)
 		{
 			T msg2(msg);
-			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(msg2)); } );			
+			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(msg2)); }, priority(msg) );
 			return *static_cast<derived_type*>(this);
 		}
 
 		template<typename T>
 		derived_type & operator()(T * msg)
 		{
-			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(msg)); } );			
+			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(msg)); }, priority(msg) );
 			return *static_cast<derived_type*>(this);
 		}
-		
+
 		template<typename T1, typename T2>
 		derived_type & operator()(T1 a1, T2 a2)
 		{
-			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(a1),std::move(a2)); } );			
+			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(a1),std::move(a2)); } );
 			return *static_cast<derived_type*>(this);
 		}
 
 		template<typename T1, typename T2, typename T3>
 		derived_type & operator()(T1 a1, T2 a2, T3 a3)
 		{
-			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(a1),std::move(a2),std::move(a3)); } );			
+			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(a1),std::move(a2),std::move(a3)); } );
 			return *static_cast<derived_type*>(this);
 		}
-		
+#else
+	private:
+		template<typename T1>
+		static void run1(derived_type *p, const T1 a1)
+		{
+			p->active_method(a1);
+		}
+
+		template<typename T1, typename T2>
+		static void run2(derived_type *p, T1 a1, T2 a2)
+		{
+			p->active_method(a1,a2);
+		}
+
+		template<typename T1, typename T2, typename T3>
+		static void run3(derived_type *p, T1 a1, T2 a2, T3 a3)
+		{
+			p->active_method(a1,a2,a3);
+		}
+	public:
+
+		template<typename T>
+		derived_type & operator()(const T msg)
+		{
+			this->active_fn( platform::bind( &run1<T>, static_cast<derived_type*>(this), msg), priority(msg));
+			return *static_cast<derived_type*>(this);
+		}
+
+		template<typename T1,typename T2>
+		derived_type & operator()(T1 a1, T2 a2)
+		{
+			this->active_fn( platform::bind( &run2<T1,T2>, static_cast<derived_type*>(this), a1, a2), priority(a1));
+			return *static_cast<derived_type*>(this);
+		}
+
+		template<typename T1,typename T2,typename T3>
+		derived_type & operator()(T1 a1, T2 a2, T3 a3)
+		{
+			this->active_fn( platform::bind( &run3<T1,T2,T3>, static_cast<derived_type*>(this), a1, a2, a3), priority(a1));
+			return *static_cast<derived_type*>(this);
+		}
 		// !! More parameters
+#endif
+
 
 #if 0
 		// !! Not supported by compiler (yet)
 		template<typename... Args>
 		derived_type & operator()(Args... args)
 		{
-			this->active_method( [args...]() mutable { static_cast<derived_type*>(this)->active_method(args...); } );						
+			this->active_method( [args...]() mutable { static_cast<derived_type*>(this)->active_method(args...); } );
 			return *static_cast<derived_type*>(this);
 		}
 #endif
@@ -401,36 +486,50 @@ namespace active
 	class run
 	{
 	public:
-		explicit run(int threads=std::thread::hardware_concurrency(), scheduler & sched = default_scheduler);
+		explicit run(int threads=platform::thread::hardware_concurrency(), scheduler & sched = default_scheduler);
 		~run();
 	private:
 		run(const run&);
 		run & operator=(const run&);
 		scheduler & m_scheduler;
-		std::vector<std::thread> m_threads;
+#if ACTIVE_USE_BOOST
+		typedef boost::thread_group threads;
+#else
+		typedef std::vector<platform::thread> threads;
+#endif
+		threads m_threads;
 	};
 
 	template<typename T>
 	struct sink : virtual public any_object
 	{
-		typedef std::shared_ptr<sink<T>> sp;
-		typedef std::weak_ptr<sink<T>> wp;
-		
-		virtual void active_method(T&&)=0;
-		
-		sink<T> & send(T&&msg, int priority=0)
+		typedef platform::shared_ptr<sink<T> > sp;
+		typedef platform::weak_ptr<sink<T> > wp;
+
+		virtual void active_method(T)=0;
+
+#if ACTIVE_USE_CXX11
+		sink<T> & send(RVALUE_REF(T)msg)
 		{
-			this->active_fn( [=]() mutable { this->active_method(std::move(msg)); }, priority );
+			this->active_fn( [=]() mutable { this->active_method(platform::move(msg)); }, priority(msg) );
 			return *this;
 		}
 
-		sink<T> & send(const T& msg, int priority=0)
+		sink<T> & send(const T& msg)
 		{
 			T msg2(msg);
-			this->active_fn( [this,msg2]() mutable { this->active_method(std::move(msg2)); }, priority );
+			this->active_fn( [this,msg2]() mutable { this->active_method(platform::move(msg2)); }, priority(msg) );
 			return *this;
 		}
-	
+#else
+
+		sink<T> & send(const T&msg)
+		{
+			this->active_fn(platform::bind(&sink<T>::run_msg, this, msg),priority(msg));
+		}
+#endif
+	private:
+		static void run_msg(sink *s, T msg) { s->active_method(msg); }
 	};
 } // namespace active
 

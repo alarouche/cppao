@@ -11,7 +11,7 @@ class Prime : public active::shared<Prime>
 {
 public:
 	Prime(int p) : prime(p) { std::cout << p << "\n"; }
-	
+
 	void filter(int i)
 	{
 		active_fn( [=]
@@ -23,12 +23,12 @@ public:
 			}
 		} );
 	}
-	
+
 	void destroy()
 	{
 		active_fn([=]{next->destroy();next.reset();});
 	}
-	
+
 private:
 	ptr next;
 	const int prime;
@@ -37,25 +37,23 @@ private:
 class Source : public active::object<Source>
 {
 public:
-	typedef int number;
-	
 	Source(int m) : max(m) { }
-	
-	void source(int number )
+
+	void source(int number)
 	{
 		active_fn( [=]
 		{
-			if(head) 
+			if(head)
 				head->filter(number);
-			else 
+			else
 				head = std::make_shared<Prime>(number);
-			if(number<max) 
+			if(number<max)
 				source(number+1);
-			else 
+			else
 				head->destroy();
 		} );
 	}
-	
+
 private:
 	Prime::ptr head;
 	const int max;

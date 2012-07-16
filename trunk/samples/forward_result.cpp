@@ -13,15 +13,10 @@ public:
 class ComplexComputation : public active::object<ComplexComputation>
 {
 public:
-	struct computation
-	{
-		int a, b;
-		ComputationHandler & handler;
-	};
 
-	void active_method( computation&&computation ) const
+	void active_method( int a, int b, ComputationHandler *handler ) const
 	{
-		computation.handler(computation.a + computation.b);
+		(*handler)(a + b);
 	}
 };
 
@@ -29,7 +24,6 @@ int main()
 {
 	ComputationHandler handler;
 	ComplexComputation cc;
-	ComplexComputation::computation comp = { 1,2,handler };
-	cc(comp);
+	cc(1,2,&handler);
 	active::run();
 }

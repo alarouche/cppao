@@ -1,6 +1,5 @@
 #include <iostream>
 #include <vector>
-#include <random>
 #include <active/scheduler.hpp>
 #include "life.hpp"
 
@@ -11,10 +10,7 @@
 
 Controller::Controller( active::scheduler & tp, int seed )
 {
-	std::mt19937 rng;
-	rng.seed(seed);
-	std::uniform_int_distribution<int> uint_dist(0,1);
-
+	srand(seed);
 	set_scheduler(tp);
 	display.set_scheduler(tp);
 	for(int x=0; x<num_cols; ++x)
@@ -50,11 +46,11 @@ Controller::Controller( active::scheduler & tp, int seed )
 			an.neighbour = &cell[x1][y1];
 			cell[x][y](an);
 
-			cell[x][y].is_alive = (bool)uint_dist(rng);
+			cell[x][y].is_alive = (bool)(rand()/(RAND_MAX/2));
 		}
 }
 
-void Controller::active_method(compute&&compute)
+void Controller::active_method(compute compute)
 {
 	progress = total_cells;
 	for(int x=0; x<num_cols; ++x)
@@ -63,7 +59,7 @@ void Controller::active_method(compute&&compute)
 }
 
 
-void Controller::active_method( compute_complete&& )
+void Controller::active_method( compute_complete )
 {
 	if( --progress == 0 )
 	{
@@ -74,7 +70,7 @@ void Controller::active_method( compute_complete&& )
 	}
 }
 
-void Controller::active_method( notification_complete&& )
+void Controller::active_method( notification_complete )
 {
 	if( --progress == 0 )
 	{
@@ -89,27 +85,27 @@ Cell::Cell() : alive_neighbours(0)
 {
 }
 
-void Cell::active_method( add_neighbour&&add_neighbour )
+void Cell::active_method( add_neighbour add_neighbour )
 {
 	neighbours.push_back( add_neighbour.neighbour );
 }
 
-void Cell::active_method( notification&&notification )
+void Cell::active_method( notification notification )
 {
 	alive_neighbours += notification.alive;
 }
 
-void Cell::active_method( notify_neighbours&& )
+void Cell::active_method( notify_neighbours )
 {
 	notification n = {is_alive};
 
-	for( auto i : neighbours )
-		(*i)(n);
+	for(std::vector<Cell*>::iterator i=neighbours.begin(); i!=neighbours.end(); ++i)
+		(**i)(n);
 
 	(*controller)(Controller::notification_complete());
 }
 
-void Cell::active_method( compute&& )
+void Cell::active_method( compute )
 {
 	if( is_alive && alive_neighbours<2 ) is_alive=false;
 	else if( is_alive && alive_neighbours<=3 ) is_alive=true;
@@ -128,12 +124,12 @@ Display::Display() : generation(1)
 {
 }
 
-void Display::active_method( cell_update&&cell_update )
+void Display::active_method( cell_update cell_update )
 {
 	grid[cell_update.x][cell_update.y]=cell_update.alive;
 }
 
-void Display::active_method( redraw&& )
+void Display::active_method( redraw )
 {
 	std::cout << "\n";
 	for(int y=0; y<num_rows; ++y)

@@ -53,7 +53,7 @@ int main()
 	standard_object obj1;
 	obj1("Hello");
 
-	auto obj2 = std::make_shared<shared_object>();
+	shared_object::ptr obj2(new shared_object);
 	(*obj2)("Hello");
 	obj2.reset();	// Object is not destroyed until all messages processed.
 
@@ -63,7 +63,7 @@ int main()
 	thread_object obj4;
 	obj4("Hello");
 
-	auto obj5 = std::make_shared<shared_thread>();
+	shared_thread::ptr obj5(new shared_thread);
 	(*obj5)("Hello");
 	obj5.reset();	// Object is not destroyed until all messages processed.
 

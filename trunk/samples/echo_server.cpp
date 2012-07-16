@@ -1,6 +1,7 @@
 #include "active_socket.hpp"
 
 #include <iostream>
+#include <cstdio>
 #ifdef WIN32
 #include <Ws2tcpip.h>
 #else
@@ -17,7 +18,7 @@ struct my_server :
 {
 	typedef active::socket::bind_response bind_response;
 
-	void active_method( bind_response&&bind_response )
+	void active_method( bind_response bind_response )
 	{
 		if( bind_response.result == -1 )
 		{
@@ -35,7 +36,7 @@ struct my_server :
 
 	typedef active::socket::listen_result listen_result;
 
-	void active_method( listen_result&&listen_result )
+	void active_method( listen_result listen_result )
 	{
 		if( !listen_result.error )
 		{
@@ -50,7 +51,7 @@ struct my_server :
 
 	typedef active::select::read_ready read_ready;
 
-	void active_method( read_ready&&read_ready )
+	void active_method( read_ready read_ready )
 	{
 		active::socket::accept accept = { shared_from_this() };
 		(*m_sock)(accept);
@@ -65,7 +66,7 @@ struct my_server :
 
 		struct start { };
 
-		void active_method( start&&start )
+		void active_method( start start )
 		{
 			m_pipe.reset( new active::pipe(m_sock, m_sock, m_select ) );
 			(*m_pipe)(active::pipe::start());
@@ -79,11 +80,11 @@ struct my_server :
 
 	typedef active::socket::accept_response accept_response;
 
-	void active_method( accept_response&&accept_response )
+	void active_method( accept_response accept_response )
 	{
 		if( !accept_response.error )
 		{
-			std::shared_ptr<connection> conn( new connection(accept_response.fd, m_select) );
+			connection::ptr conn( new connection(accept_response.fd, m_select) );
 			(*conn)(connection::start());
 		}
 
@@ -100,7 +101,7 @@ struct my_server :
 	{
 	}
 
-	void active_method(start&&start)
+	void active_method(start start)
 	{
 		m_port = start.port;
 
@@ -131,7 +132,7 @@ int main(int argc, char**argv)
 	const int num_threads = argc<3 ? 5 : atoi(argv[2]);
 	if( num_threads<2 ) std::cerr << "Warning: server needs at least 2 threads\n";
 
-	std::shared_ptr<my_server> server(new my_server());
+	my_server::ptr server(new my_server());
 
 	my_server::start start = { port };
 	(*server)(start);
