@@ -3,7 +3,7 @@
 
 #include "object.hpp"
 
-#if ACTIVE_USE_BOOST
+#ifdef ACTIVE_USE_BOOST
 	#include <boost/thread/condition_variable.hpp>
 	namespace active
 	{
@@ -14,13 +14,13 @@
 	}
 #else
 	#include <condition_variable>
-namespace active
-{
-	namespace platform
+	namespace active
 	{
-		using std::condition_variable;
+		namespace platform
+		{
+			using std::condition_variable;
+		}
 	}
-}
 #endif
 
 namespace active

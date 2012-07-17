@@ -1,3 +1,4 @@
+#define BOOST_DISABLE_ASSERTS 1
 
 #include <active/object.hpp>
 #include <active/thread.hpp>
@@ -16,7 +17,7 @@ struct Thread : public Object
 {
 	int id;
 	Thread * next;
-	
+
 	void send(int token)
 	{
 		this->active_fn( [=]
@@ -71,7 +72,7 @@ int main(int argc, char**argv)
 
 	std::cout << "1:  direct              ";
 	bench_object( active::direct(), 20000 );
-	
+
 	std::cout << "2:  shared<direct>      ";
 	bench_object( active::direct(), 20000 );
 

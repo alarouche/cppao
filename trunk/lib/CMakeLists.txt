@@ -1,6 +1,7 @@
 
 add_library( cppao active_object.cpp
 	../include/active/advanced.hpp
+	../include/active/config.hpp.in
 	../include/active/direct.hpp
 	../include/active/fast.hpp
 	../include/active/object.hpp

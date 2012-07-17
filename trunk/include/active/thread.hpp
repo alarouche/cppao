@@ -4,7 +4,7 @@
 
 #include "object.hpp"
 
-#if ACTIVE_USE_BOOST
+#ifdef ACTIVE_USE_BOOST
 	#include <boost/thread/condition_variable.hpp>
 #else
 	#include <condition_variable>

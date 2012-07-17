@@ -5,7 +5,7 @@
 #include "scheduler.hpp"
 #include "direct.hpp"
 
-#if ACTIVE_USE_BOOST
+#ifdef ACTIVE_USE_BOOST
 	#include <boost/thread/future.hpp>
 	namespace active
 	{

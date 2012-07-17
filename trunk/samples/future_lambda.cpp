@@ -7,7 +7,7 @@
 class ComplexComputation : public active::object<ComplexComputation>
 {
 public:
-	void compute( int a, int b, std::promise<int> & result )
+	void compute( int a, int b, active::platform::promise<int> & result )
 	{
 		active_fn([=,&result]{result.set_value(a+b);});
 	}
@@ -16,7 +16,7 @@ public:
 int main()
 {
 	active::run run;	// Run threads concurrently for scope of this function.
-	std::promise<int> result;
+	active::platform::promise<int> result;
 	ComplexComputation cc;
 	cc.compute(1,2,result);
 	std::cout << "Result of computation = " << active::wait(result) << "\n";

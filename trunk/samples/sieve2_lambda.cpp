@@ -19,7 +19,7 @@ public:
 			if( i % prime )
 			{
 				if(next) next->filter(i);
-				else next = std::make_shared<Prime>(i);
+				else next.reset( new Prime(i) );
 			}
 		} );
 	}
@@ -46,7 +46,7 @@ public:
 			if(head)
 				head->filter(number);
 			else
-				head = std::make_shared<Prime>(number);
+				head.reset( new Prime(number) );
 			if(number<max)
 				source(number+1);
 			else

@@ -4,7 +4,7 @@
 #include <active/promise.hpp>
 #include <iostream>
 
-#if ACTIVE_USE_BOOST
+#ifdef ACTIVE_USE_BOOST
 	#include <boost/make_shared.hpp>
 #endif
 
