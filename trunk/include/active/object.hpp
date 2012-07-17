@@ -5,6 +5,8 @@
 #ifndef ACTIVE_OBJECT_INCLUDED
 #define ACTIVE_OBJECT_INCLUDED
 
+#include "config.hpp"
+
 #include <vector>
 #include <memory>
 
