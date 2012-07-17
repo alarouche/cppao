@@ -29,6 +29,7 @@ namespace active
 				{
 					object->exception_handler();
 				}
+				return false;
 			}
 
 			bool run_some(any_object * o, int n=100) throw();

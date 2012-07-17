@@ -173,7 +173,7 @@ void active::select::active_method( read read )
 	m_loop(read);
 	::_write( m_pipe[1], "X", 1 );
 #else
-	(*read.response)(read_ready());
+	read.response->send(read_ready());
 #endif
 }
 
@@ -183,7 +183,7 @@ void active::select::active_method( write write )
 	m_loop(write);
 	::_write( m_pipe[1], "X", 1 );
 #else
-	(*write.response)(write_ready());
+	write.response->send(write_ready());
 #endif
 }
 
