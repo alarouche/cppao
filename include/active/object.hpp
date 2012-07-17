@@ -5,12 +5,12 @@
 #ifndef ACTIVE_OBJECT_INCLUDED
 #define ACTIVE_OBJECT_INCLUDED
 
-#include "config.hpp"
+#include <active/config.hpp>
 
 #include <vector>
 #include <memory>
 
-#if ACTIVE_USE_CXX11
+#ifdef ACTIVE_USE_CXX11
 	#define RVALUE_REF(T) T&&
 	namespace active
 	{
@@ -35,7 +35,7 @@
 	}
 #endif
 
-#if ACTIVE_USE_BOOST
+#ifdef ACTIVE_USE_BOOST
 	#include <boost/thread.hpp>
 	#include <boost/thread/mutex.hpp>
 	#include <boost/shared_ptr.hpp>
@@ -392,7 +392,7 @@ namespace active
 		{
 		}
 
-#if ACTIVE_USE_CXX11
+#ifdef ACTIVE_USE_CXX11
 		template<typename T>
 		derived_type & operator()(RVALUE_REF(T)msg)
 		{
@@ -494,7 +494,7 @@ namespace active
 		run(const run&);
 		run & operator=(const run&);
 		scheduler & m_scheduler;
-#if ACTIVE_USE_BOOST
+#ifdef ACTIVE_USE_BOOST
 		typedef boost::thread_group threads;
 #else
 		typedef std::vector<platform::thread> threads;
@@ -510,7 +510,7 @@ namespace active
 
 		virtual void active_method(T)=0;
 
-#if ACTIVE_USE_CXX11
+#ifdef ACTIVE_USE_CXX11
 		sink<T> & send(RVALUE_REF(T)msg)
 		{
 			this->active_fn( [=]() mutable { this->active_method(platform::move(msg)); }, priority(msg) );

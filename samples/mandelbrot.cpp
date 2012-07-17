@@ -414,7 +414,7 @@ void mb::GlutWindow::runMainLoop()
 void mb::GlutWindow::OnIdle()
 {
 	// Stop being a CPU hog:
-#if ACTIVE_USE_BOOST
+#ifdef ACTIVE_USE_BOOST
 	active::platform::this_thread::sleep(boost::posix_time::milliseconds(10));
 #else
 	std::this_thread::sleep_for( std::chrono::milliseconds(10) );

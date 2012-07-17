@@ -1,10 +1,12 @@
-#if ACTIVE_USE_BOOST
-	#define BOOST_DISABLE_ASSERTS 1
-	#include <boost/make_shared.hpp>
+#define BOOST_DISABLE_ASSERTS 1
+
+#include <active/object.hpp>
+
+#ifdef ACTIVE_USE_BOOST
+#include <boost/make_shared.hpp>
 #endif
 
 #undef NDEBUG
-#include <active/object.hpp>
 #include <active/scheduler.hpp>
 #include <active/promise.hpp>
 #include <active/thread.hpp>
@@ -471,7 +473,7 @@ struct shared_thread_obj : public active::shared<shared_thread_obj,active::threa
 void test_shared_thread(bool reset, int sleep1, int sleep2, int threads)
 {
 	shared_thread_obj::ptr st(new shared_thread_obj());
-#if ACTIVE_USE_BOOST
+#ifdef ACTIVE_USE_BOOST
 	active::platform::this_thread::sleep(boost::posix_time::milliseconds(sleep1));
 #else
 	active::platform::this_thread::sleep_for(std::chrono::milliseconds(sleep1));
@@ -483,7 +485,7 @@ void test_shared_thread(bool reset, int sleep1, int sleep2, int threads)
 	(*st)(&finished);
 	if(reset) st.reset();
 
-#if ACTIVE_USE_BOOST
+#ifdef ACTIVE_USE_BOOST
 	active::platform::this_thread::sleep(boost::posix_time::milliseconds(sleep2));
 #else
 	active::platform::this_thread::sleep_for(std::chrono::milliseconds(sleep2));
@@ -741,7 +743,7 @@ struct MoveObject : public active::object<MoveObject>
 		Counted() { ++instances; }
 		~Counted() { }
 		Counted(const Counted&) { ++instances; }
-#if ACTIVE_USE_CXX11
+#ifdef ACTIVE_USE_CXX11
 		Counted(Counted&&) { ++instances; }
 #endif
 	private:
@@ -1021,7 +1023,7 @@ int main()
 	test_shared_thread();
 	test_object_mix();
 	test_allocators();
-#if ACTIVE_USE_CXX11
+#ifdef ACTIVE_USE_CXX11
 	test_move_semantics();
 #endif
 

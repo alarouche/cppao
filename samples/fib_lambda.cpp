@@ -4,6 +4,10 @@
 #include <active/promise.hpp>
 #include <iostream>
 
+#ifdef ACTIVE_USE_BOOST
+#include <boost/make_shared.hpp>
+#endif
+
 typedef active::basic ao_type;
 
 struct fib_result
@@ -13,7 +17,7 @@ struct fib_result
 
 struct fib : public active::shared<fib, ao_type>, public fib_result
 {
-	void calculate(int value, std::shared_ptr<fib_result> result)
+	void calculate(int value, active::platform::shared_ptr<fib_result> result)
 	{
 		active_fn([=]
 		{
@@ -21,8 +25,8 @@ struct fib : public active::shared<fib, ao_type>, public fib_result
 			{
 				this->m_total=0;
 				this->m_result = result;
-				std::make_shared<fib>()->calculate(value-1,shared_from_this());
-				std::make_shared<fib>()->calculate(value-2,shared_from_this());
+				active::platform::make_shared<fib>()->calculate(value-1,shared_from_this());
+				active::platform::make_shared<fib>()->calculate(value-2,shared_from_this());
 			}
 			else
 			{
@@ -44,7 +48,7 @@ struct fib : public active::shared<fib, ao_type>, public fib_result
 
 private:
 	int m_total;
-	std::shared_ptr<fib_result> m_result;
+	active::platform::shared_ptr<fib_result> m_result;
 };
 
 struct display : public fib_result
@@ -58,6 +62,6 @@ struct display : public fib_result
 int main(int argc, char**argv)
 {
 	if( argc<2 ) { std::cout << "Usage: fib N\n"; return 1; }
-	std::make_shared<fib>()->calculate(atoi(argv[1]), std::make_shared<display>());
+	active::platform::make_shared<fib>()->calculate(atoi(argv[1]), active::platform::make_shared<display>());
 	active::run();
 }
