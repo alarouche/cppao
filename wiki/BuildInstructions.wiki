@@ -35,7 +35,7 @@ OSX:
 
   * XCode
   * CMake
-
+  * Boost
 
 = Platform-specific instructions =
 
@@ -76,6 +76,13 @@ Note that in order to run the Mandelbrot sample, you need various OpenGL package
 If you `make install`, then you can link against the library in future projects using `-lcppao`.
 
 == Xcode ==
+First you need to install Boost, and follow the instructions to install it to `/usr/local`, something like:
+{{{
+$ ./bootstrap.sh
+$ ./b2
+$ sudo ./b2 install
+}}}
+
 Use cmake to create an xproj file, then open that file in Xcode.
 {{{
 $ mkdir build
