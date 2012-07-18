@@ -4,15 +4,15 @@
 class HelloActive : public active::object<HelloActive>
 {
 public:
-	void active_method(const char * msg1, const char * msg2)
+	void active_method(const char * sender, const char * msg)
 	{
-		std::cout << msg1 << ", " << msg2 << "!\n";
+		std::cout << sender << " says " << msg << "!\n";
 	}
 };
 
 int main()
 {
 	HelloActive hello;
-	hello("Hello", "world");
+	hello("Bob", "hello");
 	active::run();
 }
