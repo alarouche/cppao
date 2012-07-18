@@ -4,7 +4,7 @@
 
 Active objects (AOs) are an established concurrent programming technique where objects communicate via messages rather than by direct method calls. This makes active objects thread-safe because they can only process one message at a time, whilst at the same time different AOs can run on different CPU cores and are guaranteed not to interfere with each other.
 
-C++ Active Objects (cppao) is a small library to make it simple to implement active objects in C++.
+C++ Active Objects (cppao) is a library to make it simple to implement active objects in C++.
 
 = Getting started =
 
@@ -17,22 +17,19 @@ The first example is
 #include <active/object.hpp>
 #include <iostream>
 
-class HelloActive : public active::object
+class HelloActive : public active::object<HelloActive>
 {
 public:
-        struct Greet { const char * message; };
-        
-        ACTIVE_METHOD( Greet )
+        void active_method(const char * sender, const char * msg)
         {
-                std::cout << Greet.message << std::endl;
+                std::cout << sender << " says " << msg << "!\n";
         }
 };
 
 int main()
 {
         HelloActive hello;
-        HelloActive::Greet message = { "Hello, world!" };
-        hello(message);
+        hello("Bob", "hello");
         active::run();
 }
 }}}
@@ -52,49 +49,32 @@ This includes the header file, you need to do this.
 This includes a system header file, which we'll need to output text.
 
 {{{
-class HelloActive : public active::object
+class HelloActive : public active::object<HelloActive>
 }}}
 
-This line defines a new class. All active object classes inherit from `active::object`, or `active::shared<>` (more on `active::shared<>` later)...
+This line defines a new class, which inherits from `active::object`. `active::object` is supplied the name of your class so that it knows where to dispatch methods to.
 
 {{{
-        struct Greet { const char * message; };
+        void active_method(const char * sender, const char * msg)
 }}}
-
-Defines a new message which we can send to our active object. A message can be any data type.
-
-{{{
-        ACTIVE_METHOD( Greet )
-}}}
-
-Defines a new active method (=message handler). This active method handles messages of type `Greet`.
-
+Defines a new active method, which in this case takes two arguments.
 {{{
         {
-                std::cout << Greet.message << std::endl;
+                std::cout << sender << " says " << msg << "!\n";
         }
 }}}
-
-Implements our message handler, which just displays the text. Note that the variable name of the message is also its typename.
+Implements the active method.
 
 {{{
         HelloActive hello;
 }}}
 
-Create a new active object of type `HelloActive`.
+Create a new instance of the active object of type `HelloActive`.
 
 {{{
-        HelloActive::Greet message = { "Hello, world!" };
+        hello("Bob", "hello");
 }}}
-
-Create a new message to send to the object.
-
-{{{
-        hello(message);
-}}}
-
-Pass the message to the object. The object will receive the message at some point in the future, and in fact will just sit in the message queue of the object until it is run. Messages are *moved* into the message queue and cannot be reused.
-
+An asynchronous call to the object, which returns immediately but does not run until the scheduler tells it to. Active methods are queued and run one at a time.
 {{{
         active::run();
 }}}
