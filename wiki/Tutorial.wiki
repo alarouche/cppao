@@ -75,6 +75,9 @@ Create a new instance of the active object of type `HelloActive`.
         hello("Bob", "hello");
 }}}
 An asynchronous call to the object, which returns immediately but does not run until the scheduler tells it to. Active methods are queued and run one at a time.
+
+Notice that we didn't call `active_method()`. That would be bad.  Ideally make `active_method`s private and have a line like `friend class active::object<HelloActive>;`
+
 {{{
         active::run();
 }}}
@@ -93,35 +96,37 @@ This example [http://code.google.com/p/cppao/source/browse/trunk/samples/round_r
 
 {{{
 #include <active/object.hpp>
-#include <iostream>
+#include <cstdio>
 
-struct RoundRobin : public active::object
+/* A slightly more sophisticated example.
+ * In this case, each node punts a message to its next node in a loop.
+ * To make things interesting, we add lots of messages concurrently.
+ */
+
+struct RoundRobin : public active::object<RoundRobin>
 {
-        typedef int packet;
-        
         RoundRobin * next;
-        
-        ACTIVE_METHOD( packet )
+
+        void active_method( int packet )
         {
-                printf("Received packet %d\n", packet);
+                printf( "Received packed %d\n", packet );
                 if( packet>0 ) (*next)(packet-1);
         }
 };
 
 int main()
-{       
+{
         // Create 1000 nodes.
         const int Count=1000;
         RoundRobin nodes[Count];
-        
+
         // Link them together
         for(int i=0; i<Count-1; ++i) nodes[i].next = nodes+i+1;
         nodes[Count-1].next=nodes;
-        
+
         // Send each node a packet.
         for(int i=0; i<Count; ++i) nodes[i](10);
-                
-        // Run all objects using all available cores.
+
         active::run();
 }
 }}}
