@@ -13,13 +13,13 @@ if(ACTIVE_USE_CXX11)
 endif()
 
 if(ACTIVE_USE_BOOST)
-	find_package(Boost REQUIRED COMPONENTS thread )
-	set(EXTRA_LIBS ${Boost_THREAD_LIBRARY})
+	find_package(Boost COMPONENTS thread REQUIRED)
+	set(EXTRA_LIBS ${Boost_LIBRARIES})
 endif()
 
 configure_file( include/active/config.hpp.in include/active/config.hpp @ONLY )
 
-include_directories( ${CMAKE_CURRENT_BINARY_DIR}/include include )
+include_directories( ${CMAKE_CURRENT_BINARY_DIR}/include include ${Boost_INCLUDE_DIR} )
 add_subdirectory( lib )
 add_subdirectory( tests )
 add_subdirectory( samples )
