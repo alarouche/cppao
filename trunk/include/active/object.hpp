@@ -528,6 +528,7 @@ namespace active
 		sink<T> & send(const T&msg)
 		{
 			this->active_fn(platform::bind(&sink<T>::run_msg, this, msg),priority(msg));
+			return *this;
 		}
 #endif
 	private:
