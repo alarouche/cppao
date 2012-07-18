@@ -201,7 +201,7 @@ Finally, and because the literature says we must, we can also put results into _
 
 = Lambda methods =
 
-In C++11, one has the opportunity to implement active methods as lambdas. Code for this looks as follows [http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active_lambda.cpp hello_active_lambda.cpp]:
+In C++11, one has the opportunity to implement active methods as lambdas. Code for this looks as follows ([http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active_lambda.cpp hello_active_lambda.cpp]):
 
 {{{
 #include <active/object.hpp>
