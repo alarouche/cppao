@@ -76,7 +76,7 @@ Create a new instance of the active object of type `HelloActive`.
 }}}
 An asynchronous call to the object, which returns immediately but does not run until the scheduler tells it to. Active methods are queued and run one at a time.
 
-Notice that we didn't call `active_method()`. That would be bad.  Ideally make `active_method`s private and have a line like `friend class active::object<HelloActive>;`
+Notice that we didn't call `active_method()` directly. That would be bad because it would executed immediately and potentially unsafely.  Ideally `active_method`s are private and have a line like `friend class active::object<HelloActive>;` in the derived class
 
 {{{
         active::run();
