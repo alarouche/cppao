@@ -88,11 +88,11 @@ Runs all active objects in a thread pool until there are no more messages.
 
 Our next example is almost as simple as the first:
 [http://code.google.com/p/cppao/source/browse/trunk/samples/ping_pong.cpp ping_pong.cpp]
-This just shows how active objects can implement several different messages.
+This just shows how active objects can implement several different active methods. Active methods are overloaded using different parameter types.
 
 = Round Robin =
 
-This example [http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin.cpp round_robin.cpp] shows how multiple objects can interact. Here we have 1000 instances of the same class. We don't run the `RoundRobin::run()` method in 1000 different threads (though I guess we could), but instead we call the function `active::run()` which runs all of our objects in a thread pool. This is generally more efficient than creating one OS thread per active object.
+This example [http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin.cpp round_robin.cpp] shows how multiple objects can interact. Here we have 1000 instances of the same class. 
 
 {{{
 #include <active/object.hpp>
@@ -132,6 +132,18 @@ int main()
 }}}
 
 = Returning results =
+
+Active method calls are non-blocking asynchronous calls, which do not return a result to the caller. This requires a redesign of your application.
+
+One approach is to use a _future_, which is a fairly common solution to this problem, as follows:
+
+{{{
+    std::promise<int> value;
+    add(1,2,value);
+    int result = value.get_future().get();
+}}}
+
+This is actually quite a bad idea, because you are fundamentally muddling the synchronous and asynchronous paradigms. The active object you are calling from becomes blocked, the whole program can deadlock, and you are hogging an entire OS thread. There is nothing wrong with futures per se, but they are a different paradigm.
 
 The biggest conceptual difficulty with active objects is actually designing your application. Because active methods are fire-and-forget, you can't return a result from them. Instead of _returning_ results, we should instead think about _forwarding_ results. You must design your application like a message-processing pipeline, where active objects are interlinked, and pass messages between each other.
 
@@ -186,6 +198,36 @@ The recipient of the result is implemented in class `ComputationHandler`, which 
 Also observe that we can implement active methods outside of the class (thankfully), using the `ACTIVE_IMPL` macro, and we can even make active methods const.
 
 Finally, and because the literature says we must, we can also put results into _promise_, as shown in [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp future.cpp]. The `active::promise<>` class is an active object which can also be accessed from synchronous code. Personally I would design the entire application using active objects so as to not mix paradigms.
+
+= Lambda methods =
+
+In C++11, one has the opportunity to implement active methods as lambdas. Code for this looks as follows [http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active_lambda.cpp hello_active_lambda.cpp]:
+
+{{{
+#include <active/object.hpp>
+#include <iostream>
+
+class HelloActive : public active::object<HelloActive>
+{
+public: 
+        void greet(const char * msg)
+        {
+                active_fn([=]{ std::cout << msg << std::endl; });
+        }
+};
+
+int main()
+{
+        HelloActive hello;
+        hello.greet("Hello, world!");
+        active::run();
+}
+}}}
+In this case, the active method (which can now have a sensible name) enqueues the real implementation using a call to `active_fn`.
+
+Note that one could also achieve something similar in C++03 using `boost::bind`.
+
+It is a matter of personal taste as to which approach is preferred.
 
 = Exception handling =
 
