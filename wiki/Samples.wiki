@@ -86,6 +86,7 @@ Demonstrates:
 
 =Promises promises=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/future_lambda.cpp]
 
 An active method is called, which returns its results in a promise. The main thread waits for the promise to be fulfilled.
