@@ -1,33 +1,42 @@
 #summary Describes the samples
 
+Note: Many of these samples have a variation implemented in terms of C++11 lambdas. (These are not available in C++03...) This is to compare and contrast the two approaches.
+
 =Hello world!=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active_future.cpp]
 
-A text message is sent to an active object (AO), which displays it.  Demonstrates:
+A simple active method call with two parameters.  Demonstrates:
 
-  * Defining a basic AO with one active method.
-  * Implementing an active method in a class.
-  * Passing a message to an active object with a payload.
-  * Running an AO in a single thread.
+  * Defining an active method using `active_method()`.
+  * Defining an active method using lambdas.
+  * Instantiating an active object.
+  * Calling an active method.
+  * Multiple parameters to active methods.
+  * Running the message loop, `active::run()`.
 
 =Ping pong=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/ping_pong.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/ping_pong_lambda.cpp]
 
-A message is sent backwards and forwards between two active methods (message handlers) in the same AO. Demonstrates:
+A message is sent backwards and forwards between two active methods in the same AO. Demonstrates:
 
-  * Defining an AO with more than one message handler.
+  * Defining an AO with more than one active method.
+  * Overloading `active_method` calls.
  
 =Round robin=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin_lambda.cpp]
 
 A message is sent to each of 1000 nodes, which then pass the message onwards to the next node in the loop, with a time-to-live of 10 hops for each message. Demonstrates:
 
-  * Multiple instances of the same class (active class?)
+  * Multiple instances of the same class
   * Fixed topology/connections between AOs.
-  * Running multiple objects concurrently using _active::run()_
+  * Running multiple objects concurrently using `active::run()`.
 
 =Thread-ring=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/bench.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/bench_lambda.cpp]
 
 This is a simple (and not really very good) benchmark of multi-threaded performance, from the infamous computer language shootout. [http://shootout.alioth.debian.org/] This is the "thread-ring" benchmark which passes a token around 503 threads. [http://shootout.alioth.debian.org/u32/performance.php?test=threadring]
 
@@ -35,60 +44,63 @@ Demonstrates:
 
   * A performance metric.
   * Compares the performance of different AO implementations.
-  * Use of _active::object_impl<>_ to tune the underlying implementation.
-
+  * Use of different AO types.
 
 =Forward results=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_lambda.cpp]
 
-A message is passed to an AO containing the parameters for a computation, and a pointer to an AO which will receive the result of the computation.
+Call an active method, which passes the result to another active object.
 
 Demonstrates: 
 
-  * Passing the result of a computation to another AO.
-  * Separating declaration and definition using `ACTIVE_IMPL`,
-  * `const` active methods.
+  * A way to interconnect objects.
 
-=Interfaces=
+=Callbacks=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface_lambda.cpp]
 
-A message is passed to an AO, containing the parameters for a computation, and a pointer to an interface which receives the result. Unlike the previous example however, a virtual base class is used to decouple the sender from the recipient.
+Call an active method, which calls a function on completion.
 
 Demonstrates:
 
-  * `ACTIVE_IFACE` macro,
-  * How to implement interfaces for AOs.
+  * Using `std::function` and lambdas as return mechanism.
 
 =Message sinks=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink_lambda.cpp]
 
-An interface to an AO is defined using the `active::sink<>` class. The result of a computation is passed to an AO of type `active::sink<>`. Seems to be the most elegant way to connect objects.
+An active method performs a calculation, then passes the result to another active object via a message sink.
 
 Demonstrates:
 
   * `active::sink<>`,
-  * How to pass messages between objects in a more abstract way.
+  * How to pass results between objects in a more abstract way.
 
 =Promises promises=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/future_lambda.cpp]
 
-A message is passed to an AO, containing parameters for a computation, and a pointer to a promise where the result should be stored. When the computation is complete, the promise is fulfilled.
+An active method is called, which returns its results in a promise. The main thread waits for the promise to be fulfilled.
 
-This is close to the "traditional" solution to how AOs return results.
+N.B. This is close to the "traditional" solution to how AOs return results.
 
 Demonstrates:
 
   * Returning results in a promise.
+  * Instantiating `active::run` to run the scheduler in a scope.
+  * `active::wait()` to provide a non-blocking wait.
 
 =Queue control=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/queue_control.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/queue_control_lambda.cpp]
 
-Sends a high priority shutdown message to an AO to clear its pending message queue.
+Sends a high priority active method to an AO to clear its pending work queue.
 
 Demonstrates:
   * The `active::advanced` object type.
   * Prioritising messages.
-  * Clearing the message queue.
+  * Clearing the work queue.
 
 =Exceptions=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/exception.cpp]
@@ -103,6 +115,8 @@ Demonstrates:
 = Prime number sieve =
 [http://code.google.com/p/cppao/source/browse/trunk/samples/sieve.cpp]
 [http://code.google.com/p/cppao/source/browse/trunk/samples/sieve2.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/sieve_lambda.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/sieve2_lambda.cpp]
 
 Outputs the list of prime numbers. Creates a list of AOs which are used to filter a sequence of integers.
 
@@ -117,19 +131,18 @@ Demonstrates:
 [http://code.google.com/p/cppao/source/browse/trunk/samples/life.hpp]
 [http://code.google.com/p/cppao/source/browse/trunk/samples/life.cpp]
 
-Implements Conway's "Game of Life" in a console.  Each cell is its own AO, in addition to a controller and a display AO. All communication between AOs is via message passing. This is an exercise in synchronisation (all cells must update synchronously) and message flows.
+Implements Conway's "Game of Life" in a console.  Each cell is its own AO, in addition to a controller and a display AO. All communication between AOs is via active methods. This is an exercise in synchronisation (all cells must update synchronously) and message flows.
 
 Demonstrates:
 
-  * Multiple classes with multiple message types.
   * A more complex example.
-  * Using `ACTIVE_IMPL` to separate method declarations from definitions.
-  * `active::scheduler`
+  * Multiple classes with multiple active methods.
+  * Using an explicit `active::scheduler`
 
 = Object types =
-http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp
+[http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp]
 
-Creates and runs eight different AO implementations. Demonstrates:
+Creates and runs different AO implementations. Demonstrates:
 
   * How to use different object types,
   * Different characteristics of different objects,
@@ -137,6 +150,7 @@ Creates and runs eight different AO implementations. Demonstrates:
 
 = Fibonacci =
 [http://code.google.com/p/cppao/source/browse/trunk/samples/fib.cpp]
+[http://code.google.com/p/cppao/source/browse/trunk/samples/fib_lambda.cpp]
 
 Implements a deliberately naive recursive Fibonacci number calculator (F(n)=F(n-1)+F(n-2)), where each number spawns two active objects - resulting in an exponential increase in the number of AOs.
 
