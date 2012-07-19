@@ -133,7 +133,9 @@ int main()
 
 = Returning results =
 
-Active method calls are non-blocking asynchronous calls, which do not return a result to the caller. This requires a redesign of your application.
+Active method calls are non-blocking asynchronous calls, which cannot return a result (or an exception) to the caller. Instead different mechanisms are required to get the results of active method calls.
+
+== Approach 1: Use a promise ==
 
 One approach is to use a _future_, which is a fairly common solution to this problem, as follows:
 
@@ -143,61 +145,53 @@ One approach is to use a _future_, which is a fairly common solution to this pro
     int result = value.get_future().get();
 }}}
 
-This is actually quite a bad idea, because you are fundamentally muddling the synchronous and asynchronous paradigms. The active object you are calling from becomes blocked, the whole program can deadlock, and you are hogging an entire OS thread. There is nothing wrong with futures per se, but they are a different paradigm.
+This is actually quite a bad idea, because you are fundamentally muddling the synchronous and asynchronous paradigms. The active object you are calling from becomes blocked, the whole program can deadlock, and you are potentially hogging an entire OS thread. There is nothing wrong with futures _per se_, but they are a different paradigm.
 
-The biggest conceptual difficulty with active objects is actually designing your application. Because active methods are fire-and-forget, you can't return a result from them. Instead of _returning_ results, we should instead think about _forwarding_ results. You must design your application like a message-processing pipeline, where active objects are interlinked, and pass messages between each other.
+To interact better with the cppao scheduler, the function `active::wait()` is provided to work-steal whilst the thread is waiting. This is demonstrated in [http://code.google.com/p/cppao/source/browse/trunk/samples/future_lambda.cpp future_lambda.cpp].
 
-So to ask how results are returned is to ask the wrong question. The question is really, how to interconnect objects?
+== Approach 2: Notify another object ==
+Specify a callback (either in the active method call, or via some fixed topology) which the active method must call once the computation is complete.  This is demonstrated in [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result.cpp forward_result.cpp] 
 
-The basic method of interconnection is shown in [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result.cpp forward_result.cpp], where one AO passes the result to another as specified in the message itself. The tiny problem with this example is that the `ComplexComputation` class is bound to the `ComputationHandler` class. Ideally we would like to decouple the sender from the recipient, and this is achievable through pure virtual base classes. We can use `ACTIVE_IFACE` or `active::sink<>` to define an interface through which AOs communicate, as illustrated in [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface.cpp forward_result_iface.cpp] and [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp forward_result_sink.cpp].
+== Approach 3: Use a message sink ==
+The class `active::sink<>` provides a pure virtual base class which is used to decouple the sender from the recipient. It is illustrated in [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp forward_result_sink.cpp] as follows:
 
-In this example, we implement a computation in the class `ComplexComputation`, which then forward its result to an object of type `active::sink<>`. The recipient is specified in the `ComplexComputation::computation` message itself.
 {{{
 #include <active/object.hpp>
 #include <iostream>
 
-class ComplexComputation : public active::object
+class ComplexComputation : public active::object<ComplexComputation>
 {
 public:
-        struct computation
+        void active_method(int a, int b, active::sink<int> * handler)
         {
-                int a, b;
-                active::sink<int> & handler;
-        };
-        
-        ACTIVE_METHOD( computation ) const;      // Look we can even have const active methods
+                handler->send(a+b);
+        }
 };
 
-class ComputationHandler : public active::object, public active::sink<int>
+class ComputationHandler :
+        public active::object<ComputationHandler>,
+        public active::sink<int>
 {
 public:
-        typedef int result;
-        
-        ACTIVE_METHOD( result ) const
+        void active_method(int result)
         {
                 std::cout << "Result of computation = " << result << std::endl;
         }
 };
 
-void ComplexComputation::ACTIVE_IMPL( computation ) const
-{
-        computation.handler(computation.a + computation.b);
-}
 
 int main()
 {
         ComputationHandler handler;
         ComplexComputation cc;
-        ComplexComputation::computation comp = { 1,2,handler };
-        cc(comp);
+        cc(1,2,&handler);
         active::run();
 }
 }}}
-The recipient of the result is implemented in class `ComputationHandler`, which implements the `ACTIVE_METHOD` to handle the result. In this way, the computation and the handler are completely decoupled.
 
-Also observe that we can implement active methods outside of the class (thankfully), using the `ACTIVE_IMPL` macro, and we can even make active methods const.
+== Approach 4: Use `active::promise` ==
 
-Finally, and because the literature says we must, we can also put results into _promise_, as shown in [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp future.cpp]. The `active::promise<>` class is an active object which can also be accessed from synchronous code. Personally I would design the entire application using active objects so as to not mix paradigms.
+We can combine `active::sink<>` and `std::promise` using the class `active::promise<>`. This is demonstrated in [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp future.cpp].
 
 = Lambda methods =
 
@@ -229,6 +223,9 @@ Note that one could also achieve something similar in C++03 using `boost::bind`.
 
 It is a matter of personal taste as to which approach is preferred.
 
+= Const `active_method`s =
+`active_method` respects `const`, which means that you can overload `active_method` with a const version, and you can also control which overload gets called depending on whether you invoke `operator()` or `operator() const`.
+
 = Exception handling =
 
 In the same way that return values can't be delivered to the point of calling, so exceptions can't be propagated to the caller either. So where to deliver the exception? 
@@ -252,7 +249,7 @@ The sample [http://code.google.com/p/cppao/source/browse/trunk/samples/object_ty
 
 struct shared_object : public active::shared<shared_object>
 {
-        ACTIVE_METHOD(greeting) { std::cout << "Shared object says " << greeting << std::endl; }
+        void active_method(const char * greeting) { std::cout << "Shared object says " << greeting << std::endl; }
 };
 }}}
 
@@ -263,10 +260,10 @@ There are actually a number of base classes you could choose for your active obj
 || Base class || Header file || Description ||
 || `active::object` || `active/object.hpp` || The basic, non-blocking AO. ||
 || `active::shared<>` || `active/shared.hpp` || Prevents premature object destruction using smart pointers, `std::shared_ptr<>`. ||
-|| `active::fast` || `active/fast.hpp` || Processes the message in the calling thread if the object is idle. This is often faster but can fail to exploit the hardware fully. ||
+|| `active::fast` || `active/fast.hpp` || Processes the method in the calling thread if the object is idle. This is often faster but can fail to exploit the hardware fully. ||
 || `active::thread` || `active/thread.hpp` || Dedicates an OS thread to this AO. ||
-|| `active::advanced` || `active/advanced.hpp` || A more feature-rich AO which supports message prioritization, query queue size, clear queue and limit queue size. ||
-|| `active::synchronous` || `active/synchronous.hpp` || Always processes message in the calling thread, but guarded by a mutex. Not a true AO. ||
+|| `active::advanced` || `active/advanced.hpp` || A more feature-rich AO which supports call prioritization, query queue size, clear queue and limit queue size. ||
+|| `active::synchronous` || `active/synchronous.hpp` || Always processes calls in the calling thread, but guarded by a mutex. Not a true AO. ||
 || `active::direct` || `active/direct.hpp` || An unguarded AO which is not thread-safe but can be used if the class is entirely thread-safe or has no mutable state. ||
 
 See FineTuning for further details, and the sample [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp object_types.cpp] shows off the different implementations.
@@ -274,20 +271,19 @@ See FineTuning for further details, and the sample [http://code.google.com/p/cpp
 = Staying safe =
 Active objects guarantee that your program will be thread-safe, if you follow these guidelines: 
 
-  * Communicate only via messages:
+  * Communicate only via active methods:
     * Make all mutable class-members private.
     * Make all non-active methods private.
-  * Ensure messages are thread-safe:
-    * Restrict messages to value-types and pointers to AOs.
+  * Never call `active_method` directly. Ideally make them private and friend your base class.
+  * Ensure arguments are thread-safe:
+    * Restrict arguments value-types and pointers to AOs.
     * Use move semantics (`std::move()` etc.) when passing large arrays between objects.
     * Avoid (shared) pointers to anything else, unless they are `unique()`.
-    * Avoid weak pointers in messages, as they aren't needed.
+    * Avoid weak pointers in arguments, as they aren't needed.
   * Ensure all pointers and references are valid: use smart pointers.
-  * Avoid blocking calls (e.g. network, `std::future<>::get()`), unless using `active::thread`.
+  * Avoid blocking calls (e.g. network, `std::future<>::get()`), unless using `active::thread`. Use `active::wait()` when waiting on a promise.
 
 Deadlock cannot occur; what happens is that your program runs out of messages and exits. 
-
-If you break these guidelines, then your code may well still be correct, but you will forever have the worry that it may not be....
 
 = Where next? =
 Now you have the tools, it is time to apply them! Check out the [Samples] and the [Reference]. You can also read FineTuning if you want to compose your own AO.
