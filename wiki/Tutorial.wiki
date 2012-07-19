@@ -137,7 +137,7 @@ Active method calls are non-blocking asynchronous calls, which cannot return a r
 
 == Approach 1: Use a promise ==
 
-One approach is to use a _future_, which is a fairly common solution to this problem, as follows:
+One approach is to use a _promise_, which is a fairly common solution to this problem, as follows:
 
 {{{
     std::promise<int> value;
