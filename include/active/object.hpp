@@ -6,8 +6,6 @@
 #define ACTIVE_OBJECT_INCLUDED
 
 #include <active/config.hpp>
-
-#include <vector>
 #include <memory>
 
 #ifdef ACTIVE_USE_CXX11
@@ -51,6 +49,8 @@
 #else
 	#include <mutex>
 	#include <thread>
+	#include <vector>
+
 	namespace active
 	{
 		namespace platform
@@ -346,6 +346,12 @@ namespace active
 		}
 
 		template<typename T>
+		void active_fn(RVALUE_REF(T) fn, int priority=0) const
+		{
+			const_cast<object_impl*>(this)->enqueue_fn2( platform::forward<RVALUE_REF(T)>(fn), priority );
+		}
+
+		template<typename T>
 		void active_fn(RVALUE_REF(T) fn, int priority=0)
 		{
 			enqueue_fn2( platform::forward<RVALUE_REF(T)>(fn), priority );
@@ -379,6 +385,9 @@ namespace active
 	// The default object type.
 	typedef object_impl<schedule::thread_pool, queueing::shared<>, sharing::disabled> basic;
 
+	/*	This is the base class of all active objects.
+		Its main role is to implement operator().
+	  */
 	template<typename Derived, typename ObjectType=basic>
 	struct object : public ObjectType
 	{
@@ -392,96 +401,204 @@ namespace active
 		{
 		}
 
-#ifdef ACTIVE_USE_CXX11
-		template<typename T>
-		derived_type & operator()(RVALUE_REF(T)msg)
-		{
-			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(msg)); }, priority(msg) );
-			return *static_cast<derived_type*>(this);
-		}
-
-		template<typename T>
-		derived_type & operator()(const T & msg)
-		{
-			T msg2(msg);
-			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(msg2)); }, priority(msg) );
-			return *static_cast<derived_type*>(this);
-		}
-
-		template<typename T>
-		derived_type & operator()(T * msg)
-		{
-			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(msg)); }, priority(msg) );
-			return *static_cast<derived_type*>(this);
-		}
-
-		template<typename T1, typename T2>
-		derived_type & operator()(T1 a1, T2 a2)
-		{
-			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(a1),std::move(a2)); } );
-			return *static_cast<derived_type*>(this);
-		}
-
-		template<typename T1, typename T2, typename T3>
-		derived_type & operator()(T1 a1, T2 a2, T3 a3)
-		{
-			this->active_fn( [=]() mutable { static_cast<derived_type*>(this)->active_method(std::move(a1),std::move(a2),std::move(a3)); } );
-			return *static_cast<derived_type*>(this);
-		}
-#else
 	private:
-		template<typename T1>
-		static void run1(derived_type *p, const T1 a1)
+		derived_type & get_derived()
 		{
-			p->active_method(a1);
+			return *static_cast<derived_type*>(this);
 		}
 
-		template<typename T1, typename T2>
-		static void run2(derived_type *p, T1 a1, T2 a2)
+		const derived_type & get_derived() const
 		{
-			p->active_method(a1,a2);
+			return *static_cast<const derived_type*>(this);
 		}
 
-		template<typename T1, typename T2, typename T3>
-		static void run3(derived_type *p, T1 a1, T2 a2, T3 a3)
+#ifdef ACTIVE_USE_CXX11
+		template<typename... Args>
+		void run_active_method(Args ...args)
 		{
-			p->active_method(a1,a2,a3);
+			get_derived().active_method(args...);
 		}
+
+		template<typename... Args>
+		void const_run_active_method(Args ...args) const
+		{
+			get_derived().active_method(args...);
+		}
+#endif
+
+		template<typename Arg1>
+		void run_active_method(Arg1 a1)
+		{
+			get_derived().active_method(active::platform::move(a1));
+		}
+
+		void run_active_method0()
+		{
+			get_derived().active_method();
+		}
+
+		void const_run_active_method0() const
+		{
+			get_derived().active_method();
+		}
+
+		template<typename Arg1, typename Arg2>
+		void run_active_method(Arg1 a1, Arg2 a2)
+		{
+			get_derived().active_method(active::platform::move(a1), active::platform::move(a2));
+		}
+
+		template<typename Arg1, typename Arg2, typename Arg3>
+		void run_active_method(Arg1 a1, Arg2 a2, Arg3 a3)
+		{
+			get_derived().active_method(active::platform::move(a1), active::platform::move(a2), active::platform::move(a3));
+		}
+
+		template<typename Arg1, typename Arg2, typename Arg3, typename Arg4>
+		void run_active_method(Arg1 a1, Arg2 a2, Arg3 a3, Arg4 a4)
+		{
+			get_derived().active_method(active::platform::move(a1), active::platform::move(a2), active::platform::move(a3), active::platform::move(a4));
+		}
+
+		template<typename Arg1, typename Arg2, typename Arg3, typename Arg4>
+		void const_run_active_method(Arg1 a1, Arg2 a2, Arg3 a3, Arg4 a4) const
+		{
+			get_derived().active_method(active::platform::move(a1), active::platform::move(a2), active::platform::move(a3), active::platform::move(a4));
+		}
+
+		template<typename Arg1, typename Arg2, typename Arg3, typename Arg4, typename Arg5>
+		void run_active_method(Arg1 a1, Arg2 a2, Arg3 a3, Arg4 a4, Arg5 a5)
+		{
+			get_derived().active_method(active::platform::move(a1), active::platform::move(a2), active::platform::move(a3), active::platform::move(a4), active::platform::move(a5));
+		}
+
+		template<typename Arg1, typename Arg2, typename Arg3, typename Arg4, typename Arg5>
+		void const_run_active_method(Arg1 a1, Arg2 a2, Arg3 a3, Arg4 a4, Arg5 a5) const
+		{
+			get_derived().active_method(active::platform::move(a1), active::platform::move(a2), active::platform::move(a3), active::platform::move(a4), active::platform::move(a5));
+		}
+
+		template<typename Arg1>
+		void const_run_active_method(Arg1 a1) const
+		{
+			get_derived().active_method(active::platform::move(a1));
+		}
+
+		template<typename Arg1, typename Arg2>
+		void const_run_active_method(Arg1 a1, Arg2 a2) const
+		{
+			get_derived().active_method(active::platform::move(a1), active::platform::move(a2));
+		}
+
+		template<typename Arg1, typename Arg2, typename Arg3>
+		void const_run_active_method(Arg1 a1, Arg2 a2, Arg3 a3) const
+		{
+			get_derived().active_method(active::platform::move(a1), active::platform::move(a2), active::platform::move(a3));
+		}
+
 	public:
+		derived_type & operator()()
+		{
+			this->active_fn( platform::bind(&object::run_active_method0,this),0);
+			return get_derived();
+		}
+
+		const derived_type & operator()() const
+		{
+			this->active_fn( platform::bind(&object::const_run_active_method0,this),0);
+			return get_derived();
+		}
+
+#ifdef ACTIVE_USE_CXX11
+		template<typename Arg1, typename... Args>
+		derived_type & operator()(Arg1 arg1, Args ...args)
+		{
+			this->active_fn( platform::bind(&object::run_active_method<Arg1,Args...>,
+											this,arg1,args...),priority(arg1));
+			return get_derived();
+		}
+
+		template<typename Arg1, typename... Args>
+		const derived_type & operator()(Arg1 arg1, Args ...args) const
+		{
+			this->active_fn( platform::bind(&object::const_run_active_method<Arg1,Args...>,
+											this,arg1,args...),priority(arg1));
+			return get_derived();
+		}
+
+#else
 
 		template<typename T>
 		derived_type & operator()(const T msg)
 		{
-			this->active_fn( platform::bind( &run1<T>, static_cast<derived_type*>(this), msg), priority(msg));
-			return *static_cast<derived_type*>(this);
+			this->active_fn( platform::bind( &object::run_active_method<T>, this, msg), priority(msg));
+			return get_derived();
+		}
+
+		template<typename T>
+		const derived_type & operator()(const T msg) const
+		{
+			this->active_fn( platform::bind( &object::const_run_active_method<T>, this, msg), priority(msg));
+			return get_derived();
 		}
 
 		template<typename T1,typename T2>
 		derived_type & operator()(T1 a1, T2 a2)
 		{
-			this->active_fn( platform::bind( &run2<T1,T2>, static_cast<derived_type*>(this), a1, a2), priority(a1));
-			return *static_cast<derived_type*>(this);
+			this->active_fn( platform::bind( &object::run_active_method<T1,T2>, this, a1, a2), priority(a1));
+			return get_derived();
+		}
+
+		template<typename T1,typename T2>
+		const derived_type & operator()(T1 a1, T2 a2) const
+		{
+			this->active_fn( platform::bind( &object::const_run_active_method<T1,T2>, this, a1, a2), priority(a1));
+			return get_derived();
 		}
 
 		template<typename T1,typename T2,typename T3>
 		derived_type & operator()(T1 a1, T2 a2, T3 a3)
 		{
-			this->active_fn( platform::bind( &run3<T1,T2,T3>, static_cast<derived_type*>(this), a1, a2, a3), priority(a1));
-			return *static_cast<derived_type*>(this);
+			this->active_fn( platform::bind( &object::run_active_method<T1,T2,T3>, this, a1, a2, a3), priority(a1));
+			return get_derived();
 		}
-		// !! More parameters
-#endif
 
-
-#if 0
-		// !! Not supported by compiler (yet)
-		template<typename... Args>
-		derived_type & operator()(Args... args)
+		template<typename T1,typename T2,typename T3>
+		const derived_type & operator()(T1 a1, T2 a2, T3 a3) const
 		{
-			this->active_method( [args...]() mutable { static_cast<derived_type*>(this)->active_method(args...); } );
-			return *static_cast<derived_type*>(this);
+			this->active_fn( platform::bind( &object::const_run_active_method<T1,T2,T3>, this, a1, a2, a3), priority(a1));
+			return get_derived();
+		}
+
+		template<typename T1,typename T2,typename T3, typename T4>
+		derived_type & operator()(T1 a1, T2 a2, T3 a3, T4 a4)
+		{
+			this->active_fn( platform::bind( &object::run_active_method<T1,T2,T3,T4>, this, a1, a2, a3, a4), priority(a1));
+			return get_derived();
+		}
+
+		template<typename T1,typename T2,typename T3,typename T4>
+		const derived_type & operator()(T1 a1, T2 a2, T3 a3,T4 a4) const
+		{
+			this->active_fn( platform::bind( &object::const_run_active_method<T1,T2,T3,T4>, this, a1, a2, a3, a4), priority(a1));
+			return get_derived();
+		}
+
+		template<typename T1,typename T2,typename T3, typename T4, typename T5>
+		derived_type & operator()(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5)
+		{
+			this->active_fn( platform::bind( &object::run_active_method<T1,T2,T3,T4,T5>, this, a1, a2, a3, a4, a5), priority(a1));
+			return get_derived();
+		}
+
+		template<typename T1,typename T2,typename T3,typename T4, typename T5>
+		const derived_type & operator()(T1 a1, T2 a2, T3 a3,T4 a4,T5 a5) const
+		{
+			this->active_fn( platform::bind( &object::const_run_active_method<T1,T2,T3,T4,T5>, this, a1, a2, a3, a4, a5), priority(a1));
+			return get_derived();
 		}
 #endif
+
 	};
 
 	// Runs the scheduler for a given duration.

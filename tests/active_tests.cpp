@@ -19,6 +19,7 @@
 #include <iostream>
 #include <cassert>
 #include <vector>
+#include <cstring>
 
 struct counter : public active::object<counter>
 {
@@ -137,6 +138,133 @@ void test_sink()
 	assert( obj.called==1 );
 	active::run();
 };
+
+struct variadic_object : public active::object<variadic_object>
+{
+	mutable int calls[10], const_calls[10];
+
+	variadic_object() : calls(), const_calls()
+	{
+	}
+
+	void active_method()
+	{
+		++calls[0];
+	}
+
+	void active_method() const
+	{
+		++const_calls[0];
+	}
+
+	void active_method(int x)
+	{
+		assert( x==1 );
+		++calls[1];
+	}
+
+	void active_method(double x)
+	{
+		assert( x==1.0 );
+		++calls[1];
+	}
+
+	void active_method(int x) const
+	{
+		assert( x==1 );
+		++const_calls[1];
+	}
+
+	void active_method(double x) const
+	{
+		assert( x==1.0 );
+		++const_calls[1];
+	}
+
+	void active_method(int a, double b, const char *c)
+	{
+		assert(a==1);
+		assert(b==2.0);
+		assert( strcmp(c,"3")==0 );
+		++calls[3];
+	}
+
+	void active_method(int a, double b, const char *c) const
+	{
+		assert(a==1);
+		assert(b==2.0);
+		assert( strcmp(c,"3")==0 );
+		++const_calls[3];
+	}
+
+	void active_method(int a, double b, const char *c, int*d)
+	{
+		assert(a==1);
+		assert(b==2.0);
+		assert( strcmp(c,"3")==0 );
+		assert(*d==4);
+		++calls[4];
+	}
+
+	void active_method(int a, double b, const char *c, int*d) const
+	{
+		assert(a==1);
+		assert(b==2.0);
+		assert( strcmp(c,"3")==0 );
+		assert(*d==4);
+		++const_calls[4];
+	}
+
+	void active_method(int a, double b, const char *c, int*d, char e)
+	{
+		assert(a==1);
+		assert(b==2.0);
+		assert( strcmp(c,"3")==0 );
+		assert(*d==4);
+		assert(e=='5');
+		++calls[5];
+	}
+
+	void active_method(int a, double b, const char *c, int*d, char e) const
+	{
+		assert(a==1);
+		assert(b==2.0);
+		assert( strcmp(c,"3")==0 );
+		assert(*d==4);
+		assert(e=='5');
+		++const_calls[5];
+	}
+};
+
+void test_variadic()
+{
+	variadic_object obj;
+	const variadic_object &cobj=obj;
+	obj();
+	cobj();
+	obj(1);
+	cobj(1);
+	obj(1.0);
+	cobj(1.0);
+	obj(1,2.0,"3");
+	cobj(1,2.0,"3");
+	int four = 4;
+	obj(1,2.0,"3",&four);
+	cobj(1,2.0,"3",&four);
+	obj(1,2.0,"3",&four,'5');
+	cobj(1,2.0,"3",&four,'5');
+
+	active::run();
+
+	assert( obj.calls[0]==1 );
+	assert( obj.const_calls[0]==1 );
+	assert( obj.calls[1]==2 );
+	assert( obj.const_calls[1]==2 );
+	assert( obj.calls[4]==1 );
+	assert( obj.const_calls[4]==1 );
+	assert( obj.calls[5]==1 );
+	assert( obj.const_calls[5]==1 );
+}
 
 struct mmobject : public active::object<mmobject>
 {
@@ -1006,6 +1134,7 @@ int main()
 	test_not_inline();
 	test_sink();
 	test_multiple_methods();
+	test_variadic();
 
 	// Multiple-object tests
 	test_multiple_instances();
