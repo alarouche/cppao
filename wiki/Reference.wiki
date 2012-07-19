@@ -5,10 +5,9 @@
 || `active/advanced.hpp` || Implements a more sophisticated AO type || [#active::advanced advanced] ||
 || `active/direct.hpp` || Non-mutexed objects. || [#active::direct direct] ||
 || `active/fast.hpp` || || [#active::fast fast] ||
-|| `active/object.hpp` || The main include file, which includes all of the basics. || [#ACTIVE_METHOD ACTIVE_METHOD], [#ACTIVE_IMPL ACTIVE_IMPL], [#ACTIVE_IFACE ACTIVE_IFACE], [#ACTIVE_TEMPLATE ACTIVE_TEMPLATE], [#active::default_scheduler default_scheduler], [#active::object object], [#active::object_impl object_impl], [#active::run run], [#active::sink sink] ||
+|| `active/object.hpp` || The main include file, which includes all of the basics. || [#active::basic basic], [#active::default_scheduler default_scheduler], [#active::object object], [#active::object_impl object_impl], [#active::run run], [#active::sink sink] ||
 || `active/promise.hpp` || || [#active::promise promise] ||
 || `active/scheduler.hpp` || || [#active::scheduler scheduler] ||
-|| `active/separate.hpp` || || [#active::separate separate] ||
 || `active/shared.hpp` || Additional support for shared pointers. || [#active::shared shared] ||
 || `active/synchronous.hpp` || || [#active::synchronous synchronous] ||
 || `active/thread.hpp` || Running AOs in a dedicated OS thread. || [#active::thread thread] ||
@@ -71,15 +70,14 @@ This class is completely thread-safe, except during construction and destruction
 == active::object ==
 
 {{{
-typedef object_impl<...> object;
+template<typename Derived, typename Type=basic>
+struct object;
 }}}
-
-This implements the default AO type.
 
 == active::shared == 
 {{{
-template<typename T, typename Base=object>
-struct shared : public object_impl<Base>
+template<typename Derived, typename Type=basic>
+struct shared
 {
     ...
     typedef object_impl<...> type;
