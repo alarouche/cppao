@@ -5,7 +5,7 @@
 || `active/advanced.hpp` || Implements a more sophisticated AO type || [#active::advanced advanced] ||
 || `active/direct.hpp` || Non-mutexed objects. || [#active::direct direct] ||
 || `active/fast.hpp` || || [#active::fast fast] ||
-|| `active/object.hpp` || The main include file, which includes all of the basics. || [#active::basic basic], [#active::default_scheduler default_scheduler], [#active::object object], [#active::object_impl object_impl], [#active::run run], [#active::sink sink] ||
+|| `active/object.hpp` || The main include file, which includes all of the basics. || [#active::basic basic], [#active::default_scheduler default_scheduler], [#active::object object], [#active::priority priority], [#active::run run], [#active::sink sink] ||
 || `active/promise.hpp` || || [#active::promise promise] ||
 || `active/scheduler.hpp` || || [#active::scheduler scheduler] ||
 || `active/shared.hpp` || Additional support for shared pointers. || [#active::shared shared] ||
@@ -16,63 +16,34 @@
 All declarations are in the namespace `active`.
 
 = Classes =
-== active::object_impl ==
-control various aspects of the implementation.
+== active::basic ==
 {{{
-template<typename Schedule, typename Queueing, typename Sharing> class object_impl;
+typedef ... basic;
 }}}
-This class is the generic implementation type for all active objects. Template parameters are used to 
-
-Types:
-
-|| `queue_type` || `Queueing` ||
-|| `schedule_type` || `Schedule` ||
-|| `sharing_type` || `Sharing` ||
-|| `scheduler_type` || Usually `active::scheduler` ||
-|| `allocator_type` || `Queueing::allocator_type` ||
-|| `size_type` || ||
-
-Methods:
-
-|| `object_impl(scheduler_type & p = default_scheduler, const allocator_type & alloc = allocator_type())` || Default constructor. Objects are scheduled by the global `default_scheduler` unless otherwise specified. ||
-|| `object_impl(const object_impl&)` || Does a default copy, but does not copy any messages. ||
-|| `object_impl & operator=(const object_impl&)` || Default copy operator, but does not copy any messages. ||
-|| `~object_impl()` || Destroys the object; must not be called whilst there are unprocessed messages. ||
-|| `void set_scheduler(scheduler_type & p)` || Change the scheduler. Must not be called after messages have been sent to the object. ||
-|| `virtual void exception_handler()` || Called when an exception escapes from a message handler. This must not throw an exception. The default implementation is to write a message and continue, but can be overridden. ||
-|| `allocator_type get_allocator() const` || Returns a copy of the allocator passed into the constructor. ||
-|| `void operator()(const Msg&)` || Message handlers defined by `ACTIVE_IFACE` and `ACTIVE_METHOD` macros. This might throw an exception such as `std::bad_alloc` or any exception from the copy constructor of `Msg`. ||
-
-Options for `Schedule`:
-
-||`struct active::schedule::none` ||Does not schedule the object. ||
-|| `struct active::schedule::own_thread` || Dedicates an OS thread for this object. ||
-|| `struct active::schedule::thread_pool` || Uses `active::scheduler` to schedule this object. ||
-
-Options for `Queueing`:
-
-|| `struct active::queueing::direct_call` || Messages are executed immediately without a mutex. ||
-|| `struct active::queueing::mutexed_call` || Messages are executed immediately, protected by a recursive mutex. ||
-|| `template<typename Allocator=std::allocator<void>> struct active::queueing::shared` || Messages are queued as per normal AO semantics. ||
-|| `template<typename Allocator=std::allocator<void>> struct active::queueing::separate` || Alternative implementation. ||
-|| `template<typename Q> struct active::queueing::steal` || Directly executes the message handler if the object is idle. ||
-|| `template<typename Allocator=std::allocator<void>> struct active::queueing::advanced` || A more sophisticated queueing implementation. ||
-
-Options for `Sharing`:
-
-|| `struct active::sharing::disabled` || No explicit shared pointer support. ||
-|| `template<typename T> struct active::sharinging::enabled` || Enhanced shared pointer support. `shared_from_this()` returns a pointer of type `std::shared_ptr<T>`. ||
- 
-
-Threading guarantees:
-This class is completely thread-safe, except during construction and destruction, or except for `active::queueing::direct_call`. The message handlers themselves are run single-threaded, but cannot (should not!) be called directly.
+Provides the default implementation for active objects. This object is scheduled by the cppao scheduler (`active::scheduler`).
 
 == active::object ==
 
 {{{
 template<typename Derived, typename Type=basic>
-struct object;
+struct object
+{
+    typedef Derived derived_type;
+
+    object();
+
+    template<typename...Args>
+    derived_type & operator()(Args ... args );
+
+    template<typename...Args>
+    derived_type & operator()(Args ... args ) const;
+
+    template<typename Fn>
+    void active_fn(Fn && fn, int priority=0) const;
+};
 }}}
+
+The base class for user active object types.
 
 == active::shared == 
 {{{
@@ -80,35 +51,36 @@ template<typename Derived, typename Type=basic>
 struct shared
 {
     ...
-    typedef object_impl<...> type;
-    typedef std::shared_ptr<T> ptr;
+    typedef std::shared_ptr<Derived> ptr;
+    ptr shared_from_this();
 };
 }}}
-This implements the default AO type for shared pointers.
+
+This implements the base class for shared active objects.
 
 == active::fast ==
 {{{
-typedef object_impl<...> fast;
+typedef ... fast;
 }}}
 
 == active::thread ==
 {{{
-typedef object_impl<...> thread;
+typedef ... thread;
 }}}
 
 == active::synchronous ==
 {{{
-typedef object_impl<...> synchronous;
+typedef ... synchronous;
 }}}
 
 == active::direct ==
 {{{
-typedef object_impl<...> direct;
+typedef ... direct;
 }}}
 
 == active::advanced ==
 {{{
-typedef object_impl<...> advanced;
+typedef ... advanced;
 }}}
 
 Additional methods of this class:
@@ -119,6 +91,7 @@ Additional methods of this class:
 
 In addition there is the function
 
+== active::priority ==
 {{{
 namespace active
 {
@@ -198,35 +171,18 @@ extern scheduler default_scheduler;
 }}}
 The global scheduler, used by objects by default unless overridden by `object_impl::set_scheduler()`. Global variables are of course to be discouraged, and are only provided for convenience.
 
-= Macros =
+= Functions =
 
-== ACTIVE_IFACE =
+== active::priority ==
 {{{
-#define ACTIVE_IFACE( MSG ) ...
-}}}
-Defines a message handler as a virtual method. `MSG` must name a type.
-
-== ACTIVE_METHOD ==
-{{{
-#define ACTIVE_METHOD( MSG ) ...
-}}}
-Declares or defines an active method (message handler) in a class. `MSG` must name a type.
-
-== ACTIVE_TEMPLATE ==
-{{{
-#define ACTIVE_TEMPLATE( MSG ) ...
-}}}
-This class behaves like `ACTIVE_METHOD` but can be used in a templates class. Note that the type name `queue_type` must be defined prior to using this macro.
-
-== ACTIVE_IMPL ==
-
-{{{
-#define ACTIVE_IMPL( MSG ) ...
-}}}
-Defines an active method, usage is as follows:
-{{{
-void ClassName::ACTIVE_IMPL(MSG)
+namespace active
 {
-    ...
+    template<typename T> int priority(const T&)
+    {
+        return 0;
+    }
 }
 }}}
+Used to prioritize calls to the `advanced` object type, but is ignored for all other object types.
+
+== active::wait ==
