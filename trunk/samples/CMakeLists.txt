@@ -46,5 +46,6 @@ if( ENABLE_CXX11 )
 	add_executable( sieve2_lambda sieve2_lambda.cpp )
 	add_executable( fib_lambda fib_lambda.cpp )
 	add_executable( forward_result_iface forward_result_iface.cpp )
+	add_executable( queue_control_lambda queue_control_lambda.cpp )
 endif()
 

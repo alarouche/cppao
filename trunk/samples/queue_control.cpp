@@ -11,25 +11,12 @@ namespace active
 	}
 }
 
-
-struct Result
-{
-	int value;
-};
-
 class Computation : public active::object<Computation,active::advanced>
 {
 public:
-	struct Compute
+	void active_method( int a, int b, active::sink<int> * result )
 	{
-		int a, b;
-		active::sink<Result> & result;
-	};
-
-	void active_method( Compute Compute )
-	{
-		Result r = { Compute.a + Compute.b };
-		Compute.result.send(r);
+		result->send(a+b);
 	}
 
 	void active_method( Shutdown )
@@ -40,12 +27,12 @@ public:
 };
 
 
-class Display : public active::object<Display>, public active::sink<Result>
+class Display : public active::object<Display>, public active::sink<int>
 {
 public:
-	void active_method( Result Result )
+	void active_method( int result )
 	{
-		std::cout << "Result of computation = " << Result.value << std::endl;
+		std::cout << "Result of computation = " << result << std::endl;
 	}
 };
 
@@ -53,10 +40,8 @@ int main()
 {
 	Computation comp;
 	Display display;
-	Computation::Compute msg1 = {1,2,display};
-	comp( msg1 );
-	Computation::Compute msg2 = {4,5,display};
-	comp( msg2 );
+	comp( 1,2,&display );
+	comp( 3,4,&display );
 	comp( Shutdown() );
 	active::run();
 }

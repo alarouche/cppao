@@ -1,49 +1,33 @@
 #include <active/advanced.hpp>
 #include <iostream>
 
-struct Result
-{
-	int value;
-};
 
-class Computation : public active::advanced
+class Computation : public active::object<Computation,active::advanced>
 {
 public:
-	struct Compute
+	void compute( int a, int b, std::function<void(int)> result )
 	{
-		int a, b;
-		active::sink<Result> & result;
-	};
-
-	ACTIVE_METHOD( Compute )
-	{
-		Result r = { Compute.a + Compute.b };
-		Compute.result(r);
+		active_fn( [=] { result(a+b); } );
 	}
 
-	struct Shutdown { };
-
-	ACTIVE_METHOD( Shutdown )
+	void shutdown()
 	{
-		std::cout << "Shutting down now...\n";
-		clear();
+		active_fn( [=]{
+			std::cout << "Shutting down now...\n";
+			clear();
+		}, 10 );	// Message priority=10
 	}
 };
 
-namespace active
-{
-	template<> int priority(const Computation::Shutdown&)
-	{
-		return 10;
-	}
-}
 
-class Display : public active::object, public active::sink<Result>
+class Display : public active::object<Display>
 {
 public:
-	ACTIVE_METHOD( Result )
+	void receive_result(int result)
 	{
-		std::cout << "Result of computation = " << Result.value << std::endl;
+		active_fn([=]{
+				std::cout << "Result of computation = " << result << std::endl;
+		});
 	}
 };
 
@@ -51,8 +35,8 @@ int main()
 {
 	Computation comp;
 	Display display;
-	comp( Computation::Compute({1,2,display}) );
-	comp( Computation::Compute({4,5,display}) );
-	comp( Computation::Shutdown() );
+	comp.compute( 1,2,[&](int result){display.receive_result(result);} );
+	comp.compute( 3,4,[&](int result){display.receive_result(result);} );
+	comp.shutdown();
 	active::run();
 }
