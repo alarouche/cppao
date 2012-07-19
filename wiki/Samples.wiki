@@ -4,7 +4,8 @@ Note: Many of these samples have a variation implemented in terms of C++11 lambd
 
 =Hello world!=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active.cpp]
-[http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active_future.cpp]
+
+[http://code.google.com/p/cppao/source/browse/trunk/samples/hello_active_lambda.cpp]
 
 A simple active method call with two parameters.  Demonstrates:
 
@@ -17,6 +18,7 @@ A simple active method call with two parameters.  Demonstrates:
 
 =Ping pong=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/ping_pong.cpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/ping_pong_lambda.cpp]
 
 A message is sent backwards and forwards between two active methods in the same AO. Demonstrates:
@@ -26,6 +28,7 @@ A message is sent backwards and forwards between two active methods in the same 
  
 =Round robin=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin.cpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/round_robin_lambda.cpp]
 
 A message is sent to each of 1000 nodes, which then pass the message onwards to the next node in the loop, with a time-to-live of 10 hops for each message. Demonstrates:
@@ -36,6 +39,7 @@ A message is sent to each of 1000 nodes, which then pass the message onwards to 
 
 =Thread-ring=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/bench.cpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/bench_lambda.cpp]
 
 This is a simple (and not really very good) benchmark of multi-threaded performance, from the infamous computer language shootout. [http://shootout.alioth.debian.org/] This is the "thread-ring" benchmark which passes a token around 503 threads. [http://shootout.alioth.debian.org/u32/performance.php?test=threadring]
@@ -48,6 +52,7 @@ Demonstrates:
 
 =Forward results=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result.cpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_lambda.cpp]
 
 Call an active method, which passes the result to another active object.
@@ -58,6 +63,7 @@ Demonstrates:
 
 =Callbacks=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface.cpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_iface_lambda.cpp]
 
 Call an active method, which calls a function on completion.
@@ -68,6 +74,7 @@ Demonstrates:
 
 =Message sinks=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink.cpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result_sink_lambda.cpp]
 
 An active method performs a calculation, then passes the result to another active object via a message sink.
@@ -93,6 +100,7 @@ Demonstrates:
 
 =Queue control=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/queue_control.cpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/queue_control_lambda.cpp]
 
 Sends a high priority active method to an AO to clear its pending work queue.
@@ -114,8 +122,11 @@ Demonstrates:
 
 = Prime number sieve =
 [http://code.google.com/p/cppao/source/browse/trunk/samples/sieve.cpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/sieve2.cpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/sieve_lambda.cpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/sieve2_lambda.cpp]
 
 Outputs the list of prime numbers. Creates a list of AOs which are used to filter a sequence of integers.
@@ -129,6 +140,7 @@ Demonstrates:
 
 =Game of life=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/life.hpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/life.cpp]
 
 Implements Conway's "Game of Life" in a console.  Each cell is its own AO, in addition to a controller and a display AO. All communication between AOs is via active methods. This is an exercise in synchronisation (all cells must update synchronously) and message flows.
@@ -150,6 +162,7 @@ Creates and runs different AO implementations. Demonstrates:
 
 = Fibonacci =
 [http://code.google.com/p/cppao/source/browse/trunk/samples/fib.cpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/fib_lambda.cpp]
 
 Implements a deliberately naive recursive Fibonacci number calculator (F(n)=F(n-1)+F(n-2)), where each number spawns two active objects - resulting in an exponential increase in the number of AOs.
@@ -164,6 +177,7 @@ Demonstrates:
 
 =Active sockets=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.hpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/active_socket.cpp]
 
 Wrapping a synchronous object inside an AO. Many POSIX/Winsock functions are provided, but as messages.
@@ -186,6 +200,7 @@ Demonstrates:
 
 =Echo client/server=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/echo_server.cpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/echo_client.cpp]
 
 Building on the socket and pipe objects, we construct a TCP/IP client/server. The echo_server simply echos data which is sent to it, and the echo_client forwards input to the server, reads the response then outputs it. The echo_client can bounce data between the client and the server a specified number of times.
@@ -199,6 +214,7 @@ Demonstrates:
 
 =Mandelbrot=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/mandelbrot.hpp]
+
 [http://code.google.com/p/cppao/source/browse/trunk/samples/mandelbrot.cpp]
 
 An interactive viewer of the Mandelbrot fractal. The screen is divided into 256 segments which are computed in independent active objects.
