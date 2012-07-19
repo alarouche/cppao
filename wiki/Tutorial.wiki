@@ -217,14 +217,14 @@ int main()
         active::run();
 }
 }}}
-In this case, the active method (which can now have a sensible name) enqueues the real implementation using a call to `active_fn`.
+In this case, the active method (which can now have a sensible name) enqueues the real implementation using a call to `active_fn()`.
 
-Note that one could also achieve something similar in C++03 using `boost::bind`.
+Note that one could also achieve something similar in C++03 using `boost::bind()`.
 
 It is a matter of personal taste as to which approach is preferred.
 
 = Const `active_method`s =
-`active_method` respects `const`, which means that you can overload `active_method` with a const version, and you can also control which overload gets called depending on whether you invoke `operator()` or `operator() const`.
+`active_method()` respects `const`, which means that you can overload `active_method()` with a const version, and you can also control which overload gets called depending on whether you invoke `operator()` or `operator() const`.
 
 = Exception handling =
 
