@@ -13,8 +13,7 @@ public:
 class ComplexComputation : public active::object<ComplexComputation>
 {
 public:
-
-	void active_method( int a, int b, ComputationHandler *handler ) const
+	void active_method( int a, int b, ComputationHandler *handler )
 	{
 		(*handler)(a + b);
 	}
