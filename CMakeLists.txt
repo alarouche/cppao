@@ -4,6 +4,7 @@ enable_testing()
 
 option(ACTIVE_USE_CXX11 "Whether to compile for C++11" ON)
 option(ACTIVE_USE_BOOST "Whether to compile for Boost" OFF)
+set(ACTIVE_USE_VARIADIC_TEMPLATES ${ACTIVE_USECXX11})
 
 if(ACTIVE_USE_CXX11)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -pthread")
