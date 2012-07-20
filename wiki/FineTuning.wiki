@@ -1,80 +1,5 @@
 #summary Getting the most out of cppao
 
-= Summary =
-This page goes into quite a lot of detail about design considerations and the various object types, and is best avoided on first reading.
-
-The basic object types (`active::object` and `active::shared<>`) are the default types which should offer reasonable results.  Cppao offers other object types with different characteristics.
-
-Cppao actually implements a policy framework, where different aspects can be combined. It is possible to implement new strategies (e.g. to prioritise messages, or to limit the message queue size) in an extensible manner.
-
-Another use case is if you want to supply a different allocator to `active::queueing::` classes which perform dynamic memory allocation.
-
-= Object types =
-
-* Beware: Here be dragons *
-
-The basic object type is `active::object`, with `active::shared<>` for use with `std::shared_ptr<>`. These are designed to offer the best and safest experience. The implementation details are deliberately hidden because it allows the underlying implementation to change and innovate.
-
-It is possible to select different implementations if you want to try to improve performance, perhaps at the expense of a little safety. Like much multi-threaded code, performance is not always predictable.
-
-See [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp object_types.cpp] for examples of the different object types.
-
-Available object types:
-
-|| Type name || Description || Use case ||
-|| `active::object` || The basic AO offering a good default. It is not completely safe because the standard C++ object lifetime rules apply. Uses a faster scheduler than OS threads (see Performance later) || Default use. ||
-|| `active::fast` || Implements "work stealing" strategy so that a message call can actually execute the message handler if the object is currently idle. This object is safe, but the caller can become blocked. If you have a large number of active objects, it's possible to run out of stack space. || When processing is quick and concurrent execution is not necessary. ||
-|| `active::thread` || Dedicates an OS thread to this object. This object is safe, but can fail due to OS limits on the number of threads. || When you are sure you need a dedicated thread. ||
-|| `active::advanced` || Has additional features to manipulate the message queue, such as message prioritising, limiting queue size, query size and clear pending messages. || When these features are needed. ||
-
-== Fake AOs ==
-
-The following classes are very similar to normal AOs, and are in many cases much faster. Their main use is for interfacing with other AOs (e.g. to implement callbacks), for simple connecting objects, or for experimenting with a blend of object types for optimum performance. Beware of stack overflows.
-
-|| Type name || Description || Use case ||
-|| `active::synchronous` || A very simple mutexed object, which does not use queueing. Could be reentrant (so not true AO semantics). || For lightweight thread-safe processing. ||
-|| `active::direct` || Almost the same as a standard function call, with no locking mechanisms at all. || Lightweight single-threaded processing. When the object is already threadsafe or has no mutable state. ||
-
-= Policy framework =
-
-Cppao actually implements a policy framework which allows different types of AO to be created, and even supports the creation of new implementation strategies by the developer.
-
-The underlying AO is implemented by the `active::object_impl<>` template which needs to be supplied with three different strategy-types (using a Strategy pattern supplied as template parameters). The built-in AO types are just typedefs of `active::object_impl<>`.
-
-{{{
-namespace active
-{
-    template<typename Schedule, typename Queueing, typename Sharing>
-    class object_impl;
-}
-}}}
-
-== Schedule implementations ==
-The schedule determines which AO  is next run.  The provided schedulers are:
-
-|| `active::schedule::thread_pool` || schedules the AO using a thread-pool. This is ideal if the number of AOs is large. ||
-|| `active::schedule::own_thread` || uses a dedicated OS thread to execute the AO. Good if you need pre-emptive multitasking and the number of AOs is limited (<1000 say). ||
-|| `active::schedule::none` || used for those queueing implementations which don't need their own scheduler. ||
-
-An AO becomes "activated" when it receives its first message. The `thread_pool` scheduler passes the AO to `active::pool`, which puts the AO onto a FIFO of activated objects. A thread (or pool of threads) can then pop the next AO from the queue, and run the AO (using `active::any_object::run_some()`), which will process a number of messages, and if there are any remaining messages, re-activate the AO to re-schedule its execution.
-
-In this way, `active::scheduler` is able to process many AOs in a small number of threads.
-
-== Queueing implementation ==
-The queue determines which message to service next, and provides a container for storing messages. The provide queues are:
-
-|| `active::queueing::shared<>` || uses a single linked list to store all messages for an object ||
-|| `active::queueing::separate<>` || an alternative implementation. ||
-|| `active::queuing::direct_call` || Process message immediately in calling thread without a mutex. ||
-|| `active::queueing::mutexed_call` || Process message immediately in calling thread, but mutexes the object with a recursive mutex ||
-|| `active::queueing::steal<>` || Adapt another queueing strategy by processing the message in the calling thread when the object is idle. ||
-|| `active::queueing::advanced<>` || Implements the `advanced` object type. ||
-
-== Sharing implementations ==
-Sharing information controls the pointer type in the message queue. The main use case for this is to use shared pointers (`std::shared_ptr<>`) in the message queue, which guarantees that AOs with messages cannot be destroyed.
-
-|| `active::sharing::enabled<>` || use `std::shared_ptr`. ||
-|| `active::sharing::disabled` || use C-style pointers. ||
 
 = Active object guarantees =
 
@@ -101,7 +26,7 @@ The basic _semantics_ of AOs are that they execute _as if_ they are running in a
 I just made these up - maybe you could think of some more.
 
 || Object type               || G1 || G2 || G3 || G4 || G5 || G6 || G7 || G8 || G9 || 
-|| `active::object`          || y  || y,y|| y  || y  || y  || y^1^ || y,n,y || y  || y^2^ || 
+|| `active::basic`          || y  || y,y|| y  || y  || y  || y^1^ || y,n,y || y  || y^2^ || 
 || `active::shared<>`        || y  || y,y|| y  || y  || y  || y^1^ || y,y,n^5^ || y || y^2^ || 
 || `active::fast`            || y  || y,y|| n || y || y^3^ || y || y,n,y || y || y^2^ ||
 || `active::direct`          || y  || n,n|| n || n || n || y^1^ || n,n,y || y || n || 
@@ -131,12 +56,10 @@ These figures are generated by the thread-ring test [http://code.google.com/p/cp
 || 6 || `active::shared<T,active::fast>` || 18 ||
 || 7 || `active::object` || 5.2 ||
 || 8 || `active::shared<T>`  || 4.1 ||
-|| 9 || `active::separate` || 7.0 ||
-|| 10 || `active::shared<T,active::separate>` || 5.0 || 
-|| 11 || `active::advanced` || 4.9 ||
-|| 12 || `active::shared<T,active::advanced>` || 3.9 ||
-|| 13 || `active::thread` || 0.37 ||
-|| 14 || `active::shared<T,active::thread>` || 0.34 ||
+|| 9 || `active::advanced` || 4.9 ||
+|| 10 || `active::shared<T,active::advanced>` || 3.9 ||
+|| 11 || `active::thread` || 0.37 ||
+|| 12 || `active::shared<T,active::thread>` || 0.34 ||
 
 == Comment ==
 Using the OS to schedule AOs is of course a reasonable first approach, but cppao implements its own scheduler which is much more scalable and lightweight, and the performance results confirm this.
