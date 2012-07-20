@@ -33,7 +33,7 @@ add_executable( echo_server echo_server.cpp )
 add_executable( echo_client echo_client.cpp )
 add_executable( echo echo.cpp )
 
-if( ENABLE_CXX11 )
+if( ACTIVE_USE_CXX11 )
 	add_executable( hello_active_lambda hello_active_lambda.cpp )
 	add_executable( ping_pong_lambda ping_pong_lambda.cpp )
 	add_executable( round_robin_lambda round_robin_lambda.cpp )
