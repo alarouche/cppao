@@ -146,8 +146,9 @@ namespace active
 				platform::lock_guard<platform::mutex> lock(m_mutex);
 				while( !m_messages.empty() )
 				{
-					m_messages.top()->destroy(m_allocator);
+					message * m = m_messages.top();
 					m_messages.pop();
+					m->destroy(m_allocator);
 				}
 			}
 

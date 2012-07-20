@@ -96,7 +96,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../include;../include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -130,7 +130,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../include;../include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -141,6 +141,20 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\lib\active_object.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\include\active\advanced.hpp" />
+    <ClInclude Include="..\..\include\active\direct.hpp" />
+    <ClInclude Include="..\..\include\active\fast.hpp" />
+    <ClInclude Include="..\..\include\active\object.hpp" />
+    <ClInclude Include="..\..\include\active\promise.hpp" />
+    <ClInclude Include="..\..\include\active\scheduler.hpp" />
+    <ClInclude Include="..\..\include\active\shared.hpp" />
+    <ClInclude Include="..\..\include\active\synchronous.hpp" />
+    <ClInclude Include="..\..\include\active\thread.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\include\active\config.hpp.in" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

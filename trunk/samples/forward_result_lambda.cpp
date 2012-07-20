@@ -4,7 +4,7 @@
 class ComputationHandler : public active::object<ComputationHandler>
 {
 public:
-	int ready(int result)
+	void ready(int result)
 	{
 		std::cout << "Result of computation = " << result << std::endl;
 	}

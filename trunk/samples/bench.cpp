@@ -67,7 +67,7 @@ void bench_object(Object obj, int N)
 int main(int argc, char**argv)
 {
 	int N = argc>1 ? atoi(argv[1]) : 100000;
-	int RECURSIVE=10000;
+	int RECURSIVE=5000;
 	std::cout << "1:  direct              ";
 	bench_object( active::direct(), RECURSIVE );
 

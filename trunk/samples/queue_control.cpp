@@ -51,6 +51,10 @@ int main()
 	Display display;
 	active::run run;
 	comp(1,2,&display)(3,4,&display);
-	sleep(1);
+#if ACTIVE_USE_BOOST
+	boost::this_thread::sleep_for(boost::posix_time::seconds(1));
+#else
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+#endif
 	comp( Shutdown() );
 }
