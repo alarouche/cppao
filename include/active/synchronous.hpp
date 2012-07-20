@@ -33,8 +33,9 @@ namespace active
 			}
 
 			bool run_some(any_object * o, int n=100) throw();
-
 			bool empty() const;
+			bool mutexed_empty() const;
+			void clear();
 
 		private:
 			platform::recursive_mutex m_mutex;

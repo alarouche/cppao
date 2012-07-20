@@ -1,4 +1,5 @@
 #define BOOST_DISABLE_ASSERTS 1
+#undef NDEBUG
 
 #include <active/object.hpp>
 
@@ -6,7 +7,6 @@
 #include <boost/make_shared.hpp>
 #endif
 
-#undef NDEBUG
 #include <active/scheduler.hpp>
 #include <active/promise.hpp>
 #include <active/thread.hpp>
@@ -35,9 +35,8 @@ void test_method_call()
 	assert( !t.count );
 	t(counter::inc());
 	assert( !t.count );
-	t.run();
+	active::run();
 	assert( t.count );
-	active::run();	// NB: You must do this to clear the default queue if you plan on using this again
 }
 
 void test_run_all()
@@ -45,11 +44,10 @@ void test_run_all()
 	counter t;
 	t(counter::inc());
 	t(counter::inc());
-	t(counter ::inc());
+	t(counter::inc());
 	assert( t.count == 0 );
-	t.run();
-	assert( t.count == 3 );
 	active::run();
+	assert( t.count == 3 );
 }
 
 void test_run_some()
@@ -81,9 +79,8 @@ void test_const()
 	const_obj::foo f={0};
 	c(&f);
 	assert( f.x==0 );
-	c.run();
-	assert( f.x==1 );
 	active::run();
+	assert( f.x==1 );
 };
 
 struct ni : public active::object<ni>
@@ -112,10 +109,9 @@ void test_not_inline()
 	ni::bar msg = { 0 };
 	obj(ni::foo());
 	obj(&msg);
-	obj.run();
+	active::run();
 	assert( obj.foo_called==1 );
 	assert( msg.r==1 );
-	active::run();
 }
 
 struct msg {};
@@ -134,9 +130,8 @@ void test_sink()
 {
 	sink_obj obj;
 	obj.send(msg());
-	obj.run();
-	assert( obj.called==1 );
 	active::run();
+	assert( obj.called==1 );
 };
 
 struct variadic_object : public active::object<variadic_object>
@@ -288,14 +283,10 @@ void test_multiple_methods()
 	mmobject obj;
 	mmobject::foo foo = { 2 };
 	mmobject::bar bar = { 3 };
-	obj(foo);
-	obj(foo);
-	obj(bar);	// TODO: Want chain notation.
-	obj(bar);	// TODO: Want chain notation.
-	obj.run();
+	obj(foo)(foo)(bar)(bar);
+	active::run();
 	assert( obj.foo_value == 4 );
 	assert( obj.bar_value == 6 );
-	active::run();
 }
 
 void test_multiple_instances()
@@ -532,6 +523,10 @@ struct test_object :
 	public active::object_impl<Schedule, Queue, Shared>,
 	public active::sink<test_message>
 {
+	test_object() : m_times(0) { }
+
+	int m_times;
+
 	void active_method(test_message msg)
 	{
 		msg.object->send(msg.value);
@@ -566,6 +561,37 @@ void test_object_types()
 	test_object2( *active::platform::make_shared<test_object< active::schedule::thread_pool, active::queueing::direct_call, active::sharing::enabled<> > >() );
 	test_object2( *active::platform::make_shared<test_object< active::schedule::thread_pool, active::queueing::mutexed_call, active::sharing::enabled<> > >() );
 	test_object2( *active::platform::make_shared<test_object< active::schedule::thread_pool, steal1, active::sharing::enabled<> > >() );
+}
+
+
+template<typename Type>
+struct test_clear_obj : public active::object<test_clear_obj<Type>,Type>
+{
+	void active_method(int x)
+	{
+		assert( x<=2 );
+		if( x==2 )
+		{
+			this->clear();
+			assert( this->empty() );
+		}
+	}
+};
+
+template<typename Base>
+void test_clear2()
+{
+	test_clear_obj<Base> obj;
+	obj(1)(2)(3)(4);
+	active::run();
+}
+
+void test_clear()
+{
+	test_clear2<active::basic>();
+	test_clear2<active::advanced>();
+	// Teeny tiny bug - clear does not necessarily clear everything on fast.
+	// test_clear2<active::fast>();
 }
 
 struct thread_obj : public active::object<thread_obj,active::thread>
@@ -922,10 +948,12 @@ struct my_advanced : public active::object<my_advanced,active::advanced>
 	my_advanced(int limit) : previous(4)
 	{
 		set_capacity(limit);
+		assert( get_capacity() == limit );
 	}
 
 	void active_method(long msg)
 	{
+		assert( msg==0 || get_priority() == msg-1 );
 		assert( msg==this->previous-1 ); this->previous = msg;
 	}
 };
@@ -1148,6 +1176,7 @@ int main()
 	// Object types
 	test_shared();
 	test_object_types();
+	test_clear();
 	test_own_thread();
 	test_shared_thread();
 	test_object_mix();

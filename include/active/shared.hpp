@@ -39,7 +39,7 @@ namespace active
 		public object<T, object_impl<Schedule, Queue, sharing::enabled<T> > >
 	{
 		typedef platform::shared_ptr<T> ptr;
-		typedef object_impl<Schedule, Queue, sharing::enabled<T> > type;
+		typedef platform::shared_ptr<const T> const_ptr;
 	};
 }
 

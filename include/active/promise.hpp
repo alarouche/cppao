@@ -42,6 +42,16 @@
 namespace active
 {
 	template<typename T>
+	T wait(platform::promise<T> & promise, scheduler & sched = default_scheduler)
+	{
+		typename platform::future<T>::type fut = promise.get_future();
+		while( !platform::is_valid(fut) && sched.run_one() )
+		{
+		}
+		return fut.get();
+	}
+
+	template<typename T>
 	struct promise :
 		public object<promise<T>, object_impl<schedule::thread_pool, queueing::direct_call, sharing::disabled> >,
 		public active::sink<T>
@@ -55,28 +65,11 @@ namespace active
 
 		T get()
 		{
-			typename platform::future<T>::type fut = m_value.get_future();
-			while( !platform::is_valid(fut) && this->steal() )	// gcc/clang calls it valid()
-			{
-				// Do some work whilst waiting for the promise to be fulfilled.
-				// However if steal() returns false, it means that there
-				// is no more work (for now).
-			}
-			return fut.get();
+			return wait(m_value,this->get_scheduler());
 		}
 	private:
 		platform::promise<value_type> m_value;
 	};
-
-	template<typename T>
-	T wait(platform::promise<T> & promise, scheduler & sched = default_scheduler)
-	{
-		typename platform::future<T>::type fut = promise.get_future();
-		while( !platform::is_valid(fut) && sched.run_one() )
-		{
-		}
-		return fut.get();
-	}
 }
 
 #endif

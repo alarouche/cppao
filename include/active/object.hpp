@@ -176,6 +176,13 @@ namespace active
 				return !m_head;
 			}
 
+			bool mutexed_empty() const
+			{
+				platform::lock_guard<platform::mutex> lock(m_mutex);
+				// We might be processing a message, which counts as empty.
+				return !m_head || !m_head->m_next;
+			}
+
 			bool run_some(any_object * o, int n=100) throw()
 			{
 				platform::lock_guard<platform::mutex> lock(m_mutex);
@@ -198,6 +205,21 @@ namespace active
 					m->destroy(m_allocator);
 				}
 				return m_head!=nullptr;
+			}
+
+			void clear()
+			{
+				// Destroy all message except current.
+				platform::lock_guard<platform::mutex> lock(m_mutex);
+				if( !m_head ) return;
+				for(message * m=m_head->m_next; m; )
+				{
+					message * n = m;
+					m=m->m_next;
+					n->destroy(m_allocator);
+				}
+				m_head->m_next=nullptr;
+				m_tail = m_head;
 			}
 
 		private:
@@ -238,7 +260,7 @@ namespace active
 
 			allocator_type m_allocator;
 		protected:
-			platform::mutex m_mutex;
+			mutable platform::mutex m_mutex;
 		};
 	}
 
@@ -258,15 +280,57 @@ namespace active
 
 		object_impl(scheduler_type & tp = default_scheduler,
 					const allocator_type & alloc = allocator_type())
-					: m_schedule(tp), m_queue(alloc) { }
+					: m_schedule(tp), m_queue(alloc)
+		{
+		}
 
-		~object_impl() { if(!m_queue.empty()) std::terminate(); }
+		~object_impl()
+		{
+			if(!m_queue.empty()) std::terminate();
+		}
 
-		object_impl(const queue_type & q, scheduler_type & tp = default_scheduler)
-			: m_schedule(tp), m_queue(q) { }
+		allocator_type get_allocator() const
+		{
+			return m_queue.get_allocator();
+		}
 
-		allocator_type get_allocator() const { return m_queue.get_allocator(); }
+		void set_scheduler(scheduler_type & sched)
+		{
+			m_schedule.set_scheduler(sched);
+		}
 
+		scheduler_type & get_scheduler() const
+		{
+			return m_schedule.get_scheduler();
+		}
+
+		void set_capacity(size_type c)
+		{
+			m_queue.set_capacity(c);
+		}
+
+		size_type get_capacity() const
+		{
+			return m_queue.get_capacity();
+		}
+
+		size_type size() const
+		{
+			return m_queue.size();
+		}
+
+		bool empty() const
+		{
+			return m_queue.mutexed_empty();
+		}
+
+		// Gets the priority of the next waiting message
+		int get_priority() const
+		{
+			return m_queue.get_priority();
+		}
+
+	private:
 		void run() throw()
 		{
 			typename share_type::pointer_type p=typename share_type::pointer_type();
@@ -276,7 +340,6 @@ namespace active
 				;
 		}
 
-		// Not threadsafe - do not call unless you know what you are doing.
 		bool run_some(int n) throw()
 		{
 			typename share_type::pointer_type p=typename share_type::pointer_type();	// !! Poor
@@ -296,45 +359,6 @@ namespace active
 			}
 		}
 
-		// Not threadsafe; must be called before message processing.
-		void set_scheduler(typename schedule_type::type & sch)
-		{
-			m_schedule.set_scheduler(sch);
-		}
-
-		typename schedule_type::type & get_scheduler() const
-		{
-			return m_schedule.get_scheduler();
-		}
-
-		// Do something whilst waiting for something else.
-		bool steal()
-		{
-			return get_scheduler().run_one();
-		}
-
-		void set_capacity(std::size_t c)
-		{
-			m_queue.set_capacity(c);
-		}
-
-		size_type size() const
-		{
-			return m_queue.size();
-		}
-
-		bool empty() const
-		{
-			return m_queue.mutexed_empty();
-		}
-
-		// Gets the priority of the next waiting message
-		int get_priority() const
-		{
-			return m_queue.get_priority();
-		}
-
-		// ?? Public
 		template<typename T>
 		void enqueue_fn2(RVALUE_REF(T) fn, int priority=0)
 		{
@@ -344,6 +368,8 @@ namespace active
 				m_schedule.activate(m_share.pointer(this));
 			}
 		}
+
+	protected:
 
 		template<typename T>
 		void active_fn(RVALUE_REF(T) fn, int priority=0) const
@@ -362,14 +388,6 @@ namespace active
 			enqueue_fn2( platform::forward<RVALUE_REF(platform::function<void()>)>(fn), priority );
 		}
 
-		// !! Not implemented
-		template<typename T>
-		void active_msg(RVALUE_REF(T) msg, int priority=0)
-		{
-		}
-
-
-	protected:
 		// Clear all pending messages. Only callable from active methods.
 		void clear()
 		{
@@ -525,9 +543,7 @@ namespace active
 											this,arg1,args...),priority(arg1));
 			return get_derived();
 		}
-
 #else
-
 		template<typename T>
 		derived_type & operator()(const T msg)
 		{
@@ -624,32 +640,30 @@ namespace active
 	{
 		typedef platform::shared_ptr<sink<T> > sp;
 		typedef platform::weak_ptr<sink<T> > wp;
+		typedef T value_type;
 
 		virtual void active_method(T)=0;
 
 #ifdef ACTIVE_USE_CXX11
-		sink<T> & send(RVALUE_REF(T)msg)
+		void send(RVALUE_REF(T)msg)
 		{
 			this->active_fn( [=]() mutable { this->active_method(platform::move(msg)); }, priority(msg) );
-			return *this;
 		}
 
-		sink<T> & send(const T& msg)
+		void send(const T& msg)
 		{
 			T msg2(msg);
-			this->active_fn( [this,msg2]() mutable { this->active_method(platform::move(msg2)); }, priority(msg) );
-			return *this;
+			this->active_fn( [=]() mutable { this->active_method(platform::move(msg2)); }, priority(msg) );
 		}
 #else
-
 		sink<T> & send(const T&msg)
 		{
 			this->active_fn(platform::bind(&sink<T>::run_msg, this, msg),priority(msg));
 			return *this;
 		}
-#endif
 	private:
 		static void run_msg(sink *s, T msg) { s->active_method(msg); }
+#endif
 	};
 } // namespace active
 
