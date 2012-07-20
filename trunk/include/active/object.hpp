@@ -430,7 +430,7 @@ namespace active
 			return *static_cast<const derived_type*>(this);
 		}
 
-#ifdef ACTIVE_USE_CXX11
+#ifdef ACTIVE_USE_VARIADIC_TEMPLATES
 		template<typename... Args>
 		void run_active_method(Args ...args)
 		{
@@ -527,7 +527,7 @@ namespace active
 			return get_derived();
 		}
 
-#ifdef ACTIVE_USE_CXX11
+#ifdef ACTIVE_USE_VARIADIC_TEMPLATES
 		template<typename Arg1, typename... Args>
 		derived_type & operator()(Arg1 arg1, Args ...args)
 		{
@@ -603,14 +603,30 @@ namespace active
 		template<typename T1,typename T2,typename T3, typename T4, typename T5>
 		derived_type & operator()(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5)
 		{
+#if defined(ACTIVE_USE_BOOST) || !defined(_MSC_VER)
 			this->active_fn( platform::bind( &object::run_active_method<T1,T2,T3,T4,T5>, this, a1, a2, a3, a4, a5), priority(a1));
+#else
+			// Ugly: For some reason, MSVC bind() suddenly stops working at 5 arguments
+			// Neither does it support variadic templates.
+			// Honestly, you'd think for a beta compiler, they would actually implement some of C++11.
+			this->active_fn( [=]() mutable {
+				run_active_method(std::move(a1),std::move(a2),std::move(a3),std::move(a4),std::move(a5));
+			}, priority(a1));
+#endif
 			return get_derived();
 		}
 
 		template<typename T1,typename T2,typename T3,typename T4, typename T5>
-		const derived_type & operator()(T1 a1, T2 a2, T3 a3,T4 a4,T5 a5) const
+		const derived_type & operator()(T1 a1, T2 a2, T3 a3,T4 a4, T5 a5) const
 		{
+#if defined(ACTIVE_USE_BOOST) || !defined(_MSC_VER)
 			this->active_fn( platform::bind( &object::const_run_active_method<T1,T2,T3,T4,T5>, this, a1, a2, a3, a4, a5), priority(a1));
+#else
+			// Ugly: For some reason, MSVC bind() suddenly stops working at 5 arguments
+			this->active_fn( [=]() mutable {
+				const_run_active_method(std::move(a1),std::move(a2),std::move(a3),std::move(a4),std::move(a5));
+			}, priority(a1));
+#endif
 			return get_derived();
 		}
 #endif
