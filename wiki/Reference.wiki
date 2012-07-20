@@ -142,6 +142,7 @@ class run
 {
 public:
     run(int num_threads=std::thread::hardware_concurrency(), scheduler & sched=default_scheduler);
+    ~run();
 };
 }}}
 
