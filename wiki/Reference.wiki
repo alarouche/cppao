@@ -2,11 +2,11 @@
 
 = Header files=
 || Header file || Description || Definitions ||
-|| `active/advanced.hpp` || Implements a more sophisticated AO type || [#active::advanced advanced] ||
+|| `active/advanced.hpp` || Implements a more sophisticated AO type. || [#active::advanced advanced] ||
 || `active/direct.hpp` || Non-mutexed objects. || [#active::direct direct] ||
 || `active/fast.hpp` || || [#active::fast fast] ||
 || `active/object.hpp` || The main include file, which includes all of the basics. || [#active::basic basic], [#active::default_scheduler default_scheduler], [#active::object object], [#active::priority priority], [#active::run run], [#active::sink sink] ||
-|| `active/promise.hpp` || || [#active::promise promise] ||
+|| `active/promise.hpp` || || [#active::promise promise], [#active::wait wait] ||
 || `active/scheduler.hpp` || || [#active::scheduler scheduler] ||
 || `active/shared.hpp` || Additional support for shared pointers. || [#active::shared shared] ||
 || `active/synchronous.hpp` || || [#active::synchronous synchronous] ||
@@ -16,160 +16,226 @@
 All declarations are in the namespace `active`.
 
 = Classes =
+
+== active::advanced ==
+An object type which provides more advanced queue control such as call prioritization, limit queue size, query queue and clear queue.
+ 
+{{{
+typedef ... advanced;
+}}}
+
 == active::basic ==
+An object type which provides the default implementation for active objects. This object is scheduled by the cppao scheduler (`active::scheduler`).
+
 {{{
 typedef ... basic;
 }}}
-Provides the default implementation for active objects. This object is scheduled by the cppao scheduler (`active::scheduler`).
+
+== active::direct ==
+An object type which is unmutexed and always executes in the calling thread. This is actually completely fine provided that the class has no mutable state or is otherwise threadsafe. 
+
+{{{
+typedef ... direct;
+}}}
+
+== active::fast ==
+An object type which eagerly executes in the calling thread where possible.
+
+{{{
+typedef ... fast;
+}}}
 
 == active::object ==
+This class is used as a base class for user-defined active objects.
 
 {{{
 template<typename Derived, typename Type=basic>
-struct object
+class object
 {
+public:
     typedef Derived derived_type;
+    typedef ... scheduler_type;
+    typedef ... allocator_type;
+    typedef ... size_type;
+    typedef Type object_type;
 
-    object();
+    object(
+        scheduler_type & scheduler = default_scheduler, 
+        const allocator_type & alloc = allocator_type() );
+
+    virtual ~object();
 
     template<typename...Args>
-    derived_type & operator()(Args ... args );
+    derived_type & operator()(Args ... args);
 
     template<typename...Args>
-    derived_type & operator()(Args ... args ) const;
+    const derived_type & operator()(Args ... args) const;
+
+    size_type size() const;
+
+    bool empty() const;
+
+    int get_priority() const;
+
+    scheduler_type & get_scheduler() const;
+
+    void set_scheduler(scheduler_type&);
+
+    allocator_type get_allocator() const;
+
+    virtual void exception_handler();
+
+    void set_capacity(size_type);
+   
+    size_type get_capacity() const;
+
+protected:
+    void clear();
 
     template<typename Fn>
     void active_fn(Fn && fn, int priority=0) const;
 };
 }}}
 
-The base class for user active object types.
+Constructor:
 
-== active::shared == 
-{{{
-template<typename Derived, typename Type=basic>
-struct shared
-{
-    ...
-    typedef std::shared_ptr<Derived> ptr;
-    ptr shared_from_this();
-};
-}}}
-
-This implements the base class for shared active objects.
-
-== active::fast ==
-{{{
-typedef ... fast;
-}}}
-
-== active::thread ==
-{{{
-typedef ... thread;
-}}}
-
-== active::synchronous ==
-{{{
-typedef ... synchronous;
-}}}
-
-== active::direct ==
-{{{
-typedef ... direct;
-}}}
-
-== active::advanced ==
-{{{
-typedef ... advanced;
-}}}
-
-Additional methods of this class:
-
-|| size_type size() const || Returns the number of messages waiting.||
-|| void clear () || Removes all pending messages. Protected method only callable from active methods. ||
-|| void set_capacity(size_type) || Sets the new capacity (maximum number of queued messages. Attempts to exceed the capacity result in the exception `std::bad_alloc` || 
-
-In addition there is the function
-
-== active::priority ==
-{{{
-namespace active
-{
-    template<typename T> int priority(const T&)
-    {
-        return 0;
-    }
-}
-}}}
-
-which can be used to assign a priority to any message type (which may or may not depend on the contents as well as the type of the message). Note that the default priority is 0.
-
-== active::separate ==
-{{{
-    typedef object_impl<...> separate;
-}}}
-A different implementation, similar to `active::object`.
-
-== active::scheduler ==
-Schedules the message processing on a collection of active objects.
-{{{
-class scheduler;
-}}}
+|| `object(scheduler_type & scheduler, const allocator_type & alloc);` || Constructs and assigns the scheduler and allocator. The scheduler must not be destroyed whilst the object has unprocessed calls. ||
 
 Methods:
 
-|| `scheduler()` || ||
-|| `scheduler(const scheduler&) = delete` || ||
-|| `scheduler& operator=(const scheduler&) = delete` || ||
-|| `~scheduler()` || Must not be called during `run()`. ||
-|| `void run()` || Runs the scheduler in a single thread. Can be called concurrently from multiple threads. ||
-|| `void run(int threads)` || Runs the scheduler using the specified number of threads. Must not be called concurrently from multiple threads. ||
-|| bool run_one() || Runs one AO, returns true if there is more work to do. ||
+|| `derived_type & operator()` || Call an active method. Can throw exceptions (e.g. `std::bad_alloc`) if the active method could not be allocated, the queue is full or some other copy constructor fails. ||
+|| `derived_type & operator() const` || Call a const active method. ||
+|| `void active_fn(Fn&&fn,int priority)` || Enqueues any functor of no arguments. ||
+|| `void clear()` || Removes all pending calls. ||
+|| `bool empty() const` || Returns true iff there are no waiting calls. ||
+|| `allocator_type get_allocator() const` || Retrieve the allocator. ||
+|| `virtual void exception_handler()` || Called whenever an active method emits an exception. Default implementation prints a warning and continues. ||
+|| `scheduler_type & get_scheduler()` || Returns a reference to the scheduler. ||
+|| `void set_scheduler(scheduler_type&)` || Changes the scheduler. ||
+
+Methods implemented only on the `advanced` object type:
+
+|| `size_type get_capacity() const` || Returns the maximum available queue size. ||
+|| `void set_capacity(size_type)` || Changes the maximum number of calls in the queue. Does not throw an exception if the number of waiting items exceeds the new capacity. ||
+|| `int get_priority() const` || Retrieves the priority of the next waiting call, or 0 if none exists. ||
+|| `size_type size() const` || Retrieve the number of waiting calls. ||
+
+
+== active::promise ==
+Provides a promise mechanism for returning results from AOs. This class implements a `sink`.
+
+{{{
+template<typename T> class promise : public direct, public sink<T>
+{
+    T get();
+};
+}}}
+
+Methods:
+|| `T get()` || Blocking call to retrieve the value or exception. ||  
+
 
 == active::run ==
 Runs a scheduler in a thread pool. Note that this class is often used as a function.
 {{{
-class run;
+class run
+{
+public:
+    run(int num_threads=std::thread::hardware_concurrency(), scheduler & sched=default_scheduler);
+};
 }}}
 
 Methods:
 
-|| `run(int num_threads=std::thread::hardware_concurrency(), scheduler & sched=default_scheduler)` || Starts the thread pool and starts processing messages. ||
+|| `run(int num_threads, scheduler & sched)` || Starts the thread pool and starts processing messages. ||
 || `~run()` || Waits for all messages to be processed and stops the thread pool. ||
 
+== active::scheduler ==
+Schedules the message processing on a collection of active objects.
+{{{
+class scheduler
+{
+public:
+    scheduler();
+    scheduler(const scheduler&) = delete;
+    scheduler& operator=(const scheduler&) = delete;
+    void run();
+    void run(int num_threads);
+    bool run_one();
+};
+}}}
+
+Methods:
+
+|| `void run()` || Runs the scheduler in a single thread. Can be called concurrently from multiple threads. ||
+|| `void run(int threads)` || Runs the scheduler using the specified number of threads. ||
+|| `bool run_one()` || Runs one AO, returns true iff there is more work available. ||
+
+
+== active::shared == 
+This implements the base class for shared active objects. Note that normal (`active::object`) can also be put into shared pointers, but then they lack `shared_from_this()` as well as non-destruction guarantees.
+
+{{{
+template<typename Derived, typename Type=basic>
+classshared : public object<Derived, ...>
+{
+public:
+    typedef std::shared_ptr<Derived> ptr;
+    typedef std::shared_ptr<const Derived> const_ptr;
+
+    ptr shared_from_this();
+    const_ptr shared_from_this() const;
+
+    shared(
+        scheduler_type & scheduler = default_scheduler, 
+        const allocator_type & alloc = allocator_type() );
+};
+}}}
+
+
 == active::sink ==
+Pure virtual base class used to pass messages to an active object. 
+
 {{{
 template<typename T>
 struct sink
 {
-    ACTIVE_IFACE(T);
-    typedef std::shared_ptr<T> sp;
+    typedef T value_type;
+    typedef std::shared_ptr<sink<value_type>> sp;
+    typedef std::weak_ptr<sink<value_type>> wp;
+
+    virtual void active_method(value_type)=0;
+    virtual ~sink();
+
+    void send(const value_type &msg);
+    void send(value_type && msg);
 };
 }}}
-Provides a pure virtual base class for accepting messages.
-
-== active::promise ==
-Provides a promise/future mechanism for returning results from AOs.
-{{{
-template<typename T> class promise : public direct, public sink<T>
-{
-    ...
-};
-}}}
-
-Typenames:
-|| value_type || T ||
 
 Methods:
-|| `promise()` || Default constructor. ||
-|| `T get()` || Blocking call to retrieve the value. ||  
+
+|| `void active_method(value_type)` || Implementation of the active method (in derived class). ||
+|| `void send(...)` || Sends the value (message) to the object, where it will be (eventually) processed by `active_method()`. ||
+
+== active::synchronous ==
+An object type which is (recursive) mutexed and always executes in the calling thread.
+{{{
+typedef ... synchronous;
+}}}
+
+== active::thread ==
+An object type which uses an OS thread for scheduling.
+{{{
+typedef ... thread;
+}}}
+
 
 = Global variables =
 == active::default_scheduler ==
 {{{
 extern scheduler default_scheduler;
 }}}
-The global scheduler, used by objects by default unless overridden by `object_impl::set_scheduler()`. Global variables are of course to be discouraged, and are only provided for convenience.
+The global scheduler, used by objects by default. Global variables are of course to be discouraged, and are only provided for convenience.
 
 = Functions =
 
@@ -186,3 +252,9 @@ namespace active
 Used to prioritize calls to the `advanced` object type, but is ignored for all other object types.
 
 == active::wait ==
+Waits for a promise to be fulfilled. Processes items from the specified scheduler whilst waiting, so as to avoid starving and deadlocking the application.
+
+{{{
+template<typename T>
+T wait(std::promise<T> & promise, scheduler & sched = default_scheduler);
+}}}
