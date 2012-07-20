@@ -191,7 +191,9 @@ int main()
 
 == Approach 4: Use `active::promise` ==
 
-We can combine `active::sink<>` and `std::promise` using the class `active::promise<>`. This is demonstrated in [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp future.cpp].
+We can combine `active::sink<>` and `std::promise` using the class `active::promise<>`. This is better because the call is compatible with either a promise or a call-back.
+
+This is demonstrated in [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp future.cpp].
 
 = Lambda methods =
 
@@ -240,7 +242,7 @@ The examples so far have relied on raw C-style pointers, mainly for simplicity. 
 
 You could also use references but the same problem arises.
 
-To solve this, the class `active::shared<>` can be used as a base class for your AO, which will then safely enqueue messages to the shared object, and be guaranteed that the object will only be destroyed after all messages have been processed.
+To solve this, the class `active::shared<>` can be used as a base class for your AO, which will guarantee that the object will only be destroyed after all messages have been processed.
 
 The sample [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp object_types.cpp] demonstrates this.
 
@@ -253,20 +255,20 @@ struct shared_object : public active::shared<shared_object>
 };
 }}}
 
-= Object types =
+=Object types=
+There are other object types which are available by deriving from a different base class, as shown in the following table:
 
-There are actually a number of base classes you could choose for your active objects, each with different characteristics.
+|| Object type || Header file || Base class || Shared base class || Description || Use case ||
+|| `advanced` || `#include <active/advanced.hpp>` || `active::object<T,active::advanced>` || `active::shared<T,active::advanced>` || More feature-rich active object type which supports message prioritization, limit queue size and query queue size. || When these features are needed. ||
+|| `basic` || `#include <active/object.hpp>` || `active::object<T>` || `active::shared<T>` || Default active object. || Default use. ||
+|| `direct` || `#include <active/direct.hpp>` || `active::object<T,active::direct>` || `active::shared<T,active::direct` || Non-mutexed object. || Simple connecting objects. Objects with no mutable state. ||
+|| `fast` || `#include <active/fast.hpp>` || `active::object<T,active::fast>` || `active::shared<T,active::fast>` || Runs the method in the calling thread if available. || Lightweight processing. ||
+|| `synchronous` || `#include <active/synchronous.hpp>` || `active::object<T,active::synchronous>` || `active::shared<T,active::synchronous>` || Execute call in calling thread. || Lightweight processing. ||
+|| `thread` || `#include <active/thread.hpp>` || `active::object<T,active::thread>` || `active::shared<T,active::thread>` || Dedicate an OS thread to this AO. || Blocking calls, IO, fair scheduling. ||
 
-|| Base class || Header file || Description ||
-|| `active::object` || `active/object.hpp` || The basic, non-blocking AO. ||
-|| `active::shared<>` || `active/shared.hpp` || Prevents premature object destruction using smart pointers, `std::shared_ptr<>`. ||
-|| `active::fast` || `active/fast.hpp` || Processes the method in the calling thread if the object is idle. This is often faster but can fail to exploit the hardware fully. ||
-|| `active::thread` || `active/thread.hpp` || Dedicates an OS thread to this AO. ||
-|| `active::advanced` || `active/advanced.hpp` || A more feature-rich AO which supports call prioritization, query queue size, clear queue and limit queue size. ||
-|| `active::synchronous` || `active/synchronous.hpp` || Always processes calls in the calling thread, but guarded by a mutex. Not a true AO. ||
-|| `active::direct` || `active/direct.hpp` || An unguarded AO which is not thread-safe but can be used if the class is entirely thread-safe or has no mutable state. ||
+The sample [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp object_types.cpp] shows the different implementations.
 
-See FineTuning for further details, and the sample [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp object_types.cpp] shows off the different implementations.
+Object types can be mixed freely.
 
 = Staying safe =
 Active objects guarantee that your program will be thread-safe, if you follow these guidelines: 
@@ -286,4 +288,4 @@ Active objects guarantee that your program will be thread-safe, if you follow th
 Deadlock cannot occur; what happens is that your program runs out of messages and exits. 
 
 = Where next? =
-Now you have the tools, it is time to apply them! Check out the [Samples] and the [Reference]. You can also read FineTuning if you want to compose your own AO.
+Now you have the tools, it is time to apply them! More examples can be found in the [Samples], and more details are in the [Reference].
