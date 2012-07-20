@@ -78,30 +78,30 @@ int main(int argc, char**argv)
 	bench_object( active::synchronous(), RECURSIVE );
 
 	std::cout << "4:  shared<synchronous> ";
-	bench_object( active::shared<active::any_object,active::synchronous>::type(), RECURSIVE );
+	bench_object( active::shared<active::any_object,active::synchronous>::object_type(), RECURSIVE );
 
 	std::cout << "5:  fast                ";
 	bench_object( active::fast(), N );
 
 	std::cout << "6:  shared<fast>        ";
-	bench_object( active::shared<active::any_object, active::fast>::type(), N );
+	bench_object( active::shared<active::any_object, active::fast>::object_type(), N );
 
 	std::cout << "7:  object              ";
 	bench_object( active::basic(), N );
 
 	std::cout << "8:  shared<object>      ";
-	bench_object( active::shared<active::any_object>::type(), N );
+	bench_object( active::shared<active::any_object>::object_type(), N );
 
 	std::cout << "9:  advanced            ";
 	bench_object( active::advanced(), N );
 
 	std::cout << "10: shared<advanced>    ";
-	bench_object( active::shared<active::any_object,active::advanced>::type(), N );
+	bench_object( active::shared<active::any_object,active::advanced>::object_type(), N );
 
 	std::cout << "11: thread              ";
 	bench_object( active::thread(), N );
 
 	std::cout << "12: shared<thread>      ";
-	bench_object( active::shared<active::any_object,active::thread>::type(), N );
+	bench_object( active::shared<active::any_object,active::thread>::object_type(), N );
 }
 

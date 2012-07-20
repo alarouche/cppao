@@ -270,6 +270,11 @@ bool active::queueing::direct_call::empty() const
 	return true;
 }
 
+bool active::queueing::direct_call::mutexed_empty() const
+{
+	return true;
+}
+
 active::queueing::mutexed_call::mutexed_call(const allocator_type&)
 {
 }
@@ -286,5 +291,18 @@ bool active::queueing::mutexed_call::run_some(any_object * o, int n) throw()
 bool active::queueing::mutexed_call::empty() const
 {
 	return true;
+}
+
+bool active::queueing::mutexed_call::mutexed_empty() const
+{
+	return true;
+}
+
+void active::queueing::direct_call::clear()
+{
+}
+
+void active::queueing::mutexed_call::clear()
+{
 }
 

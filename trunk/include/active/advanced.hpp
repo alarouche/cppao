@@ -104,6 +104,18 @@ namespace active
 				m_capacity = new_capacity;
 			}
 
+			std::size_t get_capacity() const
+			{
+				platform::lock_guard<platform::mutex> lock(m_mutex);
+				return m_capacity;
+			}
+
+			int get_priority() const
+			{
+				platform::lock_guard<platform::mutex> lock(m_mutex);
+				return m_messages.empty() ? 0 : m_messages.top()->m_priority;
+			}
+
 			bool run_some(any_object * o, int n=100) throw()
 			{
 				platform::lock_guard<platform::mutex> lock(m_mutex);
