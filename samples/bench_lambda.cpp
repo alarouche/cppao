@@ -69,18 +69,19 @@ void bench_object(Object obj, int N)
 int main(int argc, char**argv)
 {
 	int N = argc>1 ? atoi(argv[1]) : 100000;
+	int RECURSIVE=5000;
 
 	std::cout << "1:  direct              ";
-	bench_object( active::direct(), 20000 );
+	bench_object( active::direct(), RECURSIVE );
 
 	std::cout << "2:  shared<direct>      ";
-	bench_object( active::direct(), 20000 );
+	bench_object( active::direct(), RECURSIVE );
 
 	std::cout << "3:  synchronous         ";
-	bench_object( active::synchronous(), 20000 );
+	bench_object( active::synchronous(), RECURSIVE );
 
 	std::cout << "4:  shared<synchronous> ";
-	bench_object( active::shared<active::any_object,active::synchronous>(), 20000 );
+	bench_object( active::shared<active::any_object,active::synchronous>(), RECURSIVE );
 
 	std::cout << "5:  fast                ";
 	bench_object( active::fast(), N );
@@ -94,7 +95,7 @@ int main(int argc, char**argv)
 	std::cout << "8:  shared<object>      ";
 	bench_object( active::shared<active::any_object>(), N );
 
-	std::cout << "9: advanced            ";
+	std::cout << "9:  advanced            ";
 	bench_object( active::advanced(), N );
 
 	std::cout << "10: shared<advanced>    ";
