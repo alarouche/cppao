@@ -104,7 +104,7 @@ Constructor:
 Methods:
 
 || `derived_type & operator()` || Call an active method. Can throw exceptions (e.g. `std::bad_alloc`) if the active method could not be allocated, the queue is full or some other copy constructor fails. ||
-|| `derived_type & operator() const` || Call a const active method. ||
+|| `const derived_type & operator() const` || Call a const active method. ||
 || `void active_fn(Fn&&fn,int priority)` || Enqueues any functor of no arguments. ||
 || `void clear()` || Removes all pending calls. ||
 || `bool empty() const` || Returns true iff there are no waiting calls. ||
