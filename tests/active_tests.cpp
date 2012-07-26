@@ -971,6 +971,7 @@ void test_advanced_ordering()
 void test_advanced_queue_limit()
 {
 	my_advanced obj(3);
+	obj.set_queue_policy( active::policy::fail );
 	obj(1L);
 	obj(2L);
 	obj(3L);

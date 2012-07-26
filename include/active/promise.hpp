@@ -2,7 +2,6 @@
 #ifndef ACTIVE_PROMISE_INCLUDED
 #define ACTIVE_PROMISE_INCLUDED
 
-#include "scheduler.hpp"
 #include "direct.hpp"
 
 #ifdef ACTIVE_USE_BOOST
@@ -45,7 +44,7 @@ namespace active
 	T wait(platform::promise<T> & promise, scheduler & sched = default_scheduler)
 	{
 		typename platform::future<T>::type fut = promise.get_future();
-		while( !platform::is_valid(fut) && sched.run_one() )
+		while( !platform::is_valid(fut) && idle(sched) )
 		{
 		}
 		return fut.get();

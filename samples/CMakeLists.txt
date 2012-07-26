@@ -19,6 +19,8 @@ add_executable( sieve sieve.cpp )
 add_executable( sieve2 sieve2.cpp )
 add_executable( fib fib.cpp )
 add_executable( queue_control queue_control.cpp )
+add_executable( fifo fifo.cpp )
+add_executable( fifo2 fifo2.cpp )
 add_library( active_socket active_socket.cpp active_socket.hpp )
 
 IF( OPENGL_FOUND AND GLUT_FOUND AND NOT APPLE )
