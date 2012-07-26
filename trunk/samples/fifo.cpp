@@ -11,7 +11,11 @@ struct queue
 {
 	// Wait until push is possible.
 	virtual void wait(active::sink<ready>*)=0;
+
+	// Push a value, after sender has received a "ready".
 	virtual void push(T value)=0;
+
+	// Retrieve one item from the queue via callback.
 	virtual void pop(active::sink<T>*)=0;
 };
 
