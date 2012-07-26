@@ -256,6 +256,11 @@ active::schedule::own_thread::~own_thread()
 	}
 }
 
+active::scheduler & active::schedule::own_thread::get_scheduler() const
+{
+	return *m_pool;
+}
+
 active::queueing::direct_call::direct_call(const allocator_type&)
 {
 }
@@ -306,3 +311,7 @@ void active::queueing::mutexed_call::clear()
 {
 }
 
+bool active::idle(scheduler & sched) throw()
+{
+	return sched.run_one();
+}

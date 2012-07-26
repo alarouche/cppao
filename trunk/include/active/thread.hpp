@@ -23,6 +23,7 @@ namespace active
 			own_thread(type&);
 
 			void set_scheduler(type&p);
+			type & get_scheduler() const;
 			void activate(any_object * obj);
 			void activate(const platform::shared_ptr<any_object> & sp);
 

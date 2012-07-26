@@ -4,6 +4,7 @@
 
 #include "object.hpp"
 #include <queue>
+#include <condition_variable>
 
 namespace active
 {
@@ -13,15 +14,15 @@ namespace active
 		int operator()(const T&v) const { return priority(v); }
 	};
 
+
 	namespace queueing
 	{
 		// Message queue offering cancellation, prioritization and capacity.
-		template<typename Allocator=std::allocator<void>, typename Priority=prioritize>
+		template<typename Allocator=std::allocator<void> >
 		class advanced
 		{
 		public:
 			typedef Allocator allocator_type;
-			typedef Priority priority_type;
 
 		private:
 			struct message
@@ -40,27 +41,76 @@ namespace active
 		public:
 
 			advanced(const allocator_type & alloc = allocator_type(),
-					 std::size_t capacity=1000,
-					 const priority_type p = priority_type()) :
-				m_priority(p), m_allocator(alloc), m_messages(msg_cmp(), vector_type(alloc)),
-				m_capacity(capacity), m_busy(false), m_sequence(0)
+					 std::size_t capacity=1000, policy::queue_full mp=policy::wait) :
+				m_allocator(alloc), m_messages(msg_cmp(), vector_type(alloc)),
+				m_capacity(capacity), m_busy(false), m_sequence(0), m_queue_full_policy(mp)
 			{
 			}
 
 			advanced(const advanced&o) :
-				m_priority(o.m_priority), m_allocator(o.m_allocator),
+				m_allocator(o.m_allocator),
 				m_messages(msg_cmp(), vector_type(o.m_allocator)),
-				m_capacity(o.m_capacity), m_busy(false), m_sequence(0)
+				m_capacity(o.m_capacity), m_busy(false), m_sequence(0), m_queue_full_policy(o.m_queue_full_policy)
 			{
 			}
 
 			allocator_type get_allocator() const { return m_allocator; }
 
+			void set_policy( policy::queue_full p )
+			{
+				platform::lock_guard<platform::mutex> lock(m_mutex);
+				m_queue_full_policy = p;
+			}
+
 			template<typename Fn>
 			bool enqueue_fn(any_object *o, RVALUE_REF(Fn)fn, int priority)
 			{
-				platform::lock_guard<platform::mutex> lock(m_mutex);
-				if( m_messages.size() >= m_capacity ) throw std::bad_alloc();
+				platform::unique_lock<platform::mutex> lock(m_mutex);
+				if( m_messages.size() >= m_capacity )
+				{
+					switch( m_queue_full_policy )
+					{
+					case policy::ignore:
+						break;
+					case policy::discard:
+						if( priority > m_messages.top()->m_priority )
+						{
+							// Discard the top (highest priority message).
+							// Ideally we would discard the lowest priority message, but this
+							// is an implementation limitation of std::priority_queue.
+							// Maybe with intrusive pointers we can do this some day.
+							message * m = m_messages.top();
+							m_messages.pop();
+							m->destroy(m_allocator);
+						}
+						else
+						{
+							return false;	// Discard message
+						}
+						break;
+					case policy::wait:
+						// !! Hack: Higher priority messages get delivered anyway.
+						while( m_messages.size() >= m_capacity && priority<=m_messages.top()->m_priority )
+						{
+#ifdef ACTIVE_USE_BOOST
+							m_queue_available.timed_wait(lock, boost::posix_time::milliseconds(50));
+#else
+							m_queue_available.wait_for(lock, std::chrono::milliseconds(50) );
+#endif
+
+							if( m_messages.size() >= m_capacity )
+							{
+								lock.unlock();
+								o->idle();
+								lock.lock();
+							}
+						}
+						break;
+					case policy::fail:
+						throw std::bad_alloc();
+					}
+
+				}
 
 				typename allocator_type::template rebind<fn_impl<Fn> >::other realloc(m_allocator);
 
@@ -122,9 +172,11 @@ namespace active
 				while( !m_messages.empty() && n-->0)
 				{
 					message * m = m_messages.top();
+					//if( m_messages.size() ==1>= m_capacity )
+						//m_queue_available.notify_one();
 					m_messages.pop();
 					m_busy = true;
-
+					if( m_messages.empty() ) m_queue_available.notify_all();
 					m_mutex.unlock();
 					try
 					{
@@ -150,6 +202,7 @@ namespace active
 					m_messages.pop();
 					m->destroy(m_allocator);
 				}
+				m_queue_available.notify_all();
 			}
 
 			std::size_t size() const
@@ -196,12 +249,13 @@ namespace active
 				}
 			};
 
-			priority_type m_priority;
 			allocator_type m_allocator;
 			queue_type m_messages;
 			std::size_t m_capacity;
 			bool m_busy;
 			std::size_t m_sequence;
+			policy::queue_full m_queue_full_policy;
+			platform::condition_variable m_queue_available;
 
 		protected:
 			mutable platform::mutex m_mutex;

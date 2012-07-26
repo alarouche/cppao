@@ -61,10 +61,14 @@
 #endif
 
 
-
 namespace active
 {
 	template<typename T> int priority(const T&) { return 0; }
+
+	namespace policy
+	{
+		enum queue_full { ignore, wait, discard, fail };
+	}
 
 	// Interface of all active objects.
 	struct any_object
@@ -74,10 +78,12 @@ namespace active
 		virtual bool run_some(int n=100) throw()=0;
 		virtual void exception_handler() throw();
 		virtual void active_fn(RVALUE_REF(platform::function<void()>) fn, int priority)=0;
+		virtual bool idle() throw()=0;
 		any_object * m_next;
 	};
 
 	class scheduler;
+	bool idle(scheduler & sched) throw();
 
 	// As a convenience, provide a global variable to run all active objects.
 	extern scheduler default_scheduler;
@@ -102,6 +108,7 @@ namespace active
 			typedef active::scheduler type;
 			none(type&) { }
 			void set_scheduler(type&p) { }
+			type & get_scheduler() const { return default_scheduler; }
 			void activate(const platform::shared_ptr<any_object> & sp) { }
 			void activate(any_object * obj) { }
 		};
@@ -309,6 +316,11 @@ namespace active
 			m_queue.set_capacity(c);
 		}
 
+		void set_queue_policy(policy::queue_full p)
+		{
+			m_queue.set_policy(p);
+		}
+
 		size_type get_capacity() const
 		{
 			return m_queue.get_capacity();
@@ -328,6 +340,11 @@ namespace active
 		int get_priority() const
 		{
 			return m_queue.get_priority();
+		}
+
+		bool idle() throw()
+		{
+			return active::idle(get_scheduler());
 		}
 
 	private:
