@@ -984,6 +984,31 @@ void test_advanced_queue_limit()
 	{
 	}
 	active::run();
+
+	obj.set_queue_policy( active::policy::ignore );
+	obj.previous = 5;
+	obj(1L);
+	obj(2L);
+	obj(3L);
+	obj(4L);
+	active::run();
+
+	obj.set_queue_policy( active::policy::block );
+	obj.previous = 4;
+	obj(1L);
+	obj(2L);
+	obj(3L);
+	obj(0L);
+	active::run();
+
+	obj.set_queue_policy( active::policy::discard );
+	obj.previous = 4;
+	obj(1L);
+	obj(2L);
+	obj(3L);
+	obj(3L);
+	active::run();
+
 }
 
 struct msg2{};

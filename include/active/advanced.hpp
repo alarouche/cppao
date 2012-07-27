@@ -4,7 +4,26 @@
 
 #include "object.hpp"
 #include <queue>
-#include <condition_variable>
+
+#ifdef ACTIVE_USE_BOOST
+	#include <boost/thread/condition_variable.hpp>
+	namespace active
+	{
+		namespace platform
+		{
+			using boost::condition_variable;
+		}
+	}
+#else
+	#include <condition_variable>
+	namespace active
+	{
+		namespace platform
+		{
+			using std::condition_variable;
+		}
+	}
+#endif
 
 namespace active
 {
@@ -41,7 +60,7 @@ namespace active
 		public:
 
 			advanced(const allocator_type & alloc = allocator_type(),
-					 std::size_t capacity=1000, policy::queue_full mp=policy::wait) :
+					 std::size_t capacity=1000, policy::queue_full mp=policy::block) :
 				m_allocator(alloc), m_messages(msg_cmp(), vector_type(alloc)),
 				m_capacity(capacity), m_busy(false), m_sequence(0), m_queue_full_policy(mp)
 			{
@@ -88,7 +107,7 @@ namespace active
 							return false;	// Discard message
 						}
 						break;
-					case policy::wait:
+					case policy::block:
 						// !! Hack: Higher priority messages get delivered anyway.
 						while( m_messages.size() >= m_capacity && priority<=m_messages.top()->m_priority )
 						{

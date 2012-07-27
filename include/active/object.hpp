@@ -67,7 +67,7 @@ namespace active
 
 	namespace policy
 	{
-		enum queue_full { ignore, wait, discard, fail };
+		enum queue_full { ignore, block, discard, fail };
 	}
 
 	// Interface of all active objects.
