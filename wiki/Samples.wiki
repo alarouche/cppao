@@ -139,6 +139,19 @@ Demonstrates:
   * `active::shared<>`,
   * Dynamic creation of AOs.
 
+= FIFO =
+[http://code.google.com/p/cppao/source/browse/trunk/samples/fifo.cpp]
+
+[http://code.google.com/p/cppao/source/browse/trunk/samples/fifo2.cpp]
+
+A producer generates a sequence of 10000000 integers which get sent to a consumer. The queue size is limited to 100000. In the first example, a FIFO is constructed using asynchronous callbacks. In the second example, an `advanced` object type is used which blocks the sender once the size limit is reached.
+
+Demonstrates:
+
+  * Synchronous vs. asynchronous design,
+  * Using `advanced` object type,
+  * A benchmark.
+
 =Game of life=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/life.hpp]
 
