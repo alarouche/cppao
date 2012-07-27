@@ -297,10 +297,10 @@ The `advanced` object type offers some more facilities than the basic type. Thes
   * Limit the queue size, using `set_capacity()` and `get_capacity()`
   * Query current queue size.
   * Control the behaviour when the queue gets full using `set_queue_policy()`:
-  * `active::policy::ignore` to ignore the queue full,
-    * `active::policy::fail` to throw std::bad_alloc to the caller
-    * `active::policy::wait` to block until space is available in the queue (the default).
-    * `active::policy::drop` to drop excess messages.
+    * `active::policy::ignore` to deliver the message anyway,
+    * `active::policy::fail` to throw std::bad_alloc to the caller,
+    * `active::policy::block` to block the caller until space is available in the queue (the default),
+    * `active::policy::discard` to discard excess messages.
   * Prioritize calls, so calls are handled in priority order not only order of receiving.
   * Peek at the next active method using `get_priority()`.
 
