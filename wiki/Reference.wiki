@@ -89,6 +89,8 @@ public:
    
     size_type get_capacity() const;
 
+    void set_policy(policy::queue_full);
+
 protected:
     void clear();
 
