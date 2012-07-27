@@ -5,7 +5,7 @@
 || `active/advanced.hpp` || Implements a more sophisticated AO type. || [#active::advanced advanced] ||
 || `active/direct.hpp` || Non-mutexed objects. || [#active::direct direct] ||
 || `active/fast.hpp` || || [#active::fast fast] ||
-|| `active/object.hpp` || The main include file, which includes all of the basics. || [#active::basic basic], [#active::default_scheduler default_scheduler], [#active::object object], [#active::priority priority], [#active::run run], [#active::sink sink] ||
+|| `active/object.hpp` || The main include file, which includes all of the basics. || [#active::basic basic], [#active::default_scheduler default_scheduler], [#active::object object], [#active::policy::queue_full queue_full], [#active::priority priority], [#active::run run], [#active::sink sink] ||
 || `active/promise.hpp` || || [#active::promise promise], [#active::wait wait] ||
 || `active/scheduler.hpp` || || [#active::scheduler scheduler] ||
 || `active/shared.hpp` || Additional support for shared pointers. || [#active::shared shared] ||
@@ -116,10 +116,10 @@ Methods:
 Methods implemented only on the `advanced` object type:
 
 || `size_type get_capacity() const` || Returns the maximum available queue size. ||
-|| `void set_capacity(size_type)` || Changes the maximum number of calls in the queue. Does not throw an exception if the number of waiting items exceeds the new capacity. ||
 || `int get_priority() const` || Retrieves the priority of the next waiting call, or 0 if none exists. ||
 || `size_type size() const` || Retrieve the number of waiting calls. ||
-
+|| `void set_capacity(size_type)` || Changes the maximum number of calls in the queue. Does not throw an exception if the number of waiting items exceeds the new capacity. ||
+|| `void set_policy(policy::queue_full)` || Changes the queue policy behaviour. ||
 
 == active::promise ==
 Provides a promise mechanism for returning results from AOs. This class implements a `sink`.
@@ -259,3 +259,10 @@ Waits for a promise to be fulfilled. Processes items from the specified schedule
 template<typename T>
 T wait(std::promise<T> & promise, scheduler & sched = default_scheduler);
 }}}
+
+= Enumerations =
+== active::policy::queue_full ==
+|| `block` || Block the caller until capacity becomes available. ||
+|| `discard` || Discard ANY message which is not highest priority. ||
+|| `fail` || Throw `std::bad_alloc` to the caller. ||
+|| `ignore` || Ignore the fact that the queue is full; deliver message anyway. ||
