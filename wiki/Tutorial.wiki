@@ -263,7 +263,7 @@ There are other object types which are available by deriving from a different ba
 || Object type || Header file || Base class || Shared base class || Description || Use case ||
 || `advanced` || `#include <active/advanced.hpp>` || `active::object<T,active::advanced>` || `active::shared<T,active::advanced>` || More feature-rich active object type which supports message prioritization, limit queue size and query queue size. || When these features are needed. ||
 || `basic` || `#include <active/object.hpp>` || `active::object<T>` || `active::shared<T>` || Default active object. || Default use. ||
-|| `direct` || `#include <active/direct.hpp>` || `active::object<T,active::direct>` || `active::shared<T,active::direct` || Non-mutexed, zero-overhead object. || Simple connecting objects. Objects with no mutable state. ||
+|| `direct` || `#include <active/direct.hpp>` || `active::object<T,active::direct>` || `active::shared<T,active::direct>` || Non-mutexed, zero-overhead object. || Simple connecting objects. Objects with no mutable state. ||
 || `fast` || `#include <active/fast.hpp>` || `active::object<T,active::fast>` || `active::shared<T,active::fast>` || Runs the method in the calling thread if available. || Lightweight processing. ||
 || `synchronous` || `#include <active/synchronous.hpp>` || `active::object<T,active::synchronous>` || `active::shared<T,active::synchronous>` || Execute call in calling thread. || Lightweight processing. ||
 || `thread` || `#include <active/thread.hpp>` || `active::object<T,active::thread>` || `active::shared<T,active::thread>` || Dedicate an OS thread to this AO. || Blocking calls, IO, fair scheduling. ||
