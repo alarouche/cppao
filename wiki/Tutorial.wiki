@@ -234,6 +234,8 @@ In the same way that return values can't be delivered to the point of calling, s
 
 Instead they are delivered to the `exception_handler()` method (which is not an active method), which can rethrow, catch and handle the exception. If `exception_handler()` emits an exception, then the application terminates. 
 
+You can also deliver exceptions via `std::promise`.
+
 Of course, if an active method wants to do something different, then it must implement `try...catch` itself.
 
 = Using shared pointers =
@@ -269,6 +271,40 @@ There are other object types which are available by deriving from a different ba
 The sample [http://code.google.com/p/cppao/source/browse/trunk/samples/object_types.cpp object_types.cpp] shows the different implementations.
 
 Object types can be mixed freely.
+
+= Blocking vs. non-blocking design =
+
+When designing concurrent applications, there is a fundamental choice between synchronous (blocking) calls, and asynchronous (non-blocking) calls. The message-queue approach of actors lends itself more naturally to the non-blocking calls, where calls are essentially "fire and forget" with some guarantees about delivery at some point in the future.
+
+Blocking calls are possible in Cppao. For example, calls to the `active::synchronous` and `active::advanced` object types can block. Other function calls (such as IO functions) can also block, and there is nothing preventing the use of mutexes, conditions or other synchronised objects in conjunction with Cppao. It is possible, even recommended, to use futures to return results to the caller.
+
+Blocking calls should be used with caution however, because they fundamentally tie up an entire OS thread, and if `active::run()` was called with the default number of threads, then this will be limited to the number of CPU cores, so holding up a CPU core is potentially bad for performance. Blocking calls will also prevent all other use of the active object, and the application can deadlock.
+
+One solution to the thread-pool problem is to use the function or method `wait()`, which performs work in the caller thread whilst waiting. Another solution is to increase the size of the thread pool, e.g.
+{{{
+    active::run(32);		// Run with 32 threads.
+}}}
+and a third solution is to ensure that objects which block are either in the main thread or have the `active::thread` object type, i.e.
+{{{
+    class MyBlockingObject : public active::object<MyBlockingObject, active::thread>
+    ...	
+}}}
+See [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp future.cpp] for an example of using `wait()`. The examples [http://code.google.com/p/cppao/source/browse/trunk/samples/fifo.cpp fifo.cpp] and [http://code.google.com/p/cppao/source/browse/trunk/samples/fifo2.cpp fifo2.cpp] show different implementations of a FIFO, one without blocking calls, and another using blocking calls to the `advanced` object type to manage the queue size. The blocking design is quite a bit clearer, but I like the purity of a purely asynchronous design, even if it sometimes induces a headache.
+
+= Advanced queue control =
+The `advanced` object type offers some more facilities than the basic type. These include:
+
+  * Limit the queue size, using `set_capacity()` and `get_capacity()`
+  * Query current queue size.
+  * Control the behaviour when the queue gets full using `set_queue_policy()`:
+  * `active::policy::ignore` to ignore the queue full,
+    * `active::policy::fail` to throw std::bad_alloc to the caller
+    * `active::policy::wait` to block until space is available in the queue (the default).
+    * `active::policy::drop` to drop excess messages.
+  * Prioritize calls, so calls are handled in priority order not only order of receiving.
+  * Peek at the next active method using `get_priority()`.
+
+See [http://code.google.com/p/cppao/source/browse/trunk/samples/queue_control.cpp queue_control.cpp] for an example of some of these.
 
 = Staying safe =
 Active objects guarantee that your program will be thread-safe, if you follow these guidelines: 
