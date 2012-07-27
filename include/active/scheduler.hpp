@@ -25,8 +25,6 @@
 
 namespace active
 {
-	class any_object;
-
 	// Represents a pool of active objects which can be executed in a thread pool.
 	class scheduler
 	{
