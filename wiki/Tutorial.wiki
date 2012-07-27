@@ -294,14 +294,14 @@ See [http://code.google.com/p/cppao/source/browse/trunk/samples/future.cpp futur
 = Advanced queue control =
 The `advanced` object type offers some more facilities than the basic type. These include:
 
-  * Limit the queue size, using `set_capacity()` and `get_capacity()`
-  * Query current queue size.
+  * Limit the queue size, using `set_capacity()` and `get_capacity()`,
+  * Query current queue size,
   * Control the behaviour when the queue gets full using `set_queue_policy()`:
     * `active::policy::ignore` to deliver the message anyway,
     * `active::policy::fail` to throw std::bad_alloc to the caller,
     * `active::policy::block` to block the caller until space is available in the queue (the default),
     * `active::policy::discard` to discard excess messages.
-  * Prioritize calls, so calls are handled in priority order not only order of receiving.
+  * Prioritize calls, so calls are handled in priority order as well as order of receiving.
   * Peek at the next active method using `get_priority()`.
 
 See [http://code.google.com/p/cppao/source/browse/trunk/samples/queue_control.cpp queue_control.cpp] for an example of some of these.
