@@ -1,5 +1,4 @@
 #include <active/object.hpp>
-#include <active/advanced.hpp>
 #include <iostream>
 #include <vector>
 
@@ -14,9 +13,9 @@ struct putdown_left{};
 struct pickup{};
 struct putdown{};
 
-class report : public active::object<report, active::advanced>
+class report : public active::object<report>
 {
-	friend active::object<report, active::advanced>;
+	friend active::object<report>;
 	
 	void active_method(eats, int id)
 	{
@@ -119,8 +118,6 @@ int main(int argc, char**argv)
 	std::vector<philosopher> philosophers(N);
 	std::vector<fork> forks(N);
 	report report;
-	report.set_capacity(10);
-	report.set_queue_policy(active::policy::discard);
 	
 	for(int p=0; p<N; ++p)
 	{
