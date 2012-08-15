@@ -28,11 +28,24 @@ private:
 	clock_t m_start;
 };
 
-template<int N, typename Type>
-struct fib : public active::object<fib<N,Type>, Type>, public active::handle<fib<N,Type>, int>
+int messages(int n)
 {
-	fib<N-1,Type> fib1;
-	fib<N-2,Type> fib2;
+	return n>2 ? 3+messages(n-1)+messages(n-2) : 1;
+}
+
+template<typename Type>
+struct fib : public active::object<fib<Type>, Type>, public active::handle<fib<Type>, int>
+{
+	active::platform::shared_ptr<fib> fib1, fib2;
+
+	fib(int n)
+	{
+		if( n>2 )
+		{
+			fib1.reset(new fib(n-1));
+			fib2.reset(new fib(n-2));
+		}
+	}
 
 	void active_method(int v)
 	{
@@ -42,49 +55,32 @@ struct fib : public active::object<fib<N,Type>, Type>, public active::handle<fib
 
 	void active_method(int n, active::sink<int> * result)
 	{
-		m_value=0;
-		m_result = result;
-		fib1(n-1, this);
-		fib2(n-2, this);
+		if( n>2 )
+		{
+			m_value=0;
+			m_result = result;
+			(*fib1)(n-1, this);
+			(*fib2)(n-2, this);
+		}
+		else
+		{
+			result->send(1);
+		}
 	}
 
-	static const int Messages = 3+fib<N-1,Type>::Messages+fib<N-2,Type>::Messages;
 private:
 	active::sink<int> * m_result;
 	int m_value;
 };
 
-template<typename Type>
-struct fib<2,Type> : public active::object<fib<2,Type>, Type>
-{
-	void active_method(int i, active::sink<int> * result)
-	{
-		result->send(1);
-	}
-
-	static const int Messages=1;
-};
-
-template<typename Type>
-struct fib<1,Type> : public active::object<fib<1,Type>, Type>
-{
-	void active_method(int i, active::sink<int> * result)
-	{
-		result->send(1);
-	}
-
-	static const int Messages=1;
-};
-
-
 
 template<typename T>
-void bench(const char * msg)
+void bench(const char * msg, int n=30)
 {
-	std::auto_ptr<fib<30,T> > f( new fib<30,T>() );
+	active::platform::shared_ptr<fib<T> > f( new fib<T>(n) );
 	active::promise<int> result;
-	bench_messages b(msg, fib<30,T>::Messages);
-	(*f)(30,&result);
+	bench_messages b(msg, messages(n));
+	(*f)(n,&result);
 	active::run();
 }
 
