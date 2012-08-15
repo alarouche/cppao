@@ -1,5 +1,8 @@
 #include <active/object.hpp>
 #include <active/promise.hpp>
+#include <active/advanced.hpp>
+#include <active/fast.hpp>
+#include <active/synchronous.hpp>
 #include <iostream>
 
 struct bench_messages
@@ -88,5 +91,8 @@ void bench(const char * msg)
 int main()
 {
 	bench<active::direct>("active::direct");
+	bench<active::synchronous>("active::synchronous");
+	bench<active::fast>("active::fast");
 	bench<active::basic>("active::basic");
+	bench<active::basic>("active::advanced");
 }
