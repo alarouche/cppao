@@ -9,7 +9,7 @@ struct bench_messages
 		std::cout << str << ": ";
 		m_start = clock();
 	}
-	
+
 	~bench_messages()
 	{
 		double duration = (clock()-m_start)/double(CLOCKS_PER_SEC);
@@ -17,26 +17,26 @@ struct bench_messages
 		if( mps > 1000000.0 )
 			std::cout << (mps/1000000.0) << " million messages/second" << std::endl;
 		else
-			std::cout << ( mps/1000.0) << " thousand messages/second" << std::endl;		
+			std::cout << ( mps/1000.0) << " thousand messages/second" << std::endl;
 	}
-	
+
 private:
 	const int m_msgcount;
 	clock_t m_start;
 };
 
 template<int N, typename Type>
-struct fib : public active::object<fib<N,Type>, Type>, public active::sink<int>
+struct fib : public active::object<fib<N,Type>, Type>, public active::handle<fib<N,Type>, int>
 {
 	fib<N-1,Type> fib1;
 	fib<N-2,Type> fib2;
-		
+
 	void active_method(int v)
 	{
 		if(m_value) m_result->send(m_value+v);
 		else m_value=v;
 	}
-	
+
 	void active_method(int n, active::sink<int> * result)
 	{
 		m_value=0;
@@ -44,7 +44,7 @@ struct fib : public active::object<fib<N,Type>, Type>, public active::sink<int>
 		fib1(n-1, this);
 		fib2(n-2, this);
 	}
-	
+
 	static const int Messages = 3+fib<N-1,Type>::Messages+fib<N-2,Type>::Messages;
 private:
 	active::sink<int> * m_result;
@@ -58,7 +58,7 @@ struct fib<2,Type> : public active::object<fib<2,Type>, Type>
 	{
 		result->send(1);
 	}
-	
+
 	static const int Messages=1;
 };
 
@@ -69,7 +69,7 @@ struct fib<1,Type> : public active::object<fib<1,Type>, Type>
 	{
 		result->send(1);
 	}
-	
+
 	static const int Messages=1;
 };
 

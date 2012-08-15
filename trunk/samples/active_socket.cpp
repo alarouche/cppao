@@ -367,3 +367,22 @@ void active::pipe::active_method( write_response write_response )
 	}
 }
 
+void active::pipe::send(read_ready msg)
+{
+	(*this)(msg);
+}
+
+void active::pipe::send(write_ready msg)
+{
+	(*this)(msg);
+}
+
+void active::pipe::send(read_response msg)
+{
+	(*this)(msg);
+}
+
+void active::pipe::send(write_response msg)
+{
+	(*this)(msg);
+}

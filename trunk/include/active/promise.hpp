@@ -57,7 +57,7 @@ namespace active
 	{
 		typedef T value_type;
 
-		void active_method(value_type v)
+		void send(value_type v)
 		{
 			m_value.set_value(v);
 		}

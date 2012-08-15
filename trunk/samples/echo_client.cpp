@@ -17,8 +17,8 @@ struct connected
 
 struct echo_client :
 	public active::shared<echo_client>,
-	active::sink<connected>,
-	active::sink<active::socket::connect_response>
+	active::handle<echo_client, connected>,
+	active::handle<echo_client, active::socket::connect_response>
 {
 	// 1) Connect to server
 	struct init
@@ -109,6 +109,8 @@ struct input : public active::object<input>,
 		m_pipe.reset( new active::pipe(m_socket, connected.sock, m_select ) );
 		(*m_pipe)(active::pipe::start());
 	}
+
+	void send(connected m) { (*this)(m); }
 private:
 	active::socket::ptr m_socket;
 	active::select::ptr m_select;

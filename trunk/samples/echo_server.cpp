@@ -11,10 +11,10 @@
 
 struct my_server :
 	public active::shared<my_server>,
-	active::sink<active::socket::bind_response>,
-	active::sink<active::socket::listen_result>,
-	active::sink<active::socket::accept_response>,
-	active::sink<active::select::read_ready>
+	active::handle<my_server, active::socket::bind_response>,
+	active::handle<my_server, active::socket::listen_result>,
+	active::handle<my_server, active::socket::accept_response>,
+	active::handle<my_server, active::select::read_ready>
 {
 	typedef active::socket::bind_response bind_response;
 

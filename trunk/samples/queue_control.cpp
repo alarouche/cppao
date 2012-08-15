@@ -36,7 +36,7 @@ public:
 };
 
 
-class Display : public active::object<Display>, public active::sink<int>
+class Display : public active::object<Display>, public active::handle<Display,int>
 {
 public:
 	void active_method( int result )

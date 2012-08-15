@@ -88,7 +88,7 @@ private:
 };
 
 
-class Producer : public active::object<Producer>, public active::sink<ready>
+class Producer : public active::object<Producer>, public active::handle<Producer, ready>
 {
 public:
 	Producer(int count, queue<int> & consumer) : m_count(count), m_consumer(consumer)
@@ -109,7 +109,7 @@ private:
 
 class Consumer :
 	public active::object<Consumer, active::basic>,
-	public active::sink<int>
+	public active::handle<Consumer, int>
 {
 public:
 	Consumer(int size, queue<int>&source) : m_source(source), m_counts(size)

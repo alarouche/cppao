@@ -6,7 +6,7 @@
 #define ACTIVE_OBJECT_INCLUDED
 
 #include <active/config.hpp>
-#include <memory>
+#include "fifo.hpp"
 
 #ifdef ACTIVE_USE_CXX11
 	#define RVALUE_REF(T) T&&
@@ -77,7 +77,6 @@ namespace active
 		virtual void run() throw()=0;
 		virtual bool run_some(int n=100) throw()=0;
 		virtual void exception_handler() throw();
-		virtual void active_fn(RVALUE_REF(platform::function<void()>) fn, int priority)=0;
 		virtual bool idle() throw()=0;
 		any_object * m_next;
 	};
@@ -275,7 +274,7 @@ namespace active
 		typename Schedule,
 		typename Queue,
 		typename Share>
-	class object_impl : virtual public any_object, public Share::base
+	class object_impl : public any_object, public Share::base
 	{
 	public:
 		typedef Schedule schedule_type;
@@ -398,11 +397,6 @@ namespace active
 		void active_fn(RVALUE_REF(T) fn, int priority=0)
 		{
 			enqueue_fn2( platform::forward<RVALUE_REF(T)>(fn), priority );
-		}
-
-		void active_fn(RVALUE_REF(platform::function<void()>) fn, int priority)
-		{
-			enqueue_fn2( platform::forward<RVALUE_REF(platform::function<void()>)>(fn), priority );
 		}
 
 		// Clear all pending messages. Only callable from active methods.
@@ -669,34 +663,18 @@ namespace active
 	};
 
 	template<typename T>
-	struct sink : virtual public any_object
+	struct sink
 	{
 		typedef platform::shared_ptr<sink<T> > sp;
 		typedef platform::weak_ptr<sink<T> > wp;
 		typedef T value_type;
+		virtual void send(value_type)=0;
+	};
 
-		virtual void active_method(T)=0;
-
-#ifdef ACTIVE_USE_CXX11
-		void send(RVALUE_REF(T)msg)
-		{
-			this->active_fn( [=]() mutable { this->active_method(platform::move(msg)); }, priority(msg) );
-		}
-
-		void send(const T& msg)
-		{
-			T msg2(msg);
-			this->active_fn( [=]() mutable { this->active_method(platform::move(msg2)); }, priority(msg) );
-		}
-#else
-		sink<T> & send(const T&msg)
-		{
-			this->active_fn(platform::bind(&sink<T>::run_msg, this, msg),priority(msg));
-			return *this;
-		}
-	private:
-		static void run_msg(sink *s, T msg) { s->active_method(msg); }
-#endif
+	template<typename Derived, typename T>
+	struct handle : public sink<T>
+	{
+		void send(T value) { static_cast<Derived&>(*this)(value); }
 	};
 } // namespace active
 

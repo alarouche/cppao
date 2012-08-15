@@ -69,7 +69,7 @@ namespace mb
 	// Active object to convert a iteration counts into colours.
 	struct RenderRegion :
 		public active::shared<RenderRegion>,
-		public active::sink<ComputeRegion::Ready>
+		public active::handle<RenderRegion,ComputeRegion::Ready>
 	{
 		// 1) Set up the recipient of the result.
 		struct Ready;
@@ -100,7 +100,7 @@ namespace mb
 	// Active object to manage the computation and rendering of the entire view.
 	struct View :
 		public active::shared<View>,
-		public active::sink<RenderRegion::Ready>
+		public active::handle<View,RenderRegion::Ready>
 	{
 		// 0) Construct
 		View();
@@ -170,7 +170,7 @@ namespace mb
 	// Active object to render the window using GLUT.
 	class GlutWindow :
 		public active::shared<GlutWindow>,
-		public active::sink<View::Update>
+		public active::handle<GlutWindow,View::Update>
 	{
 	public:
 		// 0) Construct

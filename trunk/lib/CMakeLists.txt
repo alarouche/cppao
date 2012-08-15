@@ -4,6 +4,7 @@ add_library( cppao active_object.cpp
 	../include/active/config.hpp.in
 	../include/active/direct.hpp
 	../include/active/fast.hpp
+	../include/active/fifo.hpp
 	../include/active/object.hpp
 	../include/active/scheduler.hpp
 	../include/active/shared.hpp
