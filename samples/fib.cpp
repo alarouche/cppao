@@ -10,7 +10,7 @@
 
 typedef active::basic ao_type;
 
-struct fib : public active::shared<fib, ao_type>, public active::sink<int>
+struct fib : public active::shared<fib, ao_type>, public active::handle<fib,int>
 {
 	struct calculate
 	{

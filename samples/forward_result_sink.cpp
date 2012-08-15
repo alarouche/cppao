@@ -12,7 +12,7 @@ public:
 
 class ComputationHandler :
 	public active::object<ComputationHandler>,
-	public active::sink<int>
+	public active::handle<ComputationHandler,int>
 {
 public:
 	void active_method(int result)

@@ -2,8 +2,8 @@
 #include <iostream>
 #include <vector>
 
-class fork;
-class philosopher;
+class Fork;
+class Philosopher;
 
 struct pickup_left{};
 struct pickup_right{};
@@ -15,13 +15,13 @@ struct putdown{};
 
 class report : public active::object<report>
 {
-	friend active::object<report>;
-	
+	friend class active::object<report>;
+
 	void active_method(eats, int id)
 	{
 		std::cout << "Philosopher " << id << " eats\n";
 	}
-	
+
 	void active_method(pickup_left, int id)
 	{
 		std::cout << "Philosopher " << id << " gets left fork\n";
@@ -36,32 +36,32 @@ class report : public active::object<report>
 	{
 		std::cout << "Philosopher " << id << " puts down left fork\n";
 	}
-	
+
 	void active_method(putdown_right, int id)
 	{
 		std::cout << "Philosopher " << id << " puts down right fork\n";
 	}
 };
 
-class fork : public active::object<fork>
+class Fork : public active::object<Fork>
 {
-	friend active::object<fork>;
-	
-	void active_method(pickup, philosopher * recipient);
+	friend class active::object<Fork>;
+
+	void active_method(pickup, Philosopher * recipient);
 	void active_method(putdown);
-	
+
 	bool available;
-	philosopher * waiting;
+	Philosopher * waiting;
 public:
-	fork() : available(true), waiting(0) { }
+	Fork() : available(true), waiting(0) { }
 };
 
 
-class philosopher : public active::object<philosopher>
+class Philosopher : public active::object<Philosopher>
 {
-	friend active::object<philosopher>;
-	
-	void active_method(int id, report * report, fork * left, fork * right)
+	friend class active::object<Philosopher>;
+
+	void active_method(int id, report * report, Fork * left, Fork * right)
 	{
 		m_id=id;
 		m_report=report;
@@ -71,16 +71,16 @@ class philosopher : public active::object<philosopher>
 		(*m_left)(pickup(),this);
 		(*m_right)(pickup(),this);
 	}
-	
-	void active_method(pickup,fork*f)
+
+	void active_method(pickup,Fork*f)
 	{
 		if(f==m_left) (*m_report)(pickup_left(),m_id);
 		else (*m_report)(pickup_right(), m_id);
-		
+
 		if(++m_forks==2)
 		{
 			(*m_report)(eats(), m_id);
-		
+
 			(*m_left)(putdown());
 			(*m_report)(putdown_left(), m_id);
 			(*m_right)(putdown());
@@ -92,20 +92,20 @@ class philosopher : public active::object<philosopher>
 			(*m_right)(pickup(),this);
 		}
 	}
-	
+
 	int m_id;
-	fork *m_left, *m_right;
+	Fork *m_left, *m_right;
 	report * m_report;
 	int m_forks;	// How many forks we are holding
 };
 
-void fork::active_method(pickup, philosopher * recipient)
+void Fork::active_method(pickup, Philosopher * recipient)
 {
 	if(available) available=false, (*recipient)(pickup(),this);
 	else waiting = recipient;
 }
 
-void fork::active_method(putdown)
+void Fork::active_method(putdown)
 {
 	if(waiting) (*waiting)(pickup(),this), waiting=0;
 	else available=true;
@@ -115,15 +115,15 @@ void fork::active_method(putdown)
 int main(int argc, char**argv)
 {
 	const int N=argc>1 ? atoi(argv[1]) : 3;
-	std::vector<philosopher> philosophers(N);
-	std::vector<fork> forks(N);
+	std::vector<Philosopher> philosophers(N);
+	std::vector<Fork> forks(N);
 	report report;
-	
+
 	for(int p=0; p<N; ++p)
 	{
 		philosophers[p](p+1, &report, &forks[p], &forks[(p+1)%N]);
 	}
-	
+
 	active::run();
 	std::cout << "Deadlocked! (this is expected)\n";
 }

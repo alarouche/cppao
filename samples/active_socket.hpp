@@ -217,6 +217,11 @@ namespace active
 		void active_method(read_response);
 		void active_method(write_response);
 
+		void send(read_ready);
+		void send(write_ready);
+		void send(read_response);
+		void send(write_response);
+
 		char m_buffer[4096];
 		const void * m_write_buffer;
 		int m_write_remaining;

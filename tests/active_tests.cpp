@@ -120,7 +120,7 @@ struct sink_obj : public active::object<sink_obj>, public active::sink<msg>
 {
 	int called; // =0;
 	sink_obj() : called(0) {}
-	void active_method(msg)
+	void send(msg)
 	{
 		++called;
 	}
@@ -508,6 +508,8 @@ struct active_object_test :
 		++m_expected_value;
 	}
 
+	void send(int result) { (*this)(result); }
+
 	struct finish {};
 	void active_method(finish)
 	{
@@ -520,8 +522,8 @@ private:
 
 template<typename Schedule, typename Queue, typename Shared>
 struct test_object :
-	public active::object_impl<Schedule, Queue, Shared>,
-	public active::sink<test_message>
+	public active::object<test_object<Schedule,Queue,Shared>, active::object_impl<Schedule, Queue, Shared> >,
+	public active::handle<test_object<Schedule,Queue,Shared>, test_message>
 {
 	test_object() : m_times(0) { }
 
@@ -698,6 +700,9 @@ struct mix_object : public active::object<mix_object<Schedule,Queueing,Sharing>,
 		m_sink = mc.sink;
 		m_result = mc.result;
 	}
+
+	void send(mix_message msg) { (*this)(msg); }
+	void send(mix_config mc) { (*this)(mc); }
 };
 
 
@@ -728,6 +733,7 @@ struct result_holder : public active::object<result_holder<T> >, public active::
 {
 	T result;
 	void active_method(T msg) { result = msg; }
+	void send(T msg) { (*this)(msg); }
 };
 
 void test_object_mix()
@@ -931,7 +937,7 @@ void test_move_semantics()
 void test_promise()
 {
 	active::promise<int> x;
-	x(12);
+	x.send(12);
 	assert( x.get() == 12 );
 }
 
@@ -1122,9 +1128,9 @@ struct fib :
 		}
 	}
 
-	typedef int sub_result;
+	void send(int result) { (*this)(result); }
 
-	void active_method( sub_result sub_result )
+	void active_method( int sub_result )
 	{
 		if( m_total ) m_result->send(m_total+sub_result);
 		else m_total = sub_result;
