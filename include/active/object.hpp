@@ -140,131 +140,84 @@ namespace active
 		private:
 		   struct message
 		   {
-			   message() : m_next(nullptr) { }
-			   virtual void run(any_object * obj)=0;
-			   virtual void destroy(allocator_type&)=0;
-			   message *m_next;
+			   virtual ~message() { }
+			   virtual void run()=0;
 		   };
 		public:
 
 			shared(const allocator_type & alloc = allocator_type()) :
-				m_head(nullptr), m_tail(nullptr), m_allocator(alloc)
+				m_queue(alloc)
 			{
 			}
 
-			shared(const shared&o) :
-				 m_head(nullptr), m_tail(nullptr), m_allocator(o.m_allocator)
+			shared(const shared&o) : m_queue(o.m_queue.get_allocator())
 			{
 			}
 
-			allocator_type get_allocator() const { return m_allocator; }
+			allocator_type get_allocator() const { return m_queue.get_allocator(); }
 
 			template<typename Fn>
 			bool enqueue_fn( any_object * obj, RVALUE_REF(Fn) fn, int )
 			{
-				typename allocator_type::template rebind<run_impl<Fn> >::other realloc(m_allocator);
-
-				run_impl<Fn> * impl = realloc.allocate(1);
-				try
-				{
-					realloc.construct(impl, platform::forward<RVALUE_REF(Fn)>(fn));
-				}
-				catch (...)
-				{
-					realloc.deallocate(impl,1);
-					throw;
-				}
-				return enqueue(impl);
+				platform::lock_guard<platform::mutex> lock(m_mutex);
+				m_queue.push( run_impl<Fn>(platform::forward<RVALUE_REF(Fn)>(fn)) );
+				return m_queue.size()==1;
 			}
 
 			bool empty() const
 			{
-				return !m_head;
+				return m_queue.empty();
 			}
 
 			bool mutexed_empty() const
 			{
 				platform::lock_guard<platform::mutex> lock(m_mutex);
-				// We might be processing a message, which counts as empty.
-				return !m_head || !m_head->m_next;
+				return m_queue.size()<=1;
 			}
 
 			bool run_some(any_object * o, int n=100) throw()
 			{
 				platform::lock_guard<platform::mutex> lock(m_mutex);
-				while( m_head && n-->0)
+				while( !m_queue.empty() && n-->0)
 				{
-					message * m = m_head;
+					message & m = m_queue.front();
 
 					m_mutex.unlock();
 					try
 					{
-						m->run(o);
+						m.run();
 					}
 					catch (...)
 					{
 						o->exception_handler();
 					}
 					m_mutex.lock();
-					m_head = m_head->m_next;
-					if(!m_head) m_tail=nullptr;
-					m->destroy(m_allocator);
+					m_queue.pop();
 				}
-				return m_head!=nullptr;
+				return !m_queue.empty();
 			}
 
 			void clear()
 			{
 				// Destroy all message except current.
 				platform::lock_guard<platform::mutex> lock(m_mutex);
-				if( !m_head ) return;
-				for(message * m=m_head->m_next; m; )
-				{
-					message * n = m;
-					m=m->m_next;
-					n->destroy(m_allocator);
-				}
-				m_head->m_next=nullptr;
-				m_tail = m_head;
+				m_queue.truncate();
 			}
 
 		private:
-			// Push to tail, pop from head:
-			message *m_head, *m_tail;
-			bool enqueue(message*impl)
-			{
-				 platform::lock_guard<platform::mutex> lock(m_mutex);
-				 if( m_tail )
-				 {
-					 m_tail->m_next = impl;
-					 m_tail = impl;
-					 return false;
-				 }
-				 else
-				 {
-					 m_head = m_tail = impl;
-					 return true;
-				 }
-			}
 
 			template<typename Fn>
 			struct run_impl : public message
 			{
 				run_impl(RVALUE_REF(Fn)fn) : m_fn(platform::forward<RVALUE_REF(Fn)>(fn)) { }
 				Fn m_fn;
-				void run(any_object*)
+				void run()
 				{
 					m_fn();
 				}
-				void destroy(allocator_type&a)
-				{
-					typename allocator_type::template rebind<run_impl<Fn> >::other realloc(a);
-					realloc.destroy(this);
-					realloc.deallocate(this,1);
-				}
 			};
 
-			allocator_type m_allocator;
+			fifo<message, typename allocator_type::template rebind<message>::other> m_queue;
 		protected:
 			mutable platform::mutex m_mutex;
 		};

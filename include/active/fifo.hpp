@@ -35,7 +35,7 @@ namespace active
 					m_head = m_tail = 0;
 				}
 
-				add_chain(std::max(c+aligned_size<entry>::value,1024UL));	// !! Where to get this value from ?
+				add_chain(std::max(c+aligned_size<entry>::value,200UL));	// !! Where to get this value from ?
 			}
 		}
 
@@ -48,6 +48,16 @@ namespace active
 			m_tail->push(u, m_allocator);
 			++m_size;
 		}
+
+#ifdef ACTIVE_USE_CXX11
+		template<typename U>
+		void push(U&&u)
+		{
+			reserve(aligned_size<U>::value);
+			m_tail->push(std::forward<U&&>(u), m_allocator);
+			++m_size;
+		}
+#endif
 
 		value_type & front()
 		{
@@ -91,7 +101,40 @@ namespace active
 			while(!empty()) pop();
 		}
 
-		bool empty() { return !m_head || m_head->empty(); }
+		// Pop everything except first item (which must exist)
+		void truncate()
+		{
+			chain * front_chain = m_head;
+			char * front_item = m_head->m_front;
+			m_head->pop();
+			while( !m_head->empty() )
+			{
+				m_allocator.destroy(&m_head->front());
+				m_head->pop();
+			}
+			m_head=m_head->m_next;
+			while( m_head )
+			{
+				while( !m_head->empty() )
+				{
+					m_allocator.destroy(&m_head->front());
+					m_head->pop();
+				}
+				chain * old_head = m_head;
+				m_head=m_head->m_next;
+				erase(old_head);
+			}
+
+			front_chain->m_next=0;
+			front_chain->m_front = front_item;
+			front_chain->m_back = reinterpret_cast<entry*>(front_item)->m_next;
+			m_head = m_tail = front_chain;
+			m_size=1;
+		}
+
+		bool empty() const { return !m_head || m_head->empty(); }
+
+		allocator_type get_allocator() const { return m_allocator; }
 
 		void swap(fifo&other)
 		{
@@ -133,6 +176,19 @@ namespace active
 				m_back = (char*)data+aligned_size<U>::value;
 				e->m_next = m_back;
 			}
+
+#ifdef ACTIVE_USE_CXX11
+			template<typename U>
+			void push(U && u, allocator_type & allocator)
+			{
+				entry * e = reinterpret_cast<entry*>(m_back);
+				U * data = reinterpret_cast<U*>(m_back+aligned_size<entry>::value);
+				typename allocator_type::template rebind<U>::other alloc(allocator);
+				alloc.construct(data, u);
+				m_back = (char*)data+aligned_size<U>::value;
+				e->m_next = m_back;
+			}
+#endif
 
 			value_type & front()
 			{
