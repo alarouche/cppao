@@ -35,7 +35,7 @@ namespace active
 					m_head = m_tail = 0;
 				}
 
-				add_chain(std::max(c+aligned_size<entry>::value,200UL));	// !! Where to get this value from ?
+				add_chain(std::max(c+aligned_size<entry>::value,size_type(200UL)));	// !! Where to get this value from ?
 			}
 		}
 
