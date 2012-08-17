@@ -25,7 +25,7 @@ void active::scheduler::activate(ObjectPtr p) throw()
 	//platform::lock_guard<platform::mutex> lock(m_mutex);
 	//++m_busy_count;
 
-#if 1
+#ifdef ACTIVE_USE_CXX11
 	ObjectPtr head;
 	do
 	{
@@ -33,12 +33,14 @@ void active::scheduler::activate(ObjectPtr p) throw()
 		p->m_next = head;	// ABA here
 	}
 	while( !m_head.compare_exchange_weak(head, p, std::memory_order_relaxed) );
+#else
+	platform::lock_guard<platform::mutex> lock(m_mutex);
+	p->m_next = m_head;
+	m_head = p;
 #endif
 
-	//p->m_next = m_head;
-	//m_head = p;
-
 #if ACTIVE_OBJECT_CONDITION
+	// ?? Lock guard
 	m_ready.notify_one();
 #endif
 }
@@ -47,9 +49,8 @@ void active::scheduler::activate(ObjectPtr p) throw()
 // Returns false if no more items.
 bool active::scheduler::run_managed() throw()
 {
+#ifdef ACTIVE_USE_CXX11
 	++m_busy_count;
-
-	// This works:
 
 	while( ObjectPtr p = m_head.exchange(nullptr) )
 	{
@@ -60,6 +61,23 @@ bool active::scheduler::run_managed() throw()
 			j->run_some();
 		}
 	}
+#else
+	platform::unique_lock<platform::mutex> lock(m_mutex);
+	++m_busy_count;
+	while( m_head )
+	{
+		ObjectPtr p = m_head;
+		m_head=0;
+		lock.unlock();
+		for(ObjectPtr i=p; i;)
+		{
+			ObjectPtr j=i;
+			i=i->m_next;
+			j->run_some();
+		}
+		lock.lock();
+	}
+#endif
 
 	// Can be non-zero if the queues are empty, but other threads are processing.
 	// the result of processing could be to add more signalled objects.
@@ -70,6 +88,7 @@ bool active::scheduler::run_managed() throw()
 
 bool active::scheduler::run_one()
 {
+#ifdef ACTIVE_USE_CXX11
 	++m_busy_count;
 	if( ObjectPtr p = m_head.exchange(nullptr) )
 	{
@@ -80,6 +99,23 @@ bool active::scheduler::run_one()
 			j->run_some();
 		}
 	}
+#else
+	platform::unique_lock<platform::mutex> lock(m_mutex);
+	++m_busy_count;
+	if( m_head )
+	{
+		ObjectPtr p = m_head;
+		m_head=0;
+		lock.unlock();
+		for(ObjectPtr i=p; i;)
+		{
+			ObjectPtr j=i;
+			i=i->m_next;
+			j->run_some();
+		}
+		lock.lock();
+	}
+#endif
 
 	return 0!=--m_busy_count;
 }

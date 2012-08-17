@@ -14,12 +14,22 @@
 	}
 #else
 	#include <condition_variable>
-	#include <atomic>
 	namespace active
 	{
 		namespace platform
 		{
 			using std::condition_variable;
+		}
+	}
+#endif
+
+#ifdef ACTIVE_USE_CXX11
+	#include <atomic>
+	namespace active
+	{
+		namespace platform
+		{
+			using std::atomic;
 		}
 	}
 #endif
@@ -55,10 +65,15 @@ namespace active
 
 	private:
 		platform::mutex m_mutex;
-		platform::atomic<any_object *>m_head;   // List of activated objects.
 		platform::condition_variable m_ready;
-		// int m_busy_count;	// Used to work out when we have actually finished.
+#ifdef ACTIVE_USE_CXX11
+		platform::atomic<any_object*> m_head;   // List of activated objects.
 		platform::atomic<int> m_busy_count;
+#else
+		any_object * m_head;
+		int m_busy_count;	// Used to work out when we have actually finished.
+#endif
+
 		bool run_managed() throw();
 		void run_in_thread();
 	};
