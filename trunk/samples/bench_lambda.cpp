@@ -32,7 +32,7 @@ template<typename Object>
 void bench_object(Object, int N, bool output)
 {
 	typedef Thread<Object> type;
-	std::shared_ptr<type> thread[503];
+	active::platform::shared_ptr<type> thread[503];
 
 	for( int t=0; t<503; ++t )
 	{
