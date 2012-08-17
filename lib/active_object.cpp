@@ -4,7 +4,7 @@
 #include <active/direct.hpp>
 #include <active/synchronous.hpp>
 
-#include <iostream>
+#include <cstdio>
 
 #define ACTIVE_OBJECT_CONDITION 0	// !! Slow
 
@@ -171,30 +171,33 @@ void active::scheduler::run_in_thread()
 
 void active::any_object::exception_handler() throw()
 {
-	// !! Bug: std::cerr is not threadsafe
 	try
 	{
 		throw;
 	}
 	catch( std::exception & ex )
 	{
-		std::cerr << "Unprocessed exception during message processing: " << ex.what() << std::endl;
+		fprintf(stderr, "Unhandled exception during message processing: %s\n", ex.what());
 	}
 	catch( ... )
 	{
-		std::cerr << "Unprocessed exception during message processing" << std::endl;
+		fprintf(stderr, "Unahndled exception during message processing\n");
 	}
 }
 
 void active::scheduler::start_work() throw()
 {
-	//platform::lock_guard<platform::mutex> lock(m_mutex);
+#ifndef ACTIVE_USE_CXX11
+	platform::lock_guard<platform::mutex> lock(m_mutex);
+#endif
 	++m_busy_count;
 }
 
 void active::scheduler::stop_work() throw()
 {
-	//platform::lock_guard<platform::mutex> lock(m_mutex);
+#ifndef ACTIVE_USE_CXX11
+	platform::lock_guard<platform::mutex> lock(m_mutex);
+#endif
 	if( 0 == --m_busy_count )
 	{
 		m_ready.notify_one();
