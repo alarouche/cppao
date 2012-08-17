@@ -31,11 +31,12 @@ public:
 };
 
 
-int main()
+int main(int argc, char**argv)
 {
+	int produce = argc>1 ? atoi(argv[1]) : 10000000;
 	Consumer consumer(100000, 10000);
 	Producer producer;
-	producer( &consumer, 10000000 );
+	producer( &consumer, produce );
 	active::run();
 	std::cout << consumer.get();
 }

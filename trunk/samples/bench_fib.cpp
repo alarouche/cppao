@@ -84,11 +84,12 @@ void bench(const char * msg, int n=30)
 	active::run();
 }
 
-int main()
+int main(int argc, char**argv)
 {
-	bench<active::direct>("active::direct");
-	bench<active::synchronous>("active::synchronous");
-	bench<active::fast>("active::fast");
-	bench<active::basic>("active::basic");
-	bench<active::basic>("active::advanced");
+	int n=argc>1 ? atoi(argv[1]) : 30;
+	bench<active::direct>("active::direct", n);
+	bench<active::synchronous>("active::synchronous", n);
+	bench<active::fast>("active::fast", n);
+	bench<active::basic>("active::basic", n);
+	bench<active::basic>("active::advanced", n);
 }

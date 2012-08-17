@@ -14,6 +14,7 @@
 	}
 #else
 	#include <condition_variable>
+	#include <atomic>
 	namespace active
 	{
 		namespace platform
@@ -54,9 +55,10 @@ namespace active
 
 	private:
 		platform::mutex m_mutex;
-		any_object *m_head, *m_tail;   // List of activated objects.
+		platform::atomic<any_object *>m_head;   // List of activated objects.
 		platform::condition_variable m_ready;
-		int m_busy_count;	// Used to work out when we have actually finished.
+		// int m_busy_count;	// Used to work out when we have actually finished.
+		platform::atomic<int> m_busy_count;
 		bool run_managed() throw();
 		void run_in_thread();
 	};

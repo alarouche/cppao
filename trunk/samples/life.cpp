@@ -10,6 +10,7 @@
 
 Controller::Controller( active::scheduler & tp, int seed )
 {
+	remaining_iterations=500;
 	srand(seed);
 	set_scheduler(tp);
 	display.set_scheduler(tp);
@@ -66,7 +67,8 @@ void Controller::active_method( compute_complete )
 		display(Display::redraw());
 
 		// Loop again
-		(*this)(compute());
+		if( remaining_iterations-->0 )
+			(*this)(compute());
 	}
 }
 

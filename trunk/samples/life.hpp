@@ -89,4 +89,5 @@ private:
 	Cell cell[num_cols][num_rows];
 	Display display;
 	int progress;
+	int remaining_iterations;
 };

@@ -131,10 +131,11 @@ private:
 };
 
 
-int main()
+int main(int argc, char**argv)
 {
+	int produce = argc>1 ? atoi(argv[1]) : 10000000;
 	FIFO<int> fifo(100000);
-	Producer producer(10000000, fifo);
+	Producer producer(produce, fifo);
 	Consumer consumer(10000, fifo);
 	active::run();
 	std::cout << consumer.get();
