@@ -11,7 +11,7 @@
 
 active::scheduler active::default_scheduler;
 
-active::scheduler::scheduler() : m_head(nullptr), m_tail(nullptr), m_busy_count(0)
+active::scheduler::scheduler() : m_head(nullptr), m_busy_count(0)
 {
 }
 
@@ -22,59 +22,66 @@ active::any_object::~any_object()
 // Used by an active object to signal that there are messages to process.
 void active::scheduler::activate(ObjectPtr p) throw()
 {
-	platform::lock_guard<platform::mutex> lock(m_mutex);
-	p->m_next=nullptr;
-	if( !m_head )
-		m_head = m_tail = p;
-	else
-		m_tail->m_next = p, m_tail=p;
-	++m_busy_count;
+	//platform::lock_guard<platform::mutex> lock(m_mutex);
+	//++m_busy_count;
+
+#if 1
+	ObjectPtr head;
+	do
+	{
+		head = m_head;
+		p->m_next = head;	// ABA here
+	}
+	while( !m_head.compare_exchange_weak(head, p, std::memory_order_relaxed) );
+#endif
+
+	//p->m_next = m_head;
+	//m_head = p;
+
 #if ACTIVE_OBJECT_CONDITION
 	m_ready.notify_one();
 #endif
-}
-
-bool active::scheduler::run_one()
-{
-	platform::unique_lock<platform::mutex> lock(m_mutex);
-	if( m_head )
-	{
-		ObjectPtr p = m_head;
-		m_head = m_head->m_next;
-		lock.unlock();
-		p->run_some();
-		lock.lock();
-		--m_busy_count;
-	}
-
-	if( m_head == nullptr )
-	{
-		m_tail=nullptr;
-	}
-
-	return m_busy_count!=0;
 }
 
 // Runs until there are no more messages in the entire pool.
 // Returns false if no more items.
 bool active::scheduler::run_managed() throw()
 {
-	platform::unique_lock<platform::mutex> lock(m_mutex);
+	++m_busy_count;
 
-	while( m_head )
+	// This works:
+
+	while( ObjectPtr p = m_head.exchange(nullptr) )
 	{
-		ObjectPtr p = m_head;
-		m_head = m_head->m_next;
-		lock.unlock();
-		p->run_some();
-		lock.lock();
-		--m_busy_count;
+		for(ObjectPtr i=p; i;)
+		{
+			ObjectPtr j=i;
+			i=i->m_next;
+			j->run_some();
+		}
 	}
-	m_tail=nullptr;
 
 	// Can be non-zero if the queues are empty, but other threads are processing.
 	// the result of processing could be to add more signalled objects.
-	return m_busy_count!=0;
+	// return m_busy_count!=0;
+	// return (m_busy_count-=count)!=0;
+	return 0!=--m_busy_count;
+}
+
+bool active::scheduler::run_one()
+{
+	++m_busy_count;
+	if( ObjectPtr p = m_head.exchange(nullptr) )
+	{
+		for(ObjectPtr i=p; i;)
+		{
+			ObjectPtr j=i;
+			i=i->m_next;
+			j->run_some();
+		}
+	}
+
+	return 0!=--m_busy_count;
 }
 
 active::run::run(int num_threads, scheduler & sched) :
@@ -111,9 +118,9 @@ void active::scheduler::run()
 		m_ready.wait(lock);
 #else
 #ifdef ACTIVE_USE_BOOST
-		m_ready.timed_wait(lock, boost::posix_time::milliseconds(50));
+		m_ready.timed_wait(lock, boost::posix_time::milliseconds(1));
 #else
-		m_ready.wait_for(lock, std::chrono::milliseconds(50) );
+		m_ready.wait_for(lock, std::chrono::milliseconds(1) );
 #endif
 #endif
 	}
@@ -145,13 +152,13 @@ void active::any_object::exception_handler() throw()
 
 void active::scheduler::start_work() throw()
 {
-	platform::lock_guard<platform::mutex> lock(m_mutex);
+	//platform::lock_guard<platform::mutex> lock(m_mutex);
 	++m_busy_count;
 }
 
 void active::scheduler::stop_work() throw()
 {
-	platform::lock_guard<platform::mutex> lock(m_mutex);
+	//platform::lock_guard<platform::mutex> lock(m_mutex);
 	if( 0 == --m_busy_count )
 	{
 		m_ready.notify_one();

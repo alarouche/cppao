@@ -26,7 +26,11 @@ public:
 
 	void destroy()
 	{
-		active_fn([=]{next->destroy();next.reset();});
+		active_fn([=]{
+			if(next)
+				next->destroy();
+			next.reset();
+		});
 	}
 
 private:
