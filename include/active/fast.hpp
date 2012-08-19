@@ -13,25 +13,19 @@ namespace active
 		{
 			typedef typename Queue::allocator_type allocator_type;
 			steal(const allocator_type & alloc = allocator_type()) :
-				Queue(alloc), m_running(false)
+				Queue(alloc)
 			{
 			}
 
-			steal(const steal&) : m_running(false) { }
+			steal(const steal&) { }
 
 			template<typename Fn>
 			bool enqueue_fn( any_object * object, RVALUE_REF(Fn) fn, int priority)
 			{
-				platform::unique_lock<platform::mutex> lock(m_mutex);
-
-				if( m_running )
+				platform::unique_lock<platform::mutex> lock(m_mutex, std::try_to_lock);
+				
+				if( lock.owns_lock() )
 				{
-					return Queue::enqueue_fn( object, platform::forward<RVALUE_REF(Fn)>(fn), priority );
-				}
-				else
-				{
-					m_running = true;
-					lock.unlock();
 					try
 					{
 						fn();
@@ -40,32 +34,29 @@ namespace active
 					{
 						object->exception_handler();
 					}
-					lock.lock();
-					m_running = false;
 					return false;
 				}
+				else
+				{
+					return Queue::enqueue_fn( object, platform::forward<RVALUE_REF(Fn)>(fn), priority );
+				}
+			
 			}
 
 			bool empty() const
 			{
-				return !m_running && Queue::empty();
+				platform::unique_lock<platform::mutex> lock(m_mutex, platform::try_to_lock);
+				return lock.owns_lock() && Queue::empty();
 			}
 
 			bool run_some(any_object * o, int n=100) throw()
 			{
-				platform::unique_lock<platform::mutex> lock(m_mutex);
-				if( m_running ) return true;	// Cannot run at this time
-				m_running = true;
-				lock.unlock();
-				bool activate = Queue::run_some(o,n);
-				lock.lock();
-				m_running = false;
-				return activate;
+				platform::unique_lock<platform::mutex> lock(m_mutex, std::try_to_lock);
+				return lock.owns_lock() && Queue::run_some(o,n);
 			}
 
 		private:
-			platform::mutex m_mutex;
-			bool m_running;
+			mutable platform::mutex m_mutex;
 		};
 
 	}

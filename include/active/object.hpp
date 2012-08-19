@@ -371,8 +371,9 @@ namespace active
 		Its main role is to implement operator().
 	  */
 	template<typename Derived, typename ObjectType=basic>
-	struct object : public ObjectType
+	class object : public ObjectType
 	{
+	public:
 		typedef ObjectType object_type;
 		typedef Derived derived_type;
 		typedef typename ObjectType::scheduler_type scheduler_type;
