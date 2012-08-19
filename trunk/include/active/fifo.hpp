@@ -1,4 +1,5 @@
 #include <memory>
+#include <algorithm>
 
 namespace active
 {
@@ -17,7 +18,7 @@ namespace active
 		typedef T value_type;
 
 		fifo(const allocator_type & a = allocator_type()) :
-			m_allocator(a), m_size(0), m_head(0), m_tail(0) { }
+			m_head(0), m_tail(0), m_size(0), m_allocator(a) { }
 
 		~fifo()
 		{
@@ -146,7 +147,7 @@ namespace active
 
 	private:
 
-		// Helper to *try* to ensure that all all allocated objects are aligned properly.
+		// Helper to *try* to ensure that all allocated objects are aligned properly.
 		template<typename U, size_type alignment=8>
 		struct aligned_size
 		{

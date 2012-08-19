@@ -80,11 +80,14 @@ int main(int argc, char**argv)
 	std::cout << "4:  shared<synchronous> ";
 	bench_object( active::shared<active::any_object,active::synchronous>::object_type(), RECURSIVE );
 
+#ifndef __APPLE__
+	// These have a stack overflow on Apple so disable them for now.
 	std::cout << "5:  fast                ";
 	bench_object( active::fast(), N );
-
+	
 	std::cout << "6:  shared<fast>        ";
 	bench_object( active::shared<active::any_object, active::fast>::object_type(), N );
+#endif
 
 	std::cout << "7:  object              ";
 	bench_object( active::basic(), N );

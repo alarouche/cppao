@@ -10,41 +10,41 @@
 #include <active/direct.hpp>
 #include <active/synchronous.hpp>
 #include <active/fast.hpp>
-#include <iostream>
+#include <cstdio>	// std::cout etc is not threadsafe
 
 struct standard_object : public active::object<standard_object>
 {
-	void active_method(const char * greeting) { std::cout << "Standard object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { printf("Standard object says %s\n", greeting); }
 };
 
 struct shared_object : public active::shared<shared_object>
 {
-	void active_method(const char * greeting) { std::cout << "Shared object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { printf("Shared object says %s\n", greeting); }
 };
 
 struct fast_object : public active::object<fast_object, active::fast>
 {
-	void active_method(const char * greeting) { std::cout << "Fast object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { printf("Fast object says %s\n", greeting); }
 };
 
 struct thread_object : public active::object<thread_object, active::thread>
 {
-	void active_method(const char * greeting) { std::cout << "Thread object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { printf("Thread object says %s\n", greeting); }
 };
 
 struct shared_thread : public active::shared<shared_thread,active::thread>
 {
-	void active_method(const char * greeting) { std::cout << "Shared thread object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { printf("Shared thread object says %s\n", greeting); }
 };
 
 struct direct : public active::object<direct,active::direct>
 {
-	void active_method(const char * greeting) { std::cout << "Direct object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { printf("Direct object says %s\n", greeting); }
 };
 
-struct mutexed: public active::object<mutexed,active::synchronous>
+struct mutexed : public active::object<mutexed,active::synchronous>
 {
-	void active_method(const char * greeting) { std::cout << "Synchronous object says " << greeting << std::endl; }
+	void active_method(const char * greeting) { printf("Synchronous object says %s\n", greeting); }
 };
 
 
@@ -73,6 +73,6 @@ int main()
 	mutexed obj7;
 	obj7("Hello");
 
-	std::cout << "Now running object pool...\n";
+	printf("Now running object pool...\n");
 	active::run(4);
 }
