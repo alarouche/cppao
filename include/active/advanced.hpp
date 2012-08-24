@@ -188,13 +188,13 @@ namespace active
 			bool run_some(any_object * o, int n=100) throw()
 			{
 				platform::lock_guard<platform::mutex> lock(m_mutex);
+				m_busy = true;
 				while( !m_messages.empty() && n-->0)
 				{
 					message * m = m_messages.top();
 					//if( m_messages.size() ==1>= m_capacity )
 						//m_queue_available.notify_one();
 					m_messages.pop();
-					m_busy = true;
 					if( m_messages.empty() ) m_queue_available.notify_all();
 					m_mutex.unlock();
 					try
@@ -206,9 +206,9 @@ namespace active
 						o->exception_handler();
 					}
 					m_mutex.lock();
-					m_busy = false;
 					m->destroy(m_allocator);
 				}
+				m_busy = false;
 				return !m_messages.empty();
 			}
 

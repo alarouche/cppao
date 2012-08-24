@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <cstring>
+#include <cassert>
 
 #ifdef ACTIVE_USE_BOOST
 #else
@@ -222,7 +223,7 @@ namespace sieve
 	void run(bool quick)
 	{
 		int max = quick ? 5000 : 50000;
-		int max_recursive = std::min(max,10000);
+		int max_recursive = std::min(max,1000);
 		run<active::direct>(max_recursive);
 		run<active::synchronous>(max_recursive);
 		run<active::fast>(max_recursive);
@@ -237,7 +238,7 @@ namespace fib
 	class fib_test : public test
 	{
 	public:
-		fib_test(int n) : m_node(n), m_value(n)
+		fib_test(int n) : m_value(n), m_node(n)
 		{
 		}
 		
@@ -328,6 +329,387 @@ namespace fib
 	}
 }
 
+namespace fifo
+{
+	template<typename T>
+	struct sink;
+	
+	template<typename T>
+	struct source
+	{
+		virtual void send_ready(sink<T>&)=0;  // 3) Sink is now ready
+		// virtual void send_to(sink<T>&)=0;	// 1) Source-initiated push
+	};
+	
+	template<typename T>
+	struct sink
+	{
+		virtual void wait_send(source<T>&)=0;	// 2) Sink-initiated pull
+		virtual void send(T)=0; // 4) Actually send the message
+	};
+	
+	template<typename T>
+	struct queue :
+		public active::object<queue<T>, active::synchronous>,
+		public source<T>,
+		public sink<T>
+	{
+		queue(int capacity) :
+			m_capacity(capacity)
+		{
+		}
+		
+		// Request by new reader
+		void send_ready(sink<T>& reader)
+		{
+			(*this)(&reader);
+		}
+
+		// Writer wants to send
+		void wait_send(source<T>&writer)
+		{
+			(*this)(&writer);
+		}
+		
+		void send(T value)
+		{
+			(*this)(value);
+		}
+		
+	private:
+		friend class active::object<queue<T>, active::synchronous>;
+		
+		void active_method(source<T> * w)
+		{
+			++m_message_count;
+			if( m_values.size() < m_capacity )
+				w->send_ready(*this);
+			else
+				m_writers.push_back(w);
+		}
+				
+		void active_method(T value)
+		{
+			++m_message_count;
+			if( m_readers.empty() || !m_values.empty() )
+			{
+				m_values.push_back(value);
+			}
+			else
+			{
+				sink<T> * r = m_readers.front();
+				m_readers.pop_front();
+				r->send(value);
+			}
+		}
+		
+		void active_method(sink<T> * r)
+		{
+			++m_message_count;
+			if( m_values.size() == m_capacity && !m_writers.empty() )
+			{
+				source<T> * w = m_writers.front();
+				m_writers.pop_front();
+				w->send_ready(*this);
+			}
+			
+			if( m_values.empty() ) m_readers.push_back(r);
+			else r->send(m_values.front()), m_values.pop_front();
+		}
+				
+	public:
+		const int m_capacity;
+		int m_message_count;
+		
+		std::deque<T> m_values;
+		std::deque<sink<T>*> m_readers;
+		std::deque<source<T>*> m_writers;
+	};
+	
+	template<typename Object>
+	struct test_source :
+		public active::object<test_source<Object>, Object>,
+		public source<int>
+	{
+		void send_ready(sink<int>&output)
+		{
+			(*this)(&output);
+		}
+		
+		void active_method(sink<int>*output, int n)
+		{
+			++m_message_count;
+			m_remaining = n;
+			output->wait_send(*this);
+		}
+
+		void active_method(sink<int>*output)
+		{
+			++m_message_count;
+			if( m_remaining>0 )
+			{
+				// std::cout << "Sending " << m_remaining << std::endl;
+				output->send(m_remaining--);
+				output->wait_send(*this);
+			}
+		}
+		
+	public:
+		int m_remaining;
+		int m_message_count;
+	};
+	
+	
+	template<typename Object>
+	struct test_sink :
+		public active::object<test_sink<Object>, Object>,
+		public sink<int>
+	{
+		test_sink(source<int> &src) :
+			m_total(0),
+			m_source(src)
+		{
+		}
+		
+		void wait_send(source<int>&src)
+		{
+			(*this)(&src);
+		}
+		
+		void active_method(source<int>*src)
+		{
+			src->send_ready(*this);
+		}
+		
+		void send(int i)
+		{
+			(*this)(i);
+		}
+		
+		void active_method(int v)
+		{
+			// std::cout << "Received " << v << std::endl;
+			++m_message_count;
+			m_total+=v;
+			
+			// Bug: This message is superfluous with no buffer
+			m_source.send_ready(*this);
+		}
+		
+		int m_total;
+		int m_message_count;
+	private:
+		source<int> &m_source;
+	};
+
+	template<typename Object>
+	struct queue_test_no_buffer : public test
+	{
+		queue_test_no_buffer(int messages) : m_messages(messages), m_sink(m_source)
+		{
+		}
+	
+		virtual void run(int threads)
+		{
+			m_source.m_message_count = m_sink.m_message_count=0;
+			m_source(&m_sink, m_messages);
+			active::run s(threads);
+		}
+		virtual void params(std::ostream&os)
+		{
+			os << "(" << description<Object>() << " no-buffer " << m_messages << ")";
+		}
+		virtual int messages()
+		{
+			return m_source.m_message_count + m_sink.m_message_count; // 2*m_messages;
+		}
+		virtual int objects()
+		{
+			return 2;
+		}
+		virtual const char * name()
+		{
+			return "fifo";
+		}
+
+	private:
+		const int m_messages;
+		test_source<Object> m_source;
+		test_sink<Object> m_sink;
+	};
+	
+	template<typename Object>
+	struct buffered_queue_test : public test
+	{
+		buffered_queue_test(int messages, int queue_size, int readers, int writers) :
+			m_messages(messages), m_queue_size(queue_size),
+			m_readers(readers), m_writers(writers),
+			m_sources(m_writers),
+			m_queue(queue_size),
+			m_sinks(m_readers, m_queue)
+		{
+		}
+		virtual void run(int threads)
+		{
+			m_queue.m_message_count=0;
+			for(int r=0; r<m_readers; ++r)
+			{
+				m_sinks[r].m_total=0;
+				m_sinks[r].m_message_count=0;
+				m_queue.send_ready(m_sinks[r]);
+			}
+			for(int w=0; w<m_writers; ++w)
+			{
+				m_sources[w].m_message_count=0;
+				m_sources[w](&m_queue, m_messages);
+			}
+
+			{ active::run s(threads); }
+			
+			int validation=0;
+			for(int r=0; r<m_readers; ++r)
+			{
+				validation += m_sinks[r].m_total;
+			}
+			int expected = m_writers * (m_messages * (m_messages+1))/2;
+			if( validation-expected ) throw std::runtime_error("Validation failure");
+		}
+		virtual void params(std::ostream&os)
+		{
+			os << "(" << description<Object>() << " buffered " << m_messages <<
+				" " << m_queue_size << " " << m_writers << " " << m_readers << ")";
+		}
+		virtual int messages()
+		{
+			int total = m_queue.m_message_count;
+			for(int w=0; w<m_writers; ++w)
+				total += m_sources[w].m_message_count;
+			for(int r=0; r<m_readers; ++r)
+				total += m_sinks[r].m_message_count;
+			return total;
+		}
+		virtual int objects()
+		{
+			return 1+m_readers+m_writers;
+		}
+		virtual const char * name()
+		{
+			return "fifo";
+		}
+	private:
+		const int m_messages, m_queue_size, m_readers, m_writers;
+		std::vector<test_source<Object> > m_sources;
+		queue<int> m_queue;
+		std::vector<test_sink<Object> > m_sinks;
+	};
+	
+	struct advanced_queue_test : public test
+	{
+		struct sink : public active::object<sink,active::advanced>
+		{
+			sink(int capacity) : m_total(0)
+			{
+				set_capacity(capacity);
+			}
+			
+			void active_method(int i)
+			{
+				m_total += i;
+			}
+			
+			int m_total;
+		};
+		
+		struct source : public active::object<source,active::advanced>
+		{
+			source(sink &s) : m_sink(s)
+			{
+			}
+			
+			void active_method(int n)
+			{
+				for(int i=0; i<n; ++i) m_sink(i);
+			}
+			
+			sink & m_sink;
+		};
+
+		virtual void run(int threads)
+		{
+			sink s(m_capacity);
+			source src(s);
+			src(m_count);
+			active::run r(threads);
+		}
+		virtual void params(std::ostream&os)
+		{
+			os << "(advanced " << m_count << " " << m_capacity << ")";
+		}
+		virtual int messages()
+		{
+			return m_count;
+		}
+		virtual int objects()
+		{
+			return 2;
+		}
+		virtual const char * name()
+		{
+			return "fifo";
+		}
+		
+		advanced_queue_test(int count, int capacity) : m_count(count), m_capacity(capacity)
+		{
+		}
+		
+		const int m_count, m_capacity;
+	};
+	
+	template<typename Obj>
+	void run_no_buffer_test(bool quick)
+	{
+		int messages = quick ? 10000 : 1000000;
+		int queue_size = quick ? 1000 : 100000;
+		
+		queue_test_no_buffer<Obj> t1(messages);
+		t1.run_tests();
+	}
+	
+	template<typename Obj>
+	void run_buffer_test(bool quick, int writers, int readers)
+	{
+		int messages = quick ? 10000 : 1000000;
+		int queue_size = quick ? 1000 : 100000;
+		
+		buffered_queue_test<Obj> t1(messages, queue_size, writers, readers);
+		t1.run_tests();
+	}
+	
+	void run(bool quick)
+	{
+		int messages = quick ? 10000 : 1000000;
+		int queue_size = quick ? 1000 : 100000;
+
+		run_buffer_test<active::fast>(quick, 2, 2);
+		run_buffer_test<active::basic>(quick, 2, 2);
+		run_buffer_test<active::advanced>(quick, 2, 2);
+		run_buffer_test<active::thread>(quick, 2, 2);
+
+		run_buffer_test<active::fast>(quick, 1, 1);
+		run_buffer_test<active::basic>(quick, 1, 1);
+		run_buffer_test<active::advanced>(quick, 1, 1);
+		run_buffer_test<active::thread>(quick, 1, 1);
+		
+		run_no_buffer_test<active::fast>(quick);
+		run_no_buffer_test<active::basic>(quick);
+		// run_no_buffer_test<active::advanced>(quick);
+		run_no_buffer_test<active::thread>(quick);
+		
+		advanced_queue_test t2(messages, queue_size);
+		t2.run_tests(2);
+	}
+}
+
 int main(int argc, char**argv)
 {
 	std::cout << "Welcome to the cppao benchmark suite!\n"
@@ -362,4 +744,5 @@ int main(int argc, char**argv)
 	thread_ring::run(quick);
 	sieve::run(quick);
 	fib::run(quick);
+	fifo::run(quick);
 }
