@@ -208,15 +208,8 @@ namespace active
 					lock.lock();
 					m->destroy(m_allocator);
 				}
-				// assert( debug_queue_size == m_messages.size() );
 				m_activated = !m_messages.empty();
 				return m_activated;
-				//if( !m_activated && !m_messages.empty() )
-				//{
-				//	m_activated = true;
-				//	return true;
-				//}
-				//return false;
 			}
 
 			void clear()

@@ -52,7 +52,7 @@ namespace active
 			bool run_some(any_object * o, int n=100) throw()
 			{
 				platform::unique_lock<platform::mutex> lock(m_mutex, std::try_to_lock);
-				return lock.owns_lock() && Queue::run_some(o,n);
+				return !lock.owns_lock() || Queue::run_some(o,n);
 			}
 
 		private:
