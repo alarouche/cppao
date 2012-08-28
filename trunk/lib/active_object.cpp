@@ -19,13 +19,16 @@ active::any_object::~any_object()
 {
 }
 
+#define ATOMIC_QUEUE 1
+#define QUEUE_PUT_BACK 1
+
 // Used by an active object to signal that there are messages to process.
 void active::scheduler::activate(ObjectPtr p) throw()
 {
 	//platform::lock_guard<platform::mutex> lock(m_mutex);
 	//++m_busy_count;
 
-#ifdef ACTIVE_USE_CXX11
+#if defined(ACTIVE_USE_CXX11) && ATOMIC_QUEUE
 	ObjectPtr head;
 	do
 	{
@@ -49,19 +52,45 @@ void active::scheduler::activate(ObjectPtr p) throw()
 // Returns false if no more items.
 bool active::scheduler::run_managed() throw()
 {
-#ifdef ACTIVE_USE_CXX11
+#if defined(ACTIVE_USE_CXX11) && ATOMIC_QUEUE
 	++m_busy_count;
-
+		
 	while( ObjectPtr p = m_head.exchange(nullptr) )
 	{
+#if QUEUE_PUT_BACK
+		// Logic intended to avoid ABA problem which happens
+		
+		ObjectPtr r = p->m_next;	// Push back the list r onto m_head
+		while(r && (r=m_head.exchange(r)))	// There is a list to push back
+		{
+			if(ObjectPtr q = m_head.exchange(nullptr))
+			{
+				// Splice q onto the end of r
+				ObjectPtr i;
+#if 0
+				for(i=q; i->m_next; i=i->m_next)
+					;
+				i->m_next = r;
+				r=q;
+#else
+				for(i=r; i->m_next; i=i->m_next)
+					;
+				i->m_next = q;
+#endif
+			}
+		}
+		p->run_some();
+#else
 		for(ObjectPtr i=p; i;)
 		{
 			ObjectPtr j=i;
 			i=i->m_next;
 			j->run_some();
 		}
+#endif
 	}
 #else
+	// !! Here is also the advanced deadlock issue
 	platform::unique_lock<platform::mutex> lock(m_mutex);
 	++m_busy_count;
 	while( m_head )
@@ -88,7 +117,7 @@ bool active::scheduler::run_managed() throw()
 
 bool active::scheduler::run_one()
 {
-#ifdef ACTIVE_USE_CXX11
+#if defined(ACTIVE_USE_CXX11) && ATOMIC_QUEUE
 	++m_busy_count;
 	if( ObjectPtr p = m_head.exchange(nullptr) )
 	{
