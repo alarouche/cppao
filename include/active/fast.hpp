@@ -57,6 +57,7 @@ namespace active
 
 		private:
 			mutable platform::mutex m_mutex;
+			bool m_running;
 		};
 
 	}

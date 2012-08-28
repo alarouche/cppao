@@ -62,17 +62,19 @@ namespace active
 			advanced(const allocator_type & alloc = allocator_type(),
 					 std::size_t capacity=1000, policy::queue_full mp=policy::block) :
 				m_allocator(alloc), m_messages(msg_cmp(), vector_type(alloc)),
-				m_capacity(capacity), m_busy(false), m_sequence(0), m_queue_full_policy(mp)
+				m_capacity(capacity), m_sequence(0), m_queue_full_policy(mp),
+				m_activated(false)
 			{
 			}
 
 			advanced(const advanced&o) :
 				m_allocator(o.m_allocator),
 				m_messages(msg_cmp(), vector_type(o.m_allocator)),
-				m_capacity(o.m_capacity), m_busy(false), m_sequence(0), m_queue_full_policy(o.m_queue_full_policy)
+				m_capacity(o.m_capacity), m_sequence(0), m_queue_full_policy(o.m_queue_full_policy),
+				m_activated(false)
 			{
 			}
-
+			
 			allocator_type get_allocator() const { return m_allocator; }
 
 			void set_policy( policy::queue_full p )
@@ -158,7 +160,7 @@ namespace active
 
 			bool empty() const
 			{
-				return !m_busy && m_messages.empty();
+				return m_messages.empty() && !m_activated;
 			}
 
 			bool mutexed_empty() const
@@ -187,16 +189,14 @@ namespace active
 
 			bool run_some(any_object * o, int n=100) throw()
 			{
-				platform::lock_guard<platform::mutex> lock(m_mutex);
-				m_busy = true;
+				platform::unique_lock<platform::mutex> lock(m_mutex);
+				// m_activated=false;
 				while( !m_messages.empty() && n-->0)
 				{
 					message * m = m_messages.top();
-					//if( m_messages.size() ==1>= m_capacity )
-						//m_queue_available.notify_one();
 					m_messages.pop();
 					if( m_messages.empty() ) m_queue_available.notify_all();
-					m_mutex.unlock();
+					lock.unlock();
 					try
 					{
 						m->run(o);
@@ -205,11 +205,18 @@ namespace active
 					{
 						o->exception_handler();
 					}
-					m_mutex.lock();
+					lock.lock();
 					m->destroy(m_allocator);
 				}
-				m_busy = false;
-				return !m_messages.empty();
+				// assert( debug_queue_size == m_messages.size() );
+				m_activated = !m_messages.empty();
+				return m_activated;
+				//if( !m_activated && !m_messages.empty() )
+				//{
+				//	m_activated = true;
+				//	return true;
+				//}
+				//return false;
 			}
 
 			void clear()
@@ -242,9 +249,13 @@ namespace active
 
 			bool enqueue(message*impl)
 			{
-				bool first_one = m_messages.empty() && !m_busy;
 				m_messages.push(impl);
-				return first_one;
+				if( !m_activated )
+				{
+					m_activated = true;
+					return true;
+				}
+				return false;
 			}
 
 			template<typename Fn>
@@ -271,10 +282,10 @@ namespace active
 			allocator_type m_allocator;
 			queue_type m_messages;
 			std::size_t m_capacity;
-			bool m_busy;
 			std::size_t m_sequence;
 			policy::queue_full m_queue_full_policy;
 			platform::condition_variable m_queue_available;
+			bool m_activated;
 
 		protected:
 			mutable platform::mutex m_mutex;
