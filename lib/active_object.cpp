@@ -67,7 +67,7 @@ bool active::scheduler::run_managed() throw()
 			{
 				// Splice q onto the end of r
 				ObjectPtr i;
-#if 0
+#if 1
 				for(i=q; i->m_next; i=i->m_next)
 					;
 				i->m_next = r;

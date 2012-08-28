@@ -219,7 +219,7 @@ namespace sieve
 				if(next) next->send(n);
 				else next.reset(new prime(n));
 				if( n<m_max ) (*this)(n+1);
-				else (*next)(destroy());
+				// else (*next)(destroy());
 			}
 			
 			const int m_max;
