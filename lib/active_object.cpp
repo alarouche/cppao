@@ -98,7 +98,7 @@ bool active::scheduler::locked_run_one()
 				ObjectPtr i;
 #if 0
 				// Splice r onto the end of q
-				for(i=q; i->m_next; i=i->m_next)
+				for(i=q; i->m_next; i=i->m_next, ++len)
 					;
 				i->m_next = r;
 				r=q;
