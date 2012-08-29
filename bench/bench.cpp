@@ -46,6 +46,7 @@ struct test
 	void run_tests(int min_threads=1,
 				   int max_threads=active::platform::thread::hardware_concurrency())
 	{
+        if( max_threads==0 ) max_threads=4;
 		for(int t=min_threads; t<=2*max_threads; ++t)
 		{
 			timer timer;
@@ -137,7 +138,7 @@ namespace thread_ring
 		run<active::fast>(num_messages, 50);
 		run<active::basic>(num_messages, num_nodes);
 		run<active::advanced>(num_messages, num_nodes);
-		run<active::thread>(num_messages/10,num_nodes);
+        run<active::thread>(num_messages/10,num_nodes/10);
 	}
 };
 
