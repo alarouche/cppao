@@ -3,12 +3,29 @@
 #include <active/thread.hpp>
 #include <active/direct.hpp>
 #include <active/synchronous.hpp>
-
 #include <cstdio>
 
-#define ACTIVE_OBJECT_CONDITION 0	// !! Slow
+// Various tweaks which can affect performance:
 
+// Whether to use a condition variable to signal to waiting worker threads.
+// Set to 0 because this gives a performance penalty.
+#define ACTIVE_OBJECT_CONDITION 0
 
+// Whether to use C++11 atomics for managing the queue of activated objects.
+// This is much faster.
+#define ATOMIC_QUEUE 1
+
+// Whether a worker thread takes one or all activated objects from the queue.
+// There is a performance penalty for doing this, because sometimes adding threads
+// actually adds contention on the queue, but in the general case should be better.
+// If this is set to 0, then there could be a deadlock because a waiting thread
+// may be blocked on an object later in the list.
+#define QUEUE_PUT_BACK 1
+
+// Our global variable, the scheduler.
+// I generally hate global variables, but actually this one makes sense since
+// it appears to offer some background facility such as a memory allocator
+// or a thread. Use of this is optional.
 active::scheduler active::default_scheduler;
 
 active::scheduler::scheduler() : m_head(nullptr), m_busy_count(0)
@@ -19,16 +36,13 @@ active::any_object::~any_object()
 {
 }
 
-#define ATOMIC_QUEUE 1
-#define QUEUE_PUT_BACK 1
-
 // Used by an active object to signal that there are messages to process.
 void active::scheduler::activate(ObjectPtr p) throw()
 {
-	//platform::lock_guard<platform::mutex> lock(m_mutex);
-	//++m_busy_count;
-
 #if defined(ACTIVE_USE_CXX11) && ATOMIC_QUEUE
+	// Use atomics
+	
+	// This loop implements a lock-free push onto a singly-linked list
 	ObjectPtr head;
 	do
 	{
@@ -37,42 +51,59 @@ void active::scheduler::activate(ObjectPtr p) throw()
 	}
 	while( !m_head.compare_exchange_weak(head, p, std::memory_order_relaxed) );
 #else
+	// Not using atomics
 	platform::lock_guard<platform::mutex> lock(m_mutex);
 	p->m_next = m_head;
 	m_head = p;
 #endif
 
 #if ACTIVE_OBJECT_CONDITION
-	// ?? Lock guard
+	// ?? Lock guard needed here
 	m_ready.notify_one();
 #endif
 }
 
-// Runs until there are no more messages in the entire pool.
-// Returns false if no more items.
-bool active::scheduler::run_managed() throw()
+// Run one item, return true if there are more items.
+bool active::scheduler::locked_run_one()
 {
-#if defined(ACTIVE_USE_CXX11) && ATOMIC_QUEUE
-	++m_busy_count;
-		
-	while( ObjectPtr p = m_head.exchange(nullptr) )
+#if defined(ACTIVE_USE_CXX11) && ATOMIC_QUEUE	
+	// Implement a lock-free pop from a singly-linked list.
+	// The traditional solution suffers from the ABA problem which occurs
+	// quite regularly in this case.
+	// There are no ordering guarantees.
+	// I made this algorithm up so beware.
+	// The basic strategy is to pop the whole list from m_head into p,
+	// Then push the remainder (r=p->m_next) back onto m_head.
+	// This requires two CAS on average, but if there is a collision
+	// with another thread, then it could be more.
+	// The loop is designed to detect if anything got pushed onto m_head
+	// whilst we attempt to push back the remainder r. If this is the case,
+	// then remove m_head and join it to r, and try again.
+	
+	if( ObjectPtr p = m_head.exchange(nullptr) )
 	{
 #if QUEUE_PUT_BACK
-		// Logic intended to avoid ABA problem which happens
+		// Process one item at a time.
 		
 		ObjectPtr r = p->m_next;	// Push back the list r onto m_head
 		while(r && (r=m_head.exchange(r)))	// There is a list to push back
 		{
 			if(ObjectPtr q = m_head.exchange(nullptr))
 			{
-				// Splice q onto the end of r
+				// Oops, something managed to push something onto m_head
+				// in the meantime.
+				
+				// We now end up with two lists, q and r which we want to
+				// push back onto r.
 				ObjectPtr i;
-#if 1
+#if 0
+				// Splice r onto the end of q
 				for(i=q; i->m_next; i=i->m_next)
 					;
 				i->m_next = r;
 				r=q;
 #else
+				// r is short, q is long, so splice q onto the end of r.
 				for(i=r; i->m_next; i=i->m_next)
 					;
 				i->m_next = q;
@@ -81,6 +112,7 @@ bool active::scheduler::run_managed() throw()
 		}
 		p->run_some();
 #else
+		// Process the entire queue
 		for(ObjectPtr i=p; i;)
 		{
 			ObjectPtr j=i;
@@ -88,64 +120,45 @@ bool active::scheduler::run_managed() throw()
 			j->run_some();
 		}
 #endif
+		return true;
 	}
 #else
-	// !! Here is also the advanced deadlock issue
-	platform::unique_lock<platform::mutex> lock(m_mutex);
-	++m_busy_count;
-	while( m_head )
+	if( m_head )
 	{
 		ObjectPtr p = m_head;
-		m_head=0;
-		lock.unlock();
-		for(ObjectPtr i=p; i;)
-		{
-			ObjectPtr j=i;
-			i=i->m_next;
-			j->run_some();
-		}
-		lock.lock();
+		m_head=m_head->m_next;
+		m_mutex.unlock();
+		p->run_some();
+		m_mutex.lock();
+		return true;
 	}
+#endif	
+	return false;
+}
+
+// Runs until there are no more messages in the entire pool.
+// Returns false if no more items.
+bool active::scheduler::run_managed() throw()
+{
+#if !defined(ACTIVE_USE_CXX11) || !ATOMIC_QUEUE
+	platform::unique_lock<platform::mutex> lock(m_mutex);
 #endif
+	++m_busy_count;
+	while( locked_run_one() )
+		;
 
 	// Can be non-zero if the queues are empty, but other threads are processing.
 	// the result of processing could be to add more signalled objects.
-	// return m_busy_count!=0;
-	// return (m_busy_count-=count)!=0;
 	return 0!=--m_busy_count;
 }
 
 bool active::scheduler::run_one()
 {
-#if defined(ACTIVE_USE_CXX11) && ATOMIC_QUEUE
-	++m_busy_count;
-	if( ObjectPtr p = m_head.exchange(nullptr) )
-	{
-		for(ObjectPtr i=p; i;)
-		{
-			ObjectPtr j=i;
-			i=i->m_next;
-			j->run_some();
-		}
-	}
-#else
+#if !defined(ACTIVE_USE_CXX11) || !ATOMIC_QUEUE
 	platform::unique_lock<platform::mutex> lock(m_mutex);
-	++m_busy_count;
-	if( m_head )
-	{
-		ObjectPtr p = m_head;
-		m_head=0;
-		lock.unlock();
-		for(ObjectPtr i=p; i;)
-		{
-			ObjectPtr j=i;
-			i=i->m_next;
-			j->run_some();
-		}
-		lock.lock();
-	}
 #endif
-
+	++m_busy_count;
+	locked_run_one();
 	return 0!=--m_busy_count;
 }
 
@@ -153,8 +166,7 @@ active::run::run(int num_threads, scheduler & sched) :
 	m_scheduler(sched)
 {
 	if( num_threads<1 ) num_threads=4;
-	// m_threads.resize(num_threads);
-	m_scheduler.start_work();	// Prevent threads from exiting immediately
+	m_scheduler.start_work();	// Prevent threads from exiting prematurely
 	for( int t=0; t<num_threads; ++t )
 #ifdef ACTIVE_USE_BOOST
 		m_threads.add_thread(new platform::thread( platform::bind(&scheduler::run, &sched) ) );
@@ -185,7 +197,7 @@ void active::scheduler::run()
 #ifdef ACTIVE_USE_BOOST
 		m_ready.timed_wait(lock, boost::posix_time::milliseconds(1));
 #else
-		m_ready.wait_for(lock, std::chrono::milliseconds(1) );
+		m_ready.wait_for(lock, std::chrono::milliseconds(1));
 #endif
 #endif
 	}
@@ -206,6 +218,7 @@ void active::any_object::exception_handler() throw()
 	}
 	catch( std::exception & ex )
 	{
+		// std::cerr is NOT threadsafe.
 		fprintf(stderr, "Unhandled exception during message processing: %s\n", ex.what());
 	}
 	catch( ... )
@@ -227,7 +240,7 @@ void active::scheduler::stop_work() throw()
 #ifndef ACTIVE_USE_CXX11
 	platform::lock_guard<platform::mutex> lock(m_mutex);
 #endif
-	if( 0 == --m_busy_count )
+	if(0==--m_busy_count)
 	{
 		m_ready.notify_one();
 	}
@@ -316,7 +329,7 @@ active::schedule::own_thread::own_thread(type & p) :
 
 active::schedule::own_thread::~own_thread()
 {
-	if( platform::this_thread::get_id() == m_thread.get_id())
+	if(platform::this_thread::get_id() == m_thread.get_id())
 	{
 		m_thread.detach();	// Destroyed from within thread
 	}

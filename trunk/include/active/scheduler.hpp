@@ -76,6 +76,7 @@ namespace active
 
 		bool run_managed() throw();
 		void run_in_thread();
+		bool locked_run_one();
 	};
 }
 

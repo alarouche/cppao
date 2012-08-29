@@ -110,27 +110,24 @@ namespace active
 						}
 						break;
 					case policy::block:
-						// !! Hack: Higher priority messages get delivered anyway.
+						// Note: higher priority messages get delivered anyway.
 						while( m_messages.size() >= m_capacity && priority<=m_messages.top()->m_priority )
 						{
-#ifdef ACTIVE_USE_BOOST
-							m_queue_available.timed_wait(lock, boost::posix_time::milliseconds(50));
-#else
-							m_queue_available.wait_for(lock, std::chrono::milliseconds(50) );
-#endif
+							lock.unlock();
+							o->idle();
+							lock.lock();
 
-							if( m_messages.size() >= m_capacity )
-							{
-								lock.unlock();
-								o->idle();
-								lock.lock();
-							}
+							if( m_messages.size() >= m_capacity && priority<=m_messages.top()->m_priority )
+#ifdef ACTIVE_USE_BOOST
+								m_queue_available.timed_wait(lock, boost::posix_time::milliseconds(50));
+#else
+								m_queue_available.wait_for(lock, std::chrono::milliseconds(50) );
+#endif
 						}
 						break;
 					case policy::fail:
 						throw std::bad_alloc();
 					}
-
 				}
 
 				typename allocator_type::template rebind<fn_impl<Fn> >::other realloc(m_allocator);
@@ -190,7 +187,6 @@ namespace active
 			bool run_some(any_object * o, int n=100) throw()
 			{
 				platform::unique_lock<platform::mutex> lock(m_mutex);
-				// m_activated=false;
 				while( !m_messages.empty() && n-->0)
 				{
 					message * m = m_messages.top();

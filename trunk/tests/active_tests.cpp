@@ -557,7 +557,7 @@ void test_object_types()
 	test_object2(obj3);
 	test_object2(obj4);
 
-	typedef active::queueing::steal<active::queueing::shared<> > steal1;
+	typedef active::queueing::eager<active::queueing::shared<> > steal1;
 
 	test_object2( *active::platform::make_shared<test_object< active::schedule::thread_pool, active::queueing::shared<>, active::sharing::enabled<> > >() );
 	test_object2( *active::platform::make_shared<test_object< active::schedule::thread_pool, active::queueing::direct_call, active::sharing::enabled<> > >() );
@@ -713,12 +713,12 @@ active::platform::shared_ptr<mix_interface> mix_factory(int n)
 	default:
 	case 0: return active::platform::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared<>, active::sharing::disabled> >();
 	case 1: return active::platform::make_shared< mix_object<active::schedule::thread_pool, active::queueing::shared<>, active::sharing::enabled<> > >();
-	case 4: return active::platform::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::shared<> >, active::sharing::disabled> >();
-	case 5: return active::platform::make_shared< mix_object<active::schedule::thread_pool, active::queueing::steal<active::queueing::shared<> >, active::sharing::enabled<> > >();
+	case 4: return active::platform::make_shared< mix_object<active::schedule::thread_pool, active::queueing::eager<active::queueing::shared<> >, active::sharing::disabled> >();
+	case 5: return active::platform::make_shared< mix_object<active::schedule::thread_pool, active::queueing::eager<active::queueing::shared<> >, active::sharing::enabled<> > >();
 	case 8: return active::platform::make_shared< mix_object<active::schedule::own_thread, active::queueing::shared<>, active::sharing::disabled> >();
 	case 9: return active::platform::make_shared< mix_object<active::schedule::own_thread, active::queueing::shared<>, active::sharing::enabled<> > >();
-	case 12: return active::platform::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::shared<> >, active::sharing::disabled> >();
-	case 13: return active::platform::make_shared< mix_object<active::schedule::own_thread, active::queueing::steal<active::queueing::shared<> >, active::sharing::enabled<> > >();
+	case 12: return active::platform::make_shared< mix_object<active::schedule::own_thread, active::queueing::eager<active::queueing::shared<> >, active::sharing::disabled> >();
+	case 13: return active::platform::make_shared< mix_object<active::schedule::own_thread, active::queueing::eager<active::queueing::shared<> >, active::sharing::enabled<> > >();
 	case 16: return active::platform::make_shared< mix_object<active::schedule::none, active::queueing::direct_call, active::sharing::disabled> >();
 	case 17: return active::platform::make_shared< mix_object<active::schedule::none, active::queueing::direct_call, active::sharing::enabled<> > >();
 	case 18: return active::platform::make_shared< mix_object<active::schedule::none, active::queueing::mutexed_call, active::sharing::disabled> >();

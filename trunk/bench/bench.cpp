@@ -12,12 +12,14 @@
 #include <cassert>
 
 #ifdef ACTIVE_USE_BOOST
+#include <boost/timer.hpp>
+using boost::timer;
 #else
 class timer
 {
 public:
 	timer() { reset(); }
-	double seconds()
+	double elapsed()
 	{
 		auto now = std::chrono::high_resolution_clock::now();
 		auto dur = (now-start).count();
@@ -48,7 +50,7 @@ struct test
 		{
 			timer timer;
 			run(t);
-			double duration=timer.seconds();
+			double duration=timer.elapsed();
 			std::cout << name() << ",";
 			params(std::cout);
 			std::cout << "," << t << "," << duration << "," << objects() << ","

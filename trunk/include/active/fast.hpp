@@ -7,22 +7,22 @@ namespace active
 {
 	namespace queueing
 	{
-		// Not really stealing, but "eager" execution of object in caller thread.
+		// Executes the call in the caller thread if possible.		
 		template<typename Queue>
-		struct steal  : public Queue
+		struct eager  : public Queue
 		{
 			typedef typename Queue::allocator_type allocator_type;
-			steal(const allocator_type & alloc = allocator_type()) :
+			eager(const allocator_type & alloc = allocator_type()) :
 				Queue(alloc)
 			{
 			}
 
-			steal(const steal&) { }
+			eager(const eager&) { }
 
 			template<typename Fn>
 			bool enqueue_fn( any_object * object, RVALUE_REF(Fn) fn, int priority)
 			{
-				platform::unique_lock<platform::mutex> lock(m_mutex, std::try_to_lock);
+				platform::unique_lock<platform::mutex> lock(m_mutex, platform::try_to_lock);
 				
 				if( lock.owns_lock() )
 				{
@@ -40,7 +40,6 @@ namespace active
 				{
 					return Queue::enqueue_fn( object, platform::forward<RVALUE_REF(Fn)>(fn), priority );
 				}
-			
 			}
 
 			bool empty() const
@@ -51,18 +50,20 @@ namespace active
 
 			bool run_some(any_object * o, int n=100) throw()
 			{
-				platform::unique_lock<platform::mutex> lock(m_mutex, std::try_to_lock);
+				platform::unique_lock<platform::mutex> lock(m_mutex, platform::try_to_lock);
 				return !lock.owns_lock() || Queue::run_some(o,n);
 			}
 
 		private:
 			mutable platform::mutex m_mutex;
-			bool m_running;
 		};
 
 	}
 
-	typedef object_impl<schedule::thread_pool, queueing::steal<queueing::shared<> >, sharing::disabled> fast;
+	typedef object_impl<
+		schedule::thread_pool,
+		queueing::eager<queueing::shared<> >,
+		sharing::disabled> fast;
 }
 
 
