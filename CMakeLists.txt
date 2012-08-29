@@ -13,7 +13,7 @@ if(ACTIVE_USE_CXX11)
 endif()
 
 if(ACTIVE_USE_BOOST)
-	find_package(Boost COMPONENTS thread REQUIRED)
+	find_package(Boost COMPONENTS thread system REQUIRED)
 	set(EXTRA_LIBS ${Boost_LIBRARIES})
 endif()
 
