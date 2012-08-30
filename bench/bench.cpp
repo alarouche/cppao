@@ -1,3 +1,6 @@
+/*  Benchmark suite for cppao.
+  */
+
 #include <active/object.hpp>
 #include <active/direct.hpp>
 #include <active/synchronous.hpp>
@@ -43,6 +46,7 @@ struct test
 	virtual int messages()=0;
 	virtual int objects()=0;
 	virtual const char * name()=0;
+    virtual bool validate()=0;
 	void run_tests(int min_threads=1,
 				   int max_threads=active::platform::thread::hardware_concurrency())
 	{
@@ -55,7 +59,12 @@ struct test
 			std::cout << name() << ",";
 			params(std::cout);
 			std::cout << "," << t << "," << duration << "," << objects() << ","
-				<< messages() << "," << (messages()/(1000000.0*duration)) << std::endl;
+                << messages() << "," << (messages()/(1000000.0*duration)) << std::endl;
+            if( !validate() )
+            {
+                std::cout << ",ERROR: Test validation failed!!!\n";
+                std::terminate();   // Let unit test suite know that something has gone badly wrong.
+            }
 		}
 	}
 };
@@ -97,6 +106,10 @@ namespace thread_ring
 		{
 			return m_nodes.size();
 		}
+        bool validate()
+        {
+            return m_nodes[0].last_count == m_messages % m_nodes.size();
+        }
 		virtual const char * name()
 		{
 			return "thread-ring";
@@ -113,10 +126,13 @@ namespace thread_ring
 		struct node : public active::object<node,Object>
 		{
 			node * next;
+            int last_count;
 			void active_method(int value)
 			{
+                last_count = value;
 				if( value ) (*next)(value-1);
 			}
+            node() : last_count(-1) { }
 		};
 		
 		std::vector<node> m_nodes;
@@ -177,6 +193,10 @@ namespace sieve
 		{
 			return "sieve";
 		}
+        bool validate()
+        {
+            return true;
+        }
 		sieve_test(int max) : m_max(max) { }
 	public:
 		
@@ -273,8 +293,12 @@ namespace fib
 			active::promise<int> r;
 			m_node(m_value, &r);
 			active::run s(threads);
-			assert( r.get() == real_fib(m_value) );
+            m_result = r.get();
 		}
+        bool validate()
+        {
+            return m_result == real_fib(m_value);
+        }
 		virtual void params(std::ostream&os)
 		{
 			os << "(" << description<Object>() << " " << m_value << ")";
@@ -336,6 +360,7 @@ namespace fib
 		
 		const int m_value;
 		node m_node;
+        int m_result;
 	};
 	
 	template<typename Object>
@@ -381,8 +406,7 @@ namespace fifo
 		public source<T>,
 		public sink<T>
 	{
-		queue(int capacity) :
-			m_capacity(capacity)
+        queue(int capacity) : m_capacity(capacity)
 		{
 		}
 		
@@ -433,7 +457,7 @@ namespace fifo
 		void active_method(sink<T> * r)
 		{
 			++m_message_count;
-			if( m_values.size() == m_capacity && !m_writers.empty() )
+            while( m_values.size() <= m_capacity && !m_writers.empty() )
 			{
 				source<T> * w = m_writers.front();
 				m_writers.pop_front();
@@ -537,11 +561,16 @@ namespace fifo
 		}
 	
 		virtual void run(int threads)
-		{
+        {
+            m_sink.m_total=0;
 			m_source.m_message_count = m_sink.m_message_count=0;
 			m_source(&m_sink, m_messages);
 			active::run s(threads);
 		}
+        bool validate()
+        {
+            return m_sink.m_total == m_messages * (m_messages+1)/2;
+        }
 		virtual void params(std::ostream&os)
 		{
 			os << "(" << description<Object>() << " no-buffer " << m_messages << ")";
@@ -592,19 +621,17 @@ namespace fifo
 			}
 
 			{ active::run s(threads); }
-			
-			int validation=0;
-			for(int r=0; r<m_readers; ++r)
-			{
-				validation += m_sinks[r].m_total;
-			}
-			// int expected = m_writers * (m_messages/2) * (m_messages+1);
-			// int difference = validation-expected;
-			// std::cout << validation << " " << expected << std::endl;
-			// std::cout << difference;
-			// clang 3.1 compiler bug (yes really)
-			// if( difference ) throw std::runtime_error("Validation failure");
-		}
+        }
+        bool validate()
+        {
+            int validation=0;
+            for(int r=0; r<m_readers; ++r)
+            {
+                validation += m_sinks[r].m_total;
+            }
+            int expected = m_writers * (m_messages/2) * (m_messages+1);
+            return validation == expected;
+        }
 		virtual void params(std::ostream&os)
 		{
 			os << "(" << description<Object>() << " buffered " << m_messages <<
@@ -665,13 +692,19 @@ namespace fifo
 			sink & m_sink;
 		};
 
+        bool m_validated;
 		virtual void run(int threads)
 		{
 			sink s(m_capacity);
 			source src(s);
 			src(m_count);
-			active::run r(threads);
+            { active::run r(threads); }
+            m_validated = s.m_total == m_count*(m_count-1)/2;
 		}
+        bool validate()
+        {
+            return m_validated;
+        }
 		virtual void params(std::ostream&os)
 		{
 			os << "(advanced " << m_count << " " << m_capacity << ")";
