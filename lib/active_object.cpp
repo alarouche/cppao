@@ -197,7 +197,7 @@ void active::scheduler::run()
 #ifdef ACTIVE_USE_BOOST
 		m_ready.timed_wait(lock, boost::posix_time::milliseconds(1));
 #else
-		m_ready.wait_for(lock, std::chrono::milliseconds(1));
+		m_ready.wait_for(lock, std::chrono::milliseconds(10));
 #endif
 #endif
 	}
@@ -242,6 +242,9 @@ void active::scheduler::stop_work() throw()
 #endif
 	if(0==--m_busy_count)
 	{
+#ifdef ACTIVE_USE_CXX11
+		platform::lock_guard<platform::mutex> lock(m_mutex);	// Needed for VS2011
+#endif
 		m_ready.notify_one();
 	}
 }
