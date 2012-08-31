@@ -384,6 +384,8 @@ namespace active
 		{
 		}
 
+		object &operator=(const object&) { return *this; }
+
 	private:
 		derived_type & get_derived()
 		{

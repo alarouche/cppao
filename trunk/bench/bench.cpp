@@ -67,6 +67,8 @@ struct test
             }
 		}
 	}
+private:
+	test& operator=(const test&);
 };
 
 template<typename Object>
@@ -123,6 +125,8 @@ namespace thread_ring
 		}
 		
 	private:
+		thread_ring_test & operator=(const thread_ring_test&);
+
 		struct node : public active::object<node,Object>
 		{
 			node * next;
@@ -221,7 +225,6 @@ namespace sieve
 				if(next)
 				{
 					(*next)(destroy());
-// Put this back
 					next.reset();
 				}
 			}
@@ -242,7 +245,7 @@ namespace sieve
 				if(next) next->send(n);
 				else next.reset(new prime(n));
 				if( n<m_max ) (*this)(n+1);
-				// else (*next)(destroy());
+				else (*next)(destroy());
 			}
 			
 			const int m_max;
@@ -469,7 +472,7 @@ namespace fifo
 		}
 				
 	public:
-		const int m_capacity;
+		const std::size_t m_capacity;
 		int m_message_count;
 		
 		std::deque<T> m_values;
