@@ -60,7 +60,7 @@ namespace active
 		public:
 
 			advanced(const allocator_type & alloc = allocator_type(),
-					 std::size_t capacity=1000, policy::queue_full mp=policy::block) :
+					 std::size_t capacity=1000, policy::queue_full mp=policy::ignore) :
 				m_allocator(alloc), m_messages(msg_cmp(), vector_type(alloc)),
 				m_capacity(capacity), m_sequence(0), m_queue_full_policy(mp),
 				m_activated(false)
@@ -114,10 +114,9 @@ namespace active
 						while( m_messages.size() >= m_capacity && priority<=m_messages.top()->m_priority )
 						{
 							lock.unlock();
-							o->idle();
+							bool active = o->idle();
 							lock.lock();
-
-							if( m_messages.size() >= m_capacity && priority<=m_messages.top()->m_priority )
+							if( !active && m_messages.size() >= m_capacity && priority<=m_messages.top()->m_priority )
 #ifdef ACTIVE_USE_BOOST
 								m_queue_available.timed_wait(lock, boost::posix_time::milliseconds(50));
 #else
@@ -186,7 +185,7 @@ namespace active
 
 			bool run_some(any_object * o, int n=100) throw()
 			{
-				platform::unique_lock<platform::mutex> lock(m_mutex);
+				platform::unique_lock<platform::mutex> lock(m_mutex);				
 				while( !m_messages.empty() && n-->0)
 				{
 					message * m = m_messages.top();

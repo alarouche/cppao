@@ -56,6 +56,14 @@ struct test
 			timer timer;
 			run(t);
 			double duration=timer.elapsed();
+			// Sleep for 1 second between tests
+			const int sleep_time=1000;
+#ifdef ACTIVE_USE_BOOST
+			active::platform::this_thread::sleep(boost::posix_time::milliseconds(sleep_time));
+#else
+			active::platform::this_thread::sleep_for(std::chrono::milliseconds(sleep_time));
+#endif
+
 			std::cout << name() << ",";
 			params(std::cout);
 			std::cout << "," << t << "," << duration << "," << objects() << ","
@@ -245,7 +253,7 @@ namespace sieve
 				if(next) next->send(n);
 				else next.reset(new prime(n));
 				if( n<m_max ) (*this)(n+1);
-				else (*next)(destroy());
+				// else (*next)(destroy());
 			}
 			
 			const int m_max;

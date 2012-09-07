@@ -158,8 +158,9 @@ bool active::scheduler::run_one()
 	platform::unique_lock<platform::mutex> lock(m_mutex);
 #endif
 	++m_busy_count;
-	locked_run_one();
-	return 0!=--m_busy_count;
+	bool active = locked_run_one();
+	--m_busy_count;
+	return active;
 }
 
 active::run::run(int num_threads, scheduler & sched) :
@@ -197,11 +198,11 @@ void active::scheduler::run()
 #ifdef ACTIVE_USE_BOOST
 		m_ready.timed_wait(lock, boost::posix_time::milliseconds(1));
 #else
-		m_ready.wait_for(lock, std::chrono::milliseconds(10));
+		m_ready.wait_for(lock, std::chrono::milliseconds(100));
 #endif
 #endif
 	}
-	platform::unique_lock<platform::mutex> lock(m_mutex);	// Needed on VS11
+	platform::lock_guard<platform::mutex> lock(m_mutex);	// Needed on VS11
 	m_ready.notify_all();
 }
 
