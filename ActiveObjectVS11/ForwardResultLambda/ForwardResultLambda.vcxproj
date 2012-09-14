@@ -24,6 +24,7 @@
   <PropertyGroup Label="Globals">
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>ForwardResultLambda</RootNamespace>
+    <ProjectGuid>{CE98B41C-B3F4-3B68-A727-9D7FEB32B52E}</ProjectGuid>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

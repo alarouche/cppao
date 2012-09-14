@@ -24,6 +24,7 @@
   <PropertyGroup Label="Globals">
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>Sieve</RootNamespace>
+    <ProjectGuid>{7D80BF6D-AF20-0238-7EB0-D51226581708}</ProjectGuid>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

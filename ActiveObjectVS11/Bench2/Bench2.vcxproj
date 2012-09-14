@@ -24,6 +24,7 @@
   <PropertyGroup Label="Globals">
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>Bench2</RootNamespace>
+    <ProjectGuid>{75CDC022-C949-AD13-AC5E-9559ED9CE522}</ProjectGuid>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
