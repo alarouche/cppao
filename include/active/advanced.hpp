@@ -113,10 +113,16 @@ namespace active
 						// Note: higher priority messages get delivered anyway.
 						while( m_messages.size() >= m_capacity && priority<=m_messages.top()->m_priority )
 						{
-							lock.unlock();
-							bool active = o->idle();
-							lock.lock();
-							if( !active && m_messages.size() >= m_capacity && priority<=m_messages.top()->m_priority )
+							bool idle_success;
+							do
+							{
+								lock.unlock();
+								idle_success = o->idle();
+								lock.lock();
+							}
+							while( m_messages.size() >= m_capacity && priority<=m_messages.top()->m_priority && idle_success);
+
+							if( !idle_success && m_messages.size() >= m_capacity && priority<=m_messages.top()->m_priority )
 #ifdef ACTIVE_USE_BOOST
 								m_queue_available.timed_wait(lock, boost::posix_time::milliseconds(50));
 #else

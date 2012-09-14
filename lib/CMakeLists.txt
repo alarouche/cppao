@@ -1,6 +1,9 @@
 
-add_library( cppao active_object.cpp
+add_library( cppao active_object.cpp atomic.cpp
 	../include/active/advanced.hpp
+	../include/active/atomic_node.hpp
+	../include/active/atomic_fifo.hpp
+	../include/active/atomic_lifo.hpp
 	../include/active/config.hpp.in
 	../include/active/direct.hpp
 	../include/active/fast.hpp
