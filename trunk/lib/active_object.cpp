@@ -123,10 +123,10 @@ bool active::scheduler::locked_run_one()
 		return true;
 	}
 #else
-	if( m_head )
+	if( m_head.load() )
 	{
 		ObjectPtr p = m_head;
-		m_head=m_head->m_next;
+		m_head=(*m_head).m_next;
 		m_mutex.unlock();
 		p->run_some();
 		m_mutex.lock();
@@ -198,12 +198,11 @@ void active::scheduler::run()
 #ifdef ACTIVE_USE_BOOST
 		m_ready.timed_wait(lock, boost::posix_time::milliseconds(1));
 #else
-		m_ready.wait_for(lock, std::chrono::milliseconds(100));
+		m_ready.wait_for(lock, std::chrono::milliseconds(50));
 #endif
 #endif
 	}
-	platform::lock_guard<platform::mutex> lock(m_mutex);	// Needed on VS11
-	m_ready.notify_all();
+	m_ready.notify_one();
 }
 
 void active::scheduler::run_in_thread()

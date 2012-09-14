@@ -57,7 +57,7 @@ struct test
 			run(t);
 			double duration=timer.elapsed();
 			// Sleep for 1 second between tests
-			const int sleep_time=1000;
+			const int sleep_time=0;
 #ifdef ACTIVE_USE_BOOST
 			active::platform::this_thread::sleep(boost::posix_time::milliseconds(sleep_time));
 #else
