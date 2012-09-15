@@ -24,14 +24,7 @@
 #endif
 
 #ifdef ACTIVE_USE_CXX11
-	#include <atomic>
-	namespace active
-	{
-		namespace platform
-		{
-			using std::atomic;
-		}
-	}
+	#include "atomic_fifo.hpp"
 #endif
 
 namespace active
@@ -67,8 +60,8 @@ namespace active
 		platform::mutex m_mutex;
 		platform::condition_variable m_ready;
 #ifdef ACTIVE_USE_CXX11
-		platform::atomic<any_object*> m_head;   // List of activated objects.
-		platform::atomic<int> m_busy_count;
+		atomic_fifo m_activated_objects;
+		std::atomic<int> m_busy_count;
 #else
 		any_object * m_head;
 		int m_busy_count;	// Used to work out when we have actually finished.
