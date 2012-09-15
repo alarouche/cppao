@@ -24,10 +24,10 @@ public:
 		active::atomic_node * l;
 		do
 		{
-			l = list;
+			l = list.load(std::memory_order_relaxed);
 			n->next = l;
 		}
-		while( !list.compare_exchange_weak( l, n ) );
+		while( !list.compare_exchange_weak( l, n, std::memory_order_relaxed ) );
 	}
 	
 	active::atomic_node * pop()
@@ -35,9 +35,9 @@ public:
 		active::atomic_node * l;
 		do
 		{
-			l=list;
+			l=list.load(std::memory_order_relaxed);
 		}
-		while ( l && !list.compare_exchange_weak(l, l->next) );
+		while ( l && !list.compare_exchange_weak(l, l->next, std::memory_order_relaxed) );
 		return l;
 	}
 private:
