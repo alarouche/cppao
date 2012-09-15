@@ -36,12 +36,11 @@ void active::scheduler::activate(ObjectPtr p) throw()
 #else
 	// Not using atomics
 	platform::lock_guard<platform::mutex> lock(m_mutex);
-	p->m_next = m_head;
+    p->next = m_head;
 	m_head = p;
 #endif
 
 #if ACTIVE_OBJECT_CONDITION
-	// ?? Lock guard needed here
 	m_ready.notify_one();
 #endif
 }
@@ -59,7 +58,7 @@ bool active::scheduler::locked_run_one()
 	if( m_head )
 	{
 		ObjectPtr p = m_head;
-		m_head=m_head->m_next;
+        m_head=static_cast<ObjectPtr>(m_head->next);
 		m_mutex.unlock();
 		p->run_some();
 		m_mutex.lock();
