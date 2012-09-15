@@ -559,8 +559,8 @@ namespace fifo
 			m_source.send_ready(*this);
 		}
 		
-		int m_total;
-		int m_message_count;
+        unsigned m_total;
+        unsigned m_message_count;
 	private:
 		source<int> &m_source;
 	};
@@ -581,7 +581,8 @@ namespace fifo
 		}
         bool validate()
         {
-            return m_sink.m_total == m_messages * (m_messages+1)/2;
+            unsigned expected = m_messages * (m_messages+1)/2;
+            return m_sink.m_total == expected;
         }
 		virtual void params(std::ostream&os)
 		{
@@ -601,7 +602,7 @@ namespace fifo
 		}
 
 	private:
-		const int m_messages;
+        const unsigned m_messages;
 		test_source<Object> m_source;
 		test_sink<Object> m_sink;
 	};
@@ -765,7 +766,8 @@ namespace fifo
 		int messages = quick ? 10000 : 1000000;
 		int queue_size = quick ? 1000 : 100000;
 
-		run_buffer_test<active::fast>(quick, 2, 2);
+run_no_buffer_test<active::fast>(quick);
+        run_buffer_test<active::fast>(quick, 2, 2);
 		run_buffer_test<active::basic>(quick, 2, 2);
 		run_buffer_test<active::advanced>(quick, 2, 2);
 		run_buffer_test<active::thread>(quick, 2, 2);
@@ -816,7 +818,7 @@ int main(int argc, char**argv)
 	"\nResults:\n"
 	"Test name,Parameters,Threads,Time(s),Objects,Messages,Million messages per second\n";
 	
-	sieve::run(quick);
+    sieve::run(quick);
 	thread_ring::run(quick);
 	fib::run(quick);
 	fifo::run(quick);
