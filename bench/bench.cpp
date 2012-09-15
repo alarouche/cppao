@@ -739,7 +739,7 @@ namespace fifo
 		{
 		}
 		
-		const int m_count, m_capacity;
+        const unsigned m_count, m_capacity;
 	};
 	
 	template<typename Obj>
@@ -766,7 +766,6 @@ namespace fifo
 		int messages = quick ? 10000 : 1000000;
 		int queue_size = quick ? 1000 : 100000;
 
-run_no_buffer_test<active::fast>(quick);
         run_buffer_test<active::fast>(quick, 2, 2);
 		run_buffer_test<active::basic>(quick, 2, 2);
 		run_buffer_test<active::advanced>(quick, 2, 2);
