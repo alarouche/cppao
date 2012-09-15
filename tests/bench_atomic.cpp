@@ -1,3 +1,6 @@
+/* A test/benchmark for atomic_fifo and atomic_lifo.
+ */
+
 #include <active/atomic_fifo.hpp>
 #include <active/atomic_lifo.hpp>
 
@@ -6,9 +9,10 @@
 #include <vector>
 #include <thread>
 #include <iostream>
+#include <condition_variable>
 
 /*	Naive stack for performance comparison.
- This is completely lock/wait-free but suffers from ABA.
+	This is completely lock/wait-free but suffers from ABA.
  */
 class unsafe_lifo
 {
@@ -73,76 +77,63 @@ private:
 };
 
 
-#include <vector>
-
-template<typename Fifo>
-void test_fifo()
-{
-	Fifo q;
-	std::vector<active::atomic_node> atomic_nodes(10000000);
-	for( auto & n : atomic_nodes )
-	{
-		q.push(&n);
-	}
-	for( auto & n : atomic_nodes )
-	{
-		active::atomic_node * m = q.pop();
-		assert(m==&n);
-	}
-	assert( !q.pop() );
-}
-
-template<typename Stack>
-void test_stack()
-{
-	Stack q;
-	std::vector<active::atomic_node> atomic_nodes(10000000);
-	for( auto & n : atomic_nodes )
-	{
-		q.push(&n);
-	}
-	for( auto n = atomic_nodes.rbegin(); n!=atomic_nodes.rend(); ++n )
-	{
-		active::atomic_node * m = q.pop();
- 		assert(m==&*n);
-	}
-	assert( !q.pop() );
-}
 
 struct int_node : public active::atomic_node
 {
 	int value;
 };
 
+class synchronize
+{
+	std::mutex m_mutex;
+	std::condition_variable m_ready;
+	int m_busy_count;
+public:
+	void start()
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		++m_busy_count;
+	}
+	void sync()
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		if( 0==--m_busy_count )
+			m_ready.notify_all();
+		else while( m_busy_count>0 )
+			m_ready.wait(lock);
+	}
+};
+
 
 template<typename Q>
 struct thread
 {
-	thread(Q&q, int items, int loops) :
-		m_q(q), m_items(items), m_loops(loops),
+	thread(Q&q, synchronize & sync, int items, int loops) :
+		m_q(q), m_sync(sync), m_items(items), m_loops(loops),
 		m_node_count(0), m_value_count(0)
 	{
 	}
-	
+		
+	Q & m_q;
+	synchronize & m_sync;
 	const int m_items, m_loops;
 	
-	Q & m_q;
-	
 	int m_node_count, m_value_count;
+	std::vector<int_node> m_nodes;
 	
 	void thread_fn()
 	{
 		std::vector<int_node> nodes(m_items);
-		
+							 
 		for(int l=0; l<m_loops; ++l)
 		{
+			m_sync.start();
 			for(auto & n : nodes)
 			{
-				n.value = rand();
+				n.value = rand()%5;
 				++m_node_count;
 				m_value_count += n.value;
 				m_q.push(&n);
-				
 			}
 			
 			active::atomic_node * n;
@@ -156,24 +147,26 @@ struct thread
 					m_value_count -= static_cast<int_node*>(n)->value;
 				}
 			}
-			while(n);
+			while(n!=nullptr);
 			
+			m_sync.sync();
+			// We MUST wait for all threads to finish before continuing.
+			// They might be in the process of processing the last few items
+			// from our vector so it's not safe to reuse/destroy them yet.
 		}
-		
 	}
-	
 };
 
 
 
 template<typename Q>
-
 int run_tests(int threads, int items, int loops)
-
 {
 	Q q;
 	
-	std::vector<thread<Q>> threadvec(threads, thread<Q>(q,items,loops));
+	synchronize sync;
+	
+	std::vector<thread<Q>> threadvec(threads, thread<Q>(q,sync,items,loops));
 	std::vector<std::thread> threadvec2;
 	
 	for(int t=0; t<threads; ++t)
@@ -184,6 +177,17 @@ int run_tests(int threads, int items, int loops)
 	for(auto &t : threadvec2)
 	{
 		t.join();
+	}
+	
+	int extra_count=0;
+	for( extra_count=0; q.pop(); ++extra_count)
+		;
+	
+	if(extra_count)
+	{
+		std::cerr << "Queue not empty!\n";
+		std::cerr << "There are an additional " << extra_count << " items\n";
+		return 5;
 	}
 	
 	int node_count=0, value_count=0;
@@ -208,54 +212,29 @@ int run_tests(int threads, int items, int loops)
 }
 
 
-
 int main(int argc, char**argv)
-
 {
-	
 	if(argc<5)
-		
 	{
-		
 		std::cout << "Usage: aq algorithm threads items loops\n"
-		
-		"algorithm: 1-atomic_fifo, 2-atomic-lifo, 3-mutexed_fifo, 4-unsafe_lifo\n";
-		
+			"algorithm: 1-atomic_fifo, 2-atomic-lifo, 3-mutexed_fifo, 4-unsafe_lifo\n";
 		return 1;
-		
 	}
 	
 	int algorithm= atoi(argv[1]);
-	
 	int threads = atoi(argv[2]);
-	
 	int items = atoi(argv[3]);
-	
 	int loops = atoi(argv[4]);
 	
 	switch( algorithm )
-	
 	{
-			
 		case 1: return run_tests<active::atomic_fifo>(threads, items, loops);
-			
 		case 2: return run_tests<active::atomic_lifo>(threads, items, loops);
-			
 		case 3: return run_tests<mutex_fifo>(threads, items, loops);
-			
-			
-			
 		case 4: return run_tests<unsafe_lifo>(threads, items, loops);
-			
-			
-			
 		default:
-			
 			std::cerr << "Unknown algorithm\n";
-			
 			return 3;
-			
 	}
-	
 }
 
