@@ -11,25 +11,17 @@
 // Set to 0 because this gives a performance penalty.
 #define ACTIVE_OBJECT_CONDITION 0
 
-// Whether to use C++11 atomics for managing the queue of activated objects.
-// This is much faster.
-#define ATOMIC_QUEUE 1
-
-// Whether a worker thread takes one or all activated objects from the queue.
-// There is a performance penalty for doing this, because sometimes adding threads
-// actually adds contention on the queue, but in the general case should be better.
-// If this is set to 0, then there could be a deadlock because a waiting thread
-// may be blocked on an object later in the list.
-#define QUEUE_PUT_BACK 1
-
 // Our global variable, the scheduler.
 // I generally hate global variables, but actually this one makes sense since
 // it appears to offer some background facility such as a memory allocator
 // or a thread. Use of this is optional.
 active::scheduler active::default_scheduler;
 
-active::scheduler::scheduler() : m_head(nullptr), m_busy_count(0)
+active::scheduler::scheduler() : m_busy_count(0)
 {
+#ifndef ACTIVE_USE_CXX11
+	m_head = nullptr;
+#endif
 }
 
 active::any_object::~any_object()
@@ -39,17 +31,8 @@ active::any_object::~any_object()
 // Used by an active object to signal that there are messages to process.
 void active::scheduler::activate(ObjectPtr p) throw()
 {
-#if defined(ACTIVE_USE_CXX11) && ATOMIC_QUEUE
-	// Use atomics
-	
-	// This loop implements a lock-free push onto a singly-linked list
-	ObjectPtr head;
-	do
-	{
-		head = m_head;
-		p->m_next = head;	// ABA here
-	}
-	while( !m_head.compare_exchange_weak(head, p, std::memory_order_relaxed) );
+#ifdef ACTIVE_USE_CXX11
+	m_activated_objects.push(p);
 #else
 	// Not using atomics
 	platform::lock_guard<platform::mutex> lock(m_mutex);
@@ -66,67 +49,17 @@ void active::scheduler::activate(ObjectPtr p) throw()
 // Run one item, return true if there are more items.
 bool active::scheduler::locked_run_one()
 {
-#if defined(ACTIVE_USE_CXX11) && ATOMIC_QUEUE	
-	// Implement a lock-free pop from a singly-linked list.
-	// The traditional solution suffers from the ABA problem which occurs
-	// quite regularly in this case.
-	// There are no ordering guarantees.
-	// I made this algorithm up so beware.
-	// The basic strategy is to pop the whole list from m_head into p,
-	// Then push the remainder (r=p->m_next) back onto m_head.
-	// This requires two CAS on average, but if there is a collision
-	// with another thread, then it could be more.
-	// The loop is designed to detect if anything got pushed onto m_head
-	// whilst we attempt to push back the remainder r. If this is the case,
-	// then remove m_head and join it to r, and try again.
-	
-	if( ObjectPtr p = m_head.exchange(nullptr) )
+#ifdef ACTIVE_USE_CXX11
+	if(atomic_node * n = m_activated_objects.pop())
 	{
-#if QUEUE_PUT_BACK
-		// Process one item at a time.
-		
-		ObjectPtr r = p->m_next;	// Push back the list r onto m_head
-		while(r && (r=m_head.exchange(r)))	// There is a list to push back
-		{
-			if(ObjectPtr q = m_head.exchange(nullptr))
-			{
-				// Oops, something managed to push something onto m_head
-				// in the meantime.
-				
-				// We now end up with two lists, q and r which we want to
-				// push back onto r.
-				ObjectPtr i;
-#if 0
-				// Splice r onto the end of q
-				for(i=q; i->m_next; i=i->m_next, ++len)
-					;
-				i->m_next = r;
-				r=q;
-#else
-				// r is short, q is long, so splice q onto the end of r.
-				for(i=r; i->m_next; i=i->m_next)
-					;
-				i->m_next = q;
-#endif
-			}
-		}
-		p->run_some();
-#else
-		// Process the entire queue
-		for(ObjectPtr i=p; i;)
-		{
-			ObjectPtr j=i;
-			i=i->m_next;
-			j->run_some();
-		}
-#endif
+		static_cast<ObjectPtr>(n)->run_some();
 		return true;
 	}
 #else
-	if( m_head.load() )
+	if( m_head )
 	{
 		ObjectPtr p = m_head;
-		m_head=(*m_head).m_next;
+		m_head=m_head->m_next;
 		m_mutex.unlock();
 		p->run_some();
 		m_mutex.lock();
@@ -140,7 +73,7 @@ bool active::scheduler::locked_run_one()
 // Returns false if no more items.
 bool active::scheduler::run_managed() throw()
 {
-#if !defined(ACTIVE_USE_CXX11) || !ATOMIC_QUEUE
+#ifndef ACTIVE_USE_CXX11
 	platform::unique_lock<platform::mutex> lock(m_mutex);
 #endif
 	++m_busy_count;
@@ -154,7 +87,7 @@ bool active::scheduler::run_managed() throw()
 
 bool active::scheduler::run_one()
 {
-#if !defined(ACTIVE_USE_CXX11) || !ATOMIC_QUEUE
+#ifndef ACTIVE_USE_CXX11
 	platform::unique_lock<platform::mutex> lock(m_mutex);
 #endif
 	++m_busy_count;

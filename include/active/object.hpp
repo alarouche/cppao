@@ -7,6 +7,7 @@
 
 #include <active/config.hpp>
 #include "fifo.hpp"
+#include "atomic_node.hpp"
 
 #ifdef ACTIVE_USE_CXX11
 	#define RVALUE_REF(T) T&&
@@ -71,14 +72,13 @@ namespace active
 	}
 
 	// Interface of all active objects.
-	struct any_object
+	struct any_object : public atomic_node
 	{
 		virtual ~any_object();
 		virtual void run() throw()=0;
 		virtual bool run_some(int n=100) throw()=0;
 		virtual void exception_handler() throw();
 		virtual bool idle() throw()=0;
-		any_object * m_next;
 	};
 
 	class scheduler;
