@@ -89,6 +89,7 @@ class synchronize
 	std::condition_variable m_ready;
 	int m_busy_count;
 public:
+    synchronize() : m_busy_count(0) { }
 	void start()
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);

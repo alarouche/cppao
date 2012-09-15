@@ -1,5 +1,10 @@
+if( ACTIVE_USE_CXX11 )
+    set( ATOMIC_SOURCES atomic.cpp )
+else()
+    set( ATOMIC_SOURCES )
+endif()
 
-add_library( cppao active_object.cpp atomic.cpp
+add_library( cppao active_object.cpp ${ATOMIC_SOURCES}
 	../include/active/advanced.hpp
 	../include/active/atomic_node.hpp
 	../include/active/atomic_fifo.hpp
