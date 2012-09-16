@@ -1,7 +1,9 @@
 #ifndef ACTIVE_DIRECT_INCLUDED
 #define ACTIVE_DIRECT_INCLUDED
 
+#ifndef ACTIVE_OBJECT_INCLUDED
 #include "object.hpp"
+#endif
 
 namespace active
 {

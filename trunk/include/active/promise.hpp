@@ -3,6 +3,7 @@
 #define ACTIVE_PROMISE_INCLUDED
 
 #include "direct.hpp"
+#include "sink.hpp"
 
 #ifdef ACTIVE_USE_BOOST
 	#include <boost/thread/future.hpp>

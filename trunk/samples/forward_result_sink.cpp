@@ -1,4 +1,5 @@
 #include <active/object.hpp>
+#include <active/sink.hpp>
 #include <iostream>
 
 class ComplexComputation : public active::object<ComplexComputation>
