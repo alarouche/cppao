@@ -1,4 +1,5 @@
 #include <active/advanced.hpp>
+#include <active/sink.hpp>
 #include <iostream>
 
 /* The "advanced" object type offers more features.

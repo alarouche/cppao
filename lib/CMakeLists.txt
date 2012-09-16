@@ -17,6 +17,7 @@ add_library( cppao active_object.cpp ${ATOMIC_SOURCES}
 	../include/active/scheduler.hpp
 	../include/active/shared.hpp
 	../include/active/promise.hpp
+	../include/active/sink.hpp
 	../include/active/synchronous.hpp
 	../include/active/thread.hpp )
 

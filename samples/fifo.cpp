@@ -1,5 +1,6 @@
 #include <active/object.hpp>
 #include <active/synchronous.hpp>
+#include <active/sink.hpp>
 
 #include <iostream>
 #include <deque>

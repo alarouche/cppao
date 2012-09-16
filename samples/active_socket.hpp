@@ -3,6 +3,7 @@
 #define ACTIVE_SOCKET_INCLUDED
 
 #include <active/shared.hpp>
+#include <active/sink.hpp>
 
 #include <list>
 
