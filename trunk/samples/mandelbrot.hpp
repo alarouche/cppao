@@ -1,4 +1,5 @@
 #include <active/shared.hpp>
+#include <active/sink.hpp>
 #include <vector>
 
 namespace mb
