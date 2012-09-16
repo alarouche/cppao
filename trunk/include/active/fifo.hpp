@@ -40,8 +40,6 @@ namespace active
 			}
 		}
 
-		// !! && version
-
 		template<typename U>
 		void push(const U&u)
 		{

@@ -115,23 +115,68 @@ void test_not_inline()
 }
 
 struct msg {};
+struct msg2 {};
 
-struct sink_obj : public active::object<sink_obj>, public active::sink<msg>
+struct sink_obj :
+    public active::object<sink_obj>,
+    public active::handle<sink_obj>,
+    public active::handle<sink_obj,msg>,
+    public active::handle<sink_obj,int,msg>,
+    public active::handle<sink_obj,int,msg,msg2>,
+    public active::handle<sink_obj,int,msg,const char*,msg2>,
+    public active::handle<sink_obj,int,msg,const char*,msg2,double>
 {
-	int called; // =0;
+    int called;
 	sink_obj() : called(0) {}
-	void send(msg)
+
+    void active_method()
+    {
+        ++called;
+    }
+
+    void active_method(msg)
 	{
 		++called;
 	}
+
+    void active_method(int v,msg)
+    {
+        assert(v==1);
+        ++called;
+    }
+
+    void active_method(int v,msg,msg2)
+    {
+        assert(v==1);
+        ++called;
+    }
+
+    void active_method(int v,msg,const char*m,msg2)
+    {
+        assert(v==1);
+        assert( strcmp(m,"abc")==0 );
+        ++called;
+    }
+
+    void active_method(int v,msg,const char*,msg2,double d)
+    {
+        assert(v==1);
+        assert(d==2.0);
+        ++called;
+    }
 };
 
 void test_sink()
 {
 	sink_obj obj;
-	obj.send(msg());
-	active::run();
-	assert( obj.called==1 );
+    static_cast<active::sink<>&>(obj).send();
+    static_cast<active::sink<msg>&>(obj).send(msg());
+    static_cast<active::sink<int,msg>&>(obj).send(1,msg());
+    static_cast<active::sink<int,msg,msg2>&>(obj).send(1,msg(),msg2());
+    static_cast<active::sink<int,msg,const char*,msg2>&>(obj).send(1,msg(),"abc",msg2());
+    static_cast<active::sink<int,msg,const char*,msg2,double>&>(obj).send(1,msg(),"abc",msg2(),2.0);
+    active::run();
+    assert( obj.called==6 );
 };
 
 struct variadic_object : public active::object<variadic_object>
@@ -1017,7 +1062,6 @@ void test_advanced_queue_limit()
 
 }
 
-struct msg2{};
 struct msg3{};
 namespace active
 {
