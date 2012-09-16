@@ -618,8 +618,29 @@ namespace active
 		threads m_threads;
 	};
 
-	template<typename T>
+#ifdef ACTIVE_USE_VARIADIC_TEMPLATES
+	template<typename Args...>
 	struct sink
+	{
+		typedef platform::shared_ptr<sink<Args...> > sp;
+		typedef platform::weak_ptr<sink<Args...> > wp;
+		virtual void send(Args...)=0;
+	};
+
+	template<typename Derived, typename Args...>
+	struct handle : public sink<Args...>
+	{
+		void send(Args... args) { static_cast<Derived&>(*this)(args); }
+	};
+#else
+	template<typename A1=void, typename A2=void, typename A3=void,typename A4=void, typename A5=void>
+	struct sink;
+
+	template<typename Derived, typename A1=void, typename A2=void, typename A3=void,typename A4=void, typename A5=void>
+	struct handle;
+	
+	template<typename T>
+	struct sink<T,void,void,void,void>
 	{
 		typedef platform::shared_ptr<sink<T> > sp;
 		typedef platform::weak_ptr<sink<T> > wp;
@@ -628,10 +649,12 @@ namespace active
 	};
 
 	template<typename Derived, typename T>
-	struct handle : public sink<T>
+	struct handle<Derived,T,void,void,void,void> : public sink<T,void,void,void,void>
 	{
 		void send(T value) { static_cast<Derived&>(*this)(value); }
 	};
+#endif
+	
 } // namespace active
 
 

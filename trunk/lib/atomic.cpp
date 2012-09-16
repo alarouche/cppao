@@ -20,6 +20,30 @@
 namespace
 {
 	active::atomic_node busy = { (active::atomic_node*)(-1) };
+	
+	template<typename T>
+	T acquire(std::atomic<T> & value, const T busy)
+	{
+		T v;
+		int spin_count=2000;
+		for(;;)
+		{
+			v = value.exchange(busy, std::memory_order_acquire);
+			if(v!=busy) return v;
+			else if(--spin_count==0)
+			{
+				// Yield
+				std::this_thread::sleep_for(std::chrono::seconds(0));
+				spin_count=2000;
+			}
+		}
+	}
+
+	template<typename T>
+	void release(std::atomic<T> & value, const T new_value)
+	{
+		value.store(new_value, std::memory_order_release);
+	}
 }
 
 active::atomic_fifo::atomic_fifo() : input_queue(nullptr), output_queue(nullptr)
@@ -39,60 +63,38 @@ void active::atomic_fifo::push(atomic_node*n)
 
 active::atomic_node * active::atomic_fifo::pop()
 {
-	atomic_node * t;
-	int spin_count=2000;
-	for(;;)
+	atomic_node * t = acquire(output_queue, &busy);
+	
+	if( t==nullptr )
 	{
-		t=output_queue.load( std::memory_order_acquire);
-		if( t==&busy )
+		// Output queue is empty, so
+		// reverse input_queue and assign it to output_queue
+		
+		atomic_node * old_input = input_queue.exchange(nullptr, std::memory_order_relaxed);
+		atomic_node * result = nullptr;
+		atomic_node * new_output = nullptr;
+		if(old_input!=nullptr)
 		{
-			if(!spin_count--)
+			result = old_input;
+			for(atomic_node * n=old_input; n!=nullptr; )
 			{
-				// Some C++11 does not support yield() yet
-				std::this_thread::sleep_for(std::chrono::seconds(0));
-				spin_count=2000;
-			}
-		}
-		else if( t==nullptr )
-		{
-			if( output_queue.compare_exchange_weak( t, &busy, std::memory_order_relaxed ) )
-			{
-				atomic_node * old_input = input_queue.exchange(nullptr, std::memory_order_relaxed);
-				atomic_node * result = nullptr;
-				atomic_node * new_output = nullptr;
-				if(old_input!=nullptr)
+				if( n->next )
 				{
-					result = old_input;
-					for(atomic_node * n=old_input; n!=nullptr; )
-					{
-						if( n->next )
-						{
-							result=n->next;
-							n->next = new_output;
-							new_output=n;
-							n=result;
-						}
-						else break;
-					}
+					result=n->next;
+					n->next = new_output;
+					new_output=n;
+					n=result;
 				}
-				output_queue.store( new_output, std::memory_order_release );
-				return result;
+				else break;
 			}
 		}
-		else
-		{
-			atomic_node * old_output = output_queue.exchange( &busy, std::memory_order_relaxed );
-			
-			if( old_output != &busy )
-			{
-				atomic_node * result = old_output;
-				if(result)
-					output_queue.store( result->next, std::memory_order_release );
-				else
-					output_queue.store( nullptr, std::memory_order_release );
-				return result;
-			}
-		}
+		release(output_queue, new_output);
+		return result;
+	}
+	else
+	{
+		release(output_queue, t?t->next:nullptr);
+		return t;
 	}
 }
 
@@ -100,41 +102,15 @@ active::atomic_lifo::atomic_lifo() : list(nullptr) { }
 
 void active::atomic_lifo::push(atomic_node * n)
 {
-	atomic_node * l;
-	int spin_count=2000;
-	do {
-		l = list.load(); // std::memory_order_relaxed);
-		if( l==&busy )
-		{
-			if( --spin_count==0)
-			{
-				std::this_thread::sleep_for(std::chrono::seconds(0));
-				spin_count=2000;
-			}
-		}
-		else
-			n->next = l;
-	} while ( l==&busy || !list.compare_exchange_weak( l, n ) ); // , std::memory_order_relaxed ) );
+	n->next=acquire(list,&busy);
+	release(list,n);	
 }
 
 active::atomic_node * active::atomic_lifo::pop()
 {
-	int spin_count=2000;
-	atomic_node * l;
-	do
-	{
-		l=list.exchange(&busy);
-		if( l==&busy &&--spin_count==0 )
-		{
-			std::this_thread::sleep_for(std::chrono::seconds(0));
-			spin_count=2000;
-		}
-	} while ( l==&busy );
-	
-	assert(l!=&busy);
-	
-	list.store(l ? l->next : nullptr); // , std::memory_order_relaxed);
-	return l;
+	atomic_node * n = acquire(list,&busy);
+	release(list,n?n->next:nullptr);
+	return n;
 }
 
 
