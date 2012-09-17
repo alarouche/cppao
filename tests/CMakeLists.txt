@@ -9,7 +9,7 @@ add_executable( bench bench.cpp )
 add_test( bench bench 50000 )
 target_link_libraries( bench cppao ${EXTRA_LIBS} )
 
-add_executable( bench2 bench.cpp )
+add_executable( bench2 bench2.cpp )
 add_test( bench2 bench2 quick )
 target_link_libraries( bench2 cppao ${EXTRA_LIBS} )
 
