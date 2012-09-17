@@ -23,7 +23,6 @@ include_directories( ${CMAKE_CURRENT_BINARY_DIR}/include include ${Boost_INCLUDE
 add_subdirectory( lib )
 add_subdirectory( tests )
 add_subdirectory( samples )
-add_subdirectory( bench )
 
 install(DIRECTORY include/active DESTINATION include)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/active/config.hpp DESTINATION include/active)

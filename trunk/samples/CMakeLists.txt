@@ -26,12 +26,6 @@ add_test( future future )
 add_executable( life life.cpp life.hpp )
 add_test( life life )
 
-add_executable( bench bench.cpp )
-add_test( bench bench 20000 )
-
-add_executable( bench_fib bench_fib.cpp )
-add_test( bench_fib bench_fib 25 )
-
 add_executable( exception exception.cpp )
 add_test( exception exception )
 
@@ -95,9 +89,6 @@ if( ACTIVE_USE_CXX11 )
 
 	add_executable( future_lambda future_lambda.cpp )
 	add_test( future_lambda future_lambda )
-
-	add_executable( bench_lambda bench_lambda.cpp )
-	add_test( bench_lambda bench_lambda 50000 )
 
 	add_executable( sieve_lambda sieve_lambda.cpp )
 	add_test( sieve_lambda sieve_lambda 1000 )
