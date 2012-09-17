@@ -141,6 +141,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\lib\active_object.cpp" />
+    <ClCompile Include="..\..\lib\atomic.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\active\advanced.hpp" />
