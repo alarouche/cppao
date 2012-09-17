@@ -4,25 +4,27 @@
 #include <cassert>
 
 /*  Experimentation with lock-free FIFO.  C++11.
- This example uses two linked lists, one for the input, and one for the output.
+	This example uses two linked lists, one for the input, and one for the output.
  
- A push() is completely lock/wait-free, because it does a standard slist push
- onto input_queue.
+	A push() is completely lock/wait-free, because it does a standard slist push
+	onto input_queue.
  
- A pop() is lock-free but not wait-free. If the output_queue is busy, then it must
- spin-wait. If the output_queue is empty, then pop() sets output_queue to busy,
- then transfer the input_queue to the output_queue.
+	A pop() is lock-free but not wait-free. If the output_queue is busy, then it must
+	spin-wait. If the output_queue is empty, then pop() sets output_queue to busy,
+	then transfer the input_queue to the output_queue.
  
- ABA problem is avoided because of the two exchanges in pop().
+	ABA problem is avoided because of acquire/release mechanism.
  */
 
 
 namespace
 {
-	active::atomic_node busy = { (active::atomic_node*)(-1) };
+	// Special node which indicates that we are busy.
+	active::atomic_node busy;
 	
+	// Set the value to busy and return its previous value.
 	template<typename T>
-	T acquire(std::atomic<T> & value, const T busy)
+	T acquire(std::atomic<T> & value, T busy)
 	{
 		T v;
 		int spin_count=2000;
@@ -39,8 +41,9 @@ namespace
 		}
 	}
 
+	// Set the new value of an atomic.
 	template<typename T>
-	void release(std::atomic<T> & value, const T new_value)
+	void release(std::atomic<T> & value, T new_value)
 	{
 		value.store(new_value, std::memory_order_release);
 	}
@@ -55,10 +58,10 @@ void active::atomic_fifo::push(atomic_node*n)
 	atomic_node * i;
 	do
 	{
-		i = input_queue.load( std::memory_order_relaxed);
+		i = input_queue.load(std::memory_order_relaxed);
 		n->next = i;
 	}
-	while( !input_queue.compare_exchange_weak( i, n, std::memory_order_relaxed) );
+	while( !input_queue.compare_exchange_weak(i, n, std::memory_order_relaxed) );
 }
 
 active::atomic_node * active::atomic_fifo::pop()
@@ -76,14 +79,14 @@ active::atomic_node * active::atomic_fifo::pop()
 		if(old_input!=nullptr)
 		{
 			result = old_input;
-			for(atomic_node * n=old_input; n!=nullptr; )
+			for(atomic_node * n=old_input; n!=nullptr;)
 			{
 				if( n->next )
 				{
-					result=n->next;
+					result = n->next;
 					n->next = new_output;
-					new_output=n;
-					n=result;
+					new_output = n;
+					n = result;
 				}
 				else break;
 			}
@@ -112,6 +115,3 @@ active::atomic_node * active::atomic_lifo::pop()
 	release(list,n?n->next:nullptr);
 	return n;
 }
-
-
-
