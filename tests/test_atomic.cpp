@@ -1,3 +1,4 @@
+#undef NDEBUG
 #include <active/atomic_fifo.hpp>
 #include <active/atomic_lifo.hpp>
 

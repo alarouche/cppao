@@ -681,6 +681,7 @@ namespace fifo
 			sink(int capacity) : m_total(0)
 			{
 				set_capacity(capacity);
+				set_queue_policy(active::policy::block);
 			}
 			
 			void active_method(int i)
