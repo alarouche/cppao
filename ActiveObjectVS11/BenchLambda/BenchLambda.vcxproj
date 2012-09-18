@@ -146,12 +146,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\samples\bench_lambda.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\Lib\Lib.vcxproj">
       <Project>{ece37b9a-7d64-99e0-9183-99fcfcd6e431}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\tests\bench_lambda.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
