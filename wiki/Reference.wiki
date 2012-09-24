@@ -9,7 +9,7 @@
 || `active/promise.hpp` || || [#active::promise promise], [#active::wait wait] ||
 || `active/scheduler.hpp` || || [#active::scheduler scheduler] ||
 || `active/shared.hpp` || Additional support for shared pointers. || [#active::shared shared] ||
-|| `active/sink.hpp` || Interface classes for AO. || [#active::handle handle], [#active::sink sink] ||
+|| `active/sink.hpp` || Interface classes for AOs. || [#active::handle handle], [#active::sink sink] ||
 || `active/synchronous.hpp` || || [#active::synchronous synchronous] ||
 || `active/thread.hpp` || Running AOs in a dedicated OS thread. || [#active::thread thread] ||
 
@@ -220,7 +220,7 @@ struct sink
     typedef std::shared_ptr<sink<Args...>> sp;
     typedef std::weak_ptr<sink<Args...>> wp;
 
-    virtual void send(Args......)=0;
+    virtual void send(Args...)=0;
 };
 }}}
 
