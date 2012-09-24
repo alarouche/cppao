@@ -157,6 +157,7 @@ The class `active::sink<>` provides a pure virtual base class which is used to d
 
 {{{
 #include <active/object.hpp>
+#include <active/sink.hpp>
 #include <iostream>
 
 class ComplexComputation : public active::object<ComplexComputation>
@@ -170,7 +171,7 @@ public:
 
 class ComputationHandler :
         public active::object<ComputationHandler>,
-        public active::sink<int>
+        public active::handle<ComputationHandler,int>
 {
 public:
         void active_method(int result)
@@ -188,6 +189,8 @@ int main()
         active::run();
 }
 }}}
+
+Notice that we must `#include <active/sink.hpp>`, pass an interface of type `active::sink<>` to the computation, and implement the callback by inheriting from `active::handle<>`. `active::sink/handle` are actually variadic, and are just a shorthand for writing a pure virtual base class.
 
 == Approach 4: Use `active::promise` ==
 
