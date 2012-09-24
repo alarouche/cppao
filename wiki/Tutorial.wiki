@@ -300,9 +300,9 @@ The `advanced` object type offers some more facilities than the basic type. Thes
   * Limit the queue size, using `set_capacity()` and `get_capacity()`,
   * Query current queue size,
   * Control the behaviour when the queue gets full using `set_queue_policy()`:
-    * `active::policy::ignore` to deliver the message anyway,
+    * `active::policy::ignore` to deliver the message anyway (the default),
     * `active::policy::fail` to throw std::bad_alloc to the caller,
-    * `active::policy::block` to block the caller until space is available in the queue (the default),
+    * `active::policy::block` to block the caller until space is available in the queue,
     * `active::policy::discard` to discard excess messages.
   * Prioritize calls, so calls are handled in priority order as well as order of receiving.
   * Peek at the next active method using `get_priority()`.
@@ -324,7 +324,7 @@ Active objects guarantee that your program will be thread-safe, if you follow th
   * Ensure all pointers and references are valid: use smart pointers.
   * Avoid blocking calls (e.g. network, `std::future<>::get()`), unless using `active::thread`. Use `active::wait()` when waiting on a promise.
 
-Deadlock cannot occur; what happens is that your program runs out of messages and exits. 
+The beauty of cppao is that deadlock cannot occur - what happens is that your program runs out of messages and exits. (Blocking calls, blocking message queues and futures all reintroduce the possibility of deadlock.)
 
 = Where next? =
 Now you have the tools, it is time to apply them! More examples can be found in the [Samples], and more details are in the [Reference].
