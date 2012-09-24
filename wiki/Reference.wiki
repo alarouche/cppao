@@ -5,10 +5,11 @@
 || `active/advanced.hpp` || Implements a more sophisticated AO type. || [#active::advanced advanced] ||
 || `active/direct.hpp` || Non-mutexed objects. || [#active::direct direct] ||
 || `active/fast.hpp` || || [#active::fast fast] ||
-|| `active/object.hpp` || The main include file, which includes all of the basics. || [#active::basic basic], [#active::default_scheduler default_scheduler], [#active::object object], [#active::policy::queue_full queue_full], [#active::priority priority], [#active::run run], [#active::sink sink] ||
+|| `active/object.hpp` || The main include file, which includes all of the basics. || [#active::basic basic], [#active::default_scheduler default_scheduler], [#active::object object], [#active::policy::queue_full queue_full], [#active::priority priority], [#active::run run] ||
 || `active/promise.hpp` || || [#active::promise promise], [#active::wait wait] ||
 || `active/scheduler.hpp` || || [#active::scheduler scheduler] ||
 || `active/shared.hpp` || Additional support for shared pointers. || [#active::shared shared] ||
+|| `active/sink.hpp` || Interface classes for AO. || [#active::handle handle], [#active::sink sink] ||
 || `active/synchronous.hpp` || || [#active::synchronous synchronous] ||
 || `active/thread.hpp` || Running AOs in a dedicated OS thread. || [#active::thread thread] ||
 
@@ -44,6 +45,19 @@ An object type which eagerly executes in the calling thread where possible.
 {{{
 typedef ... fast;
 }}}
+
+== active::handle ==
+Implements a message handler. Use this as a base class for any object which can be called back on a `active::sink<>` interface.
+
+{{{
+template<typename Derived, typename... Args>
+struct handle : public sink<Args...>
+{
+    void send(Args...);
+};
+}}}
+
+The `Derived` class must provide a compatible `active_method()`.
 
 == active::object ==
 This class is used as a base class for user-defined active objects.
@@ -200,25 +214,19 @@ public:
 Pure virtual base class used to pass messages to an active object. 
 
 {{{
-template<typename T>
+template<typename... Args>
 struct sink
 {
-    typedef T value_type;
-    typedef std::shared_ptr<sink<value_type>> sp;
-    typedef std::weak_ptr<sink<value_type>> wp;
+    typedef std::shared_ptr<sink<Args...>> sp;
+    typedef std::weak_ptr<sink<Args...>> wp;
 
-    virtual void active_method(value_type)=0;
-    virtual ~sink();
-
-    void send(const value_type &msg);
-    void send(value_type && msg);
+    virtual void send(Args......)=0;
 };
 }}}
 
 Methods:
 
-|| `void active_method(value_type)` || Implementation of the active method (in derived class). ||
-|| `void send(...)` || Sends the value (message) to the object, where it will be (eventually) processed by `active_method()`. ||
+|| `void send(Args...)` || Enqueues the active method. ||
 
 == active::synchronous ==
 An object type which is (recursive) mutexed and always executes in the calling thread.
