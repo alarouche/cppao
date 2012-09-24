@@ -37,19 +37,6 @@ A message is sent to each of 1000 nodes, which then pass the message onwards to 
   * Fixed topology/connections between AOs.
   * Running multiple objects concurrently using `active::run()`.
 
-=Thread-ring=
-[http://code.google.com/p/cppao/source/browse/trunk/samples/bench.cpp]
-
-[http://code.google.com/p/cppao/source/browse/trunk/samples/bench_lambda.cpp]
-
-This is a simple (and not really very good) benchmark of multi-threaded performance, from the infamous computer language shootout. [http://shootout.alioth.debian.org/] This is the "thread-ring" benchmark which passes a token around 503 threads. [http://shootout.alioth.debian.org/u32/performance.php?test=threadring]
-
-Demonstrates:
-
-  * A performance metric.
-  * Compares the performance of different AO implementations.
-  * Use of different AO types.
-
 =Forward results=
 [http://code.google.com/p/cppao/source/browse/trunk/samples/forward_result.cpp]
 
