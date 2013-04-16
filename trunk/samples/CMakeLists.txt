@@ -68,6 +68,8 @@ add_executable( echo_server echo_server.cpp )
 add_executable( echo_client echo_client.cpp )
 add_executable( echo echo.cpp )
 
+add_executable( santa santa.cpp )
+
 if( ACTIVE_USE_CXX11 )
 	add_executable( hello_active_lambda hello_active_lambda.cpp )
 	add_test( hello_active_lambda hello_active_lambda )
